@@ -170,8 +170,8 @@ public final class PosterMain {
     String ses = anchor.session == null ? "-" : safe(anchor.session);
     String name = String.format("%d-%s-%s-%s-%s-%s.http",
         anchor.tsFirst, anchor.tid, ses, safeHost,
-        (req!=null? safeOr(req.method,"-"):"REQ"),
-        (rsp!=null? safeOr(rsp.status,"-"):"RSP"));
+        (req!=null? safeOr(req.method,"REQ"):"REQ"),
+        (rsp!=null? safeOr(rsp.status,"RSP"):"RSP"));
     Path out = outDir.resolve(name);
 
     try (OutputStream fos = Files.newOutputStream(out, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -467,4 +467,5 @@ public final class PosterMain {
   private static String req(Map<String,String> m, String k){ String v=m.get(k); if (v==null) throw new IllegalArgumentException("Missing "+k); return v; }
   private static int intOpt(Map<String,String> m, String k, int def){ try { return Integer.parseInt(m.getOrDefault(k, String.valueOf(def))); } catch(Exception e){ return def; } }
 }
+
 
