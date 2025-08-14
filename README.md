@@ -12,7 +12,7 @@ java -Xms256m -Xmx1g -XX:+UseG1GC -cp "lib/*:out" sniffer.capture.CaptureMain \
 # tool to look for a needle in the haystack.  you can confirm you saw something in the capture out before proceeding
 ##
 #java -cp "lib/*:out" sniffer.tools.SegbinGrep in=/data/prot/queue/cap-out \
-#  needle=c3f2927d-e1bb-4a74-93ea-d1cae5786d28 ctx=48
+#  needle=<string to look for - needle in the haystack> ctx=48
 
 
 ##
