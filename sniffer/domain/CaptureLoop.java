@@ -1,9 +1,9 @@
-package sniffer.domain;
+﻿package sniffer.domain;
 
+import sniffer.domain.tn3270.Tn3270Assembler;
 import sniffer.spi.Pcap;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -15,9 +15,9 @@ public final class CaptureLoop {
   private final PacketSink sink;
   private final boolean showHeaders;
 
-  private final SegmentSink segmentSink;
   private final HttpAssembler httpAsm;
   private final SessionIdExtractor sessionExtractor;
+  private final Tn3270Assembler tn3270Asm;
 
   private final ConcurrentMap<FlowKey, FlowDir> flowDirs = new ConcurrentHashMap<>();
 
@@ -26,24 +26,28 @@ public final class CaptureLoop {
     void onUdp(long tsMicros, String src, int sport, String dst, int dport);
   }
 
-  public CaptureLoop(Pcap pcap, PacketSink sink, boolean showHeaders){
-    this.pcap = pcap; this.sink = sink; this.showHeaders = showHeaders;
-    try {
-      this.segmentSink = new SegmentSink(SegmentSink.Config.hourlyGiB(Paths.get("out")));
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to initialize SegmentSink", e);
+  public CaptureLoop(Pcap pcap, PacketSink sink, boolean showHeaders,
+                     SegmentSink httpSink, SegmentSink tnSink){
+    this.pcap = pcap;
+    this.sink = sink;
+    this.showHeaders = showHeaders;
+
+    if (httpSink != null) {
+      this.sessionExtractor = new SessionIdExtractor(
+          java.util.List.of("JSESSIONID","SESSIONID","PHPSESSID","ASP.NET_SessionId"),
+          java.util.List.of("Authorization\\s*:\\s*Bearer\\s+(\\S+)")
+      );
+      this.httpAsm = new HttpAssembler((HttpStreamSink) httpSink, sessionExtractor);
+    } else {
+      this.sessionExtractor = null;
+      this.httpAsm = null;
     }
-    this.sessionExtractor = new SessionIdExtractor(
-        java.util.List.of("JSESSIONID","SESSIONID","PHPSESSID","ASP.NET_SessionId"),
-        java.util.List.of("Authorization\\s*:\\s*Bearer\\s+(\\S+)")
-    );
-    
-    this.httpAsm = new HttpAssembler((HttpStreamSink) segmentSink, sessionExtractor);
+
+    this.tn3270Asm = (tnSink != null) ? new Tn3270Assembler(tnSink) : null;
   }
 
   public void runForever(String iface, int bufMb, int snap, int timeoutMs, String bpf) throws Exception {
-    try (var h = pcap.openLive(iface, snap, true, timeoutMs, bufMb*1024*1024, true);
-         segmentSink) {
+    try (var h = pcap.openLive(iface, snap, true, timeoutMs, bufMb * 1024 * 1024, true)) {
       if (bpf != null && !bpf.isEmpty()) h.setFilter(bpf);
       while (h.next((tsMicros, data, caplen) -> handle(tsMicros, data, caplen))) { /* loop */ }
     }
@@ -103,14 +107,22 @@ public final class CaptureLoop {
 
       final int payloadLen = caplen - pay;
       if (payloadLen > 0) {
-        httpAsm.onTcpSegment(tsMicros,
-            ip(srcIpBE), sport, ip(dstIpBE), dport,
-            seq, fromClient, pkt, pay, payloadLen, fin);
+        if (httpAsm != null) {
+          httpAsm.onTcpSegment(tsMicros,
+              ip(srcIpBE), sport, ip(dstIpBE), dport,
+              seq, fromClient, pkt, pay, payloadLen, fin);
+        }
+
+        if (tn3270Asm != null) {
+          tn3270Asm.onTcpSegment(tsMicros,
+              ip(srcIpBE), sport, ip(dstIpBE), dport,
+              seq, fromClient, pkt, pay, payloadLen, fin);
+        }
 
         // Only print if the payload looks like an HTTP first line
         if (looksLikeHttpFirstLine(pkt, pay, payloadLen)) {
           String text = HttpPrinter.firstLineAndMaybeHeaders(pkt, pay, caplen, showHeaders);
-          sink.onHttpLine(tsMicros, "%d TAP %s:%d→%s:%d %s".formatted(
+          sink.onHttpLine(tsMicros, "%d TAP %s:%d�+'%s:%d %s".formatted(
               tsMicros, ip(srcIpBE), sport, ip(dstIpBE), dport, text));
         }
       }

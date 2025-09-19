@@ -1,21 +1,23 @@
-package sniffer.assemble;
+﻿package sniffer.assemble;
 
 import sniffer.domain.HttpAssembler;
 import sniffer.domain.HttpStreamSink;
 import sniffer.domain.SegmentSink;
 import sniffer.domain.SessionIdExtractor;
+import sniffer.domain.tn3270.Tn3270Assembler;
 import sniffer.pipe.SegmentIO;
 import sniffer.pipe.SegmentRecord;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** JVM #2: read *.segbin files and feed HttpAssembler. */
+/** JVM #2: read *.segbin files and feed assemblers. */
 public final class AssembleMain {
 
   private static final DateTimeFormatter TS = DateTimeFormatter
@@ -41,45 +43,105 @@ public final class AssembleMain {
   }
 
   public static void main(String[] args) throws Exception {
-    Path inDir  = pathArg(args, "in",  "./cap-out");
-    Path outDir = pathArg(args, "out", "./http-out");
-    Files.createDirectories(outDir);
+    Map<String,String> cli = parseArgs(args);
 
-    log("Reading from %s, writing HTTP segments under %s", inDir, outDir);
+    Path inDir  = Paths.get(cli.getOrDefault("in", "./cap-out"));
 
-    HttpStreamSink sink = new SegmentSink(SegmentSink.Config.hourlyGiB(outDir));
+    boolean httpEnabled = parseBool(cli.getOrDefault("httpEnabled", "true"));
+    boolean tnEnabled = parseBool(cli.getOrDefault("tnEnabled", "true"));
 
-    // SessionIdExtractor is a final class with (Collection<String>, Collection<String>) ctor.
-    // Pass empty lists for now (no-op extraction). You can wire real keys later.
-    SessionIdExtractor sx = new SessionIdExtractor(
-        java.util.Collections.emptyList(),
-        java.util.Collections.emptyList()
-    );
+    Path httpOut = null;
+    if (httpEnabled) {
+      String httpPath = cli.containsKey("httpOut") ? cli.get("httpOut") : cli.getOrDefault("out", "./http-out");
+      if (httpPath != null && !httpPath.isBlank()) {
+        httpOut = Paths.get(httpPath);
+      } else {
+        httpEnabled = false;
+      }
+    }
 
-    HttpAssembler asm = new HttpAssembler(sink, sx);
-    DirBook dirs = new DirBook();
+    Path tnOut = null;
+    if (tnEnabled) {
+      String tnPath = cli.getOrDefault("tnOut", "./tn3270-out");
+      if (tnPath != null && !tnPath.isBlank()) {
+        tnOut = Paths.get(tnPath);
+      } else {
+        tnEnabled = false;
+      }
+    }
 
-    int total=0;
+    log("Config in=%s httpEnabled=%s httpOut=%s tnEnabled=%s tnOut=%s",
+        inDir, httpEnabled, httpOut, tnEnabled, tnOut);
+
+    SegmentSink httpSink = null;
+    SegmentSink tnSink = null;
     try (SegmentIO.Reader reader = new SegmentIO.Reader(inDir)) {
+      if (httpEnabled && httpOut != null) {
+        httpSink = new SegmentSink(SegmentSink.Config.hourlyGiB(httpOut));
+      }
+      if (tnEnabled && tnOut != null) {
+        tnSink = new SegmentSink(SegmentSink.Config.hourlyGiB(tnOut));
+      }
+
+      SessionIdExtractor sx = (httpSink != null)
+          ? new SessionIdExtractor(java.util.Collections.emptyList(), java.util.Collections.emptyList())
+          : null;
+
+      HttpAssembler httpAsm = (httpSink != null) ? new HttpAssembler((HttpStreamSink) httpSink, sx) : null;
+      Tn3270Assembler tn3270Asm = (tnSink != null) ? new Tn3270Assembler(tnSink) : null;
+      DirBook dirs = new DirBook();
+
+      int total = 0;
       for (;;) {
         SegmentRecord r = reader.next();
         if (r == null) break;
         boolean fromClient = dirs.fromClient(r);
-        asm.onTcpSegment(
-            r.tsMicros, r.src, r.sport, r.dst, r.dport,
-            r.seq, fromClient, r.payload!=null?r.payload:new byte[0], 0, r.len,
-            (r.flags & SegmentRecord.FIN) != 0
-        );
+        byte[] payload = (r.payload != null) ? r.payload : new byte[0];
+        int len = r.len;
+        boolean fin = (r.flags & SegmentRecord.FIN) != 0;
+
+        if (httpAsm != null) {
+          httpAsm.onTcpSegment(
+              r.tsMicros, r.src, r.sport, r.dst, r.dport,
+              r.seq, fromClient, payload, 0, len, fin
+          );
+        }
+
+        if (tn3270Asm != null) {
+          tn3270Asm.onTcpSegment(
+              r.tsMicros, r.src, r.sport, r.dst, r.dport,
+              r.seq, fromClient, payload, 0, len, fin
+          );
+        }
+
         total++;
         if ((total & 0xFFFF) == 0) log("Processed %,d segments", total);
       }
+
+      log("Done. Total segments processed: %,d", total);
+    } finally {
+      if (httpSink != null) {
+        try { httpSink.close(); } catch (Exception ignore) { }
+      }
+      if (tnSink != null) {
+        try { tnSink.close(); } catch (Exception ignore) { }
+      }
     }
-    log("Done. Total segments processed: %,d", total);
   }
 
-  private static Path pathArg(String[] args, String key, String def){
-    for (String a: args){ int i=a.indexOf('='); if (i>0 && a.substring(0,i).equals(key)) return Path.of(a.substring(i+1)); }
-    return Path.of(def);
+  private static Map<String,String> parseArgs(String[] args) {
+    Map<String,String> m = new HashMap<>();
+    for (String a : args) {
+      int idx = a.indexOf('=');
+      if (idx > 0) {
+        m.put(a.substring(0, idx), a.substring(idx + 1));
+      }
+    }
+    return m;
+  }
+
+  private static boolean parseBool(String v) {
+    return v != null && Boolean.parseBoolean(v);
   }
 
   private static void log(String fmt, Object... args){
@@ -88,3 +150,4 @@ public final class AssembleMain {
 
   private AssembleMain() {}
 }
+

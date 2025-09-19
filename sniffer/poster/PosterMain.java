@@ -1,4 +1,4 @@
-package sniffer.poster;
+﻿package sniffer.poster;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +29,7 @@ public final class PosterMain {
   // ---------- Data model ----------
   static final class Part {
     final String tid, dir;
+    final String kind;
     final String hdrBlob, bodyBlob;
     final long hdrOff, hdrLen, bodyOff, bodyLen;
     final String method, host, path, status;
@@ -37,13 +38,13 @@ public final class PosterMain {
     final long tsFirst, tsLast;
     final String session;
 
-    Part(String tid, String dir,
+    Part(String tid, String dir, String kind,
          String hdrBlob, String bodyBlob,
          long hdrOff, long hdrLen, long bodyOff, long bodyLen,
          String method, String host, String path, String status,
          String xferEnc, String contentEnc, String contentType,
          String a, int ap, String b, int bp, long tsFirst, long tsLast, String session) {
-      this.tid=tid; this.dir=dir;
+      this.tid=tid; this.dir=dir; this.kind=kind;
       this.hdrBlob=hdrBlob; this.bodyBlob=bodyBlob;
       this.hdrOff=hdrOff; this.hdrLen=hdrLen; this.bodyOff=bodyOff; this.bodyLen=bodyLen;
       this.method=method; this.host=host; this.path=path; this.status=status;
@@ -56,39 +57,156 @@ public final class PosterMain {
     void add(Part p){ if ("REQ".equals(p.dir)) req=p; else rsp=p; }
   }
 
-  // ---------- Main ----------
-  public static void main(String[] args) throws Exception {
-    Map<String,String> cli = parseArgs(args);
-    Path inDir  = Paths.get(req(cli, "--in"));
-    Path outDir = Paths.get(req(cli, "--out"));
-    int  workers = intOpt(cli, "--workers", DEF_WORKERS);
-    String decode = cli.getOrDefault("--decode", DEF_DECODE); // none|transfer|all
-    int  maxOpen = intOpt(cli, "--maxOpenBlobs", DEF_MAX_OPENBLOBS);
-    int  maxInflight = intOpt(cli, "--maxInflightTids", DEF_MAX_INFLIGHT);
-    String indexGlob = cli.getOrDefault("--indexGlob", "<auto>");
+  private static final class PosterConfig {
+    final boolean httpEnabled;
+    final boolean tnEnabled;
+    final Path httpIn;
+    final Path httpOut;
+    final Path tnIn;
+    final Path tnOut;
+    final int workers;
+    final String decode;
+    final int maxOpenBlobs;
+    final int maxInflight;
+    final String httpIndexGlob;
+    final String tnIndexGlob;
 
+    private PosterConfig(boolean httpEnabled, boolean tnEnabled,
+                         Path httpIn, Path httpOut,
+                         Path tnIn, Path tnOut,
+                         int workers, String decode,
+                         int maxOpenBlobs, int maxInflight,
+                         String httpIndexGlob, String tnIndexGlob) {
+      this.httpEnabled = httpEnabled;
+      this.tnEnabled = tnEnabled;
+      this.httpIn = httpIn;
+      this.httpOut = httpOut;
+      this.tnIn = tnIn;
+      this.tnOut = tnOut;
+      this.workers = workers;
+      this.decode = decode;
+      this.maxOpenBlobs = maxOpenBlobs;
+      this.maxInflight = maxInflight;
+      this.httpIndexGlob = httpIndexGlob;
+      this.tnIndexGlob = tnIndexGlob;
+    }
+
+    static PosterConfig parse(String[] args) {
+      Map<String,String> m = new HashMap<>();
+      for (int i = 0; i < args.length; i++) {
+        String a = args[i];
+        if (!a.startsWith("--")) continue;
+        String v = "true";
+        if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+          v = args[++i];
+        }
+        m.put(a, v);
+      }
+
+      String httpInArg = m.get("--httpIn");
+      if (httpInArg == null) httpInArg = m.get("--in");
+      String httpOutArg = m.get("--httpOut");
+      if (httpOutArg == null) httpOutArg = m.get("--out");
+
+      String tnInArg = m.get("--tnIn");
+      String tnOutArg = m.get("--tnOut");
+
+      boolean httpEnabled = boolOpt(m, "--httpEnabled", httpInArg != null || httpOutArg != null);
+      boolean tnEnabled = boolOpt(m, "--tnEnabled", tnInArg != null || tnOutArg != null);
+
+      if (httpEnabled) {
+        if (httpInArg == null) throw new IllegalArgumentException("Missing --httpIn (or legacy --in) for HTTP pipeline");
+        if (httpOutArg == null) throw new IllegalArgumentException("Missing --httpOut (or legacy --out) for HTTP pipeline");
+      } else {
+        httpInArg = null; httpOutArg = null;
+      }
+
+      if (tnEnabled) {
+        if (tnInArg == null) throw new IllegalArgumentException("Missing --tnIn directory for TN3270 pipeline");
+        if (tnOutArg == null) throw new IllegalArgumentException("Missing --tnOut directory for TN3270 pipeline");
+      } else {
+        tnInArg = null; tnOutArg = null;
+      }
+
+      if (!httpEnabled && !tnEnabled) {
+        throw new IllegalArgumentException("Enable at least one pipeline (HTTP or TN3270) and provide the corresponding --*In/--*Out directories");
+      }
+
+      int workers = intOpt(m, "--workers", DEF_WORKERS);
+      String decode = m.getOrDefault("--decode", DEF_DECODE);
+      int maxOpen = intOpt(m, "--maxOpenBlobs", DEF_MAX_OPENBLOBS);
+      int maxInflight = intOpt(m, "--maxInflightTids", DEF_MAX_INFLIGHT);
+      String httpGlob = m.getOrDefault("--indexGlob", "<auto>");
+      String tnGlob = m.getOrDefault("--tnIndexGlob", "<auto>");
+
+      Path httpIn = httpEnabled ? toPath("--httpIn", httpInArg) : null;
+      Path httpOut = httpEnabled ? toPath("--httpOut", httpOutArg) : null;
+      Path tnIn = tnEnabled ? toPath("--tnIn", tnInArg) : null;
+      Path tnOut = tnEnabled ? toPath("--tnOut", tnOutArg) : null;
+
+      return new PosterConfig(httpEnabled, tnEnabled,
+          httpIn, httpOut,
+          tnIn, tnOut,
+          workers, decode,
+          maxOpen, maxInflight,
+          httpGlob, tnGlob);
+    }
+
+
+    private static Path toPath(String label, String value) {
+      try {
+        return Paths.get(value);
+      } catch (Exception ex) {
+        throw new IllegalArgumentException(label + " path is invalid: " + value);
+      }
+    }    private static boolean boolOpt(Map<String,String> m, String key, boolean def) {
+      String v = m.get(key);
+      return (v == null) ? def : Boolean.parseBoolean(v);
+    }
+  }
+  private static final class TnPair {\r\n    Part req; Part rsp;\r\n  }\r\n\r\n  // ---------- Main ----------
+  public static void main(String[] args) throws Exception {
+    PosterConfig cfg = PosterConfig.parse(args);
+    boolean ran = false;
+    if (cfg.httpEnabled) {
+      runHttp(cfg);
+      ran = true;
+    }
+    if (cfg.tnEnabled) {
+      runTn(cfg);
+      ran = true;
+    }
+    if (!ran) {
+      System.err.println("PosterMain: nothing to do (both HTTP and TN3270 pipelines disabled)");
+    }
+  }
+  private static void runHttp(PosterConfig cfg) throws Exception {
+    Path inDir = cfg.httpIn;
+    Path outDir = cfg.httpOut;
     Files.createDirectories(outDir);
 
-    System.out.printf("%s POST Config in=%s out=%s workers=%d decode=%s maxOpenBlobs=%d indexGlob=%s%n",
-        Util.tsNow(), inDir, outDir, workers, decode, maxOpen, indexGlob);
+    System.out.printf("%s POST HTTP Config in=%s out=%s workers=%d decode=%s maxOpenBlobs=%d indexGlob=%s%n",
+        Util.tsNow(), inDir, outDir, cfg.workers, cfg.decode, cfg.maxOpenBlobs, cfg.httpIndexGlob);
 
-    // Pre-scan blobs for fallback logic
     List<Path> allBlobs = listBlobFiles(inDir);
-    final String singleBlobName =
-        (allBlobs.size() == 1 ? allBlobs.get(0).getFileName().toString() : null);
+    final String singleBlobName = (allBlobs.size() == 1 ? allBlobs.get(0).getFileName().toString() : null);
 
-    try (BlobStore blobs = new BlobStore(inDir, maxOpen)) {
+    try (BlobStore blobs = new BlobStore(inDir, cfg.maxOpenBlobs)) {
       ExecutorService pool = new ThreadPoolExecutor(
-          workers, workers, 30, TimeUnit.SECONDS,
+          cfg.workers, cfg.workers, 30, TimeUnit.SECONDS,
           new LinkedBlockingQueue<>(),
-          r -> { Thread t = new Thread(r, "poster-worker"); t.setDaemon(true); return t; });
+          r -> {
+            Thread t = new Thread(r, "poster-http-worker");
+            t.setDaemon(true);
+            return t;
+          });
 
-      ConcurrentHashMap<String, Pair> inflight = new ConcurrentHashMap<>(1<<20);
+      ConcurrentHashMap<String, Pair> inflight = new ConcurrentHashMap<>(1 << 20);
       AtomicLong linesSeen = new AtomicLong();
       AtomicLong pairsEmitted = new AtomicLong();
 
-      List<Path> indexFiles = listIndexFiles(inDir, indexGlob);
-      System.out.printf("%s POST Found %d index files%n", Util.tsNow(), indexFiles.size());
+      List<Path> indexFiles = listIndexFiles(inDir, cfg.httpIndexGlob);
+      System.out.printf("%s POST HTTP Found %d index files%n", Util.tsNow(), indexFiles.size());
 
       for (Path idx : indexFiles) {
         final String siblingBlob = deriveSiblingBlobName(inDir, idx, allBlobs, singleBlobName);
@@ -96,67 +214,131 @@ public final class PosterMain {
 
         try (BufferedReader br = Files.newBufferedReader(idx, StandardCharsets.UTF_8)) {
           for (String line; (line = br.readLine()) != null; ) {
-            nLocal++; long n = linesSeen.incrementAndGet();
-            Part p = parseIndexLine(line);
+            nLocal++;
+            long n = linesSeen.incrementAndGet();
+            Part raw = parseIndexLine(line);
+            if (raw == null) continue;
 
+            Part p = resolveBlobsForPart(raw, siblingBlob, singleBlobName);
             if (p == null) continue;
 
-            // Fill in blob names if missing
-            String hb = p.hdrBlob, bb = p.bodyBlob;
-            if ((hb == null || hb.isEmpty()) && (bb == null || bb.isEmpty())) {
-              String use = siblingBlob != null ? siblingBlob : singleBlobName;
-              if (use == null) {
-                if ((nLocal & 1023) == 0) {
-                  System.err.printf("%s POST WARNING: missing blobs and no default; line %,d in %s%n",
-                      Util.tsNow(), nLocal, idx.getFileName());
-                }
-                continue;
-              }
-              p = withBlobs(p, use, use);
-            } else {
-              if (hb == null || hb.isEmpty()) hb = (bb != null ? bb : (siblingBlob != null ? siblingBlob : singleBlobName));
-              if (bb == null || bb.isEmpty()) bb = (hb != null ? hb : (siblingBlob != null ? siblingBlob : singleBlobName));
-              p = withBlobs(p, hb, bb);
-            }
+            Pair slot = inflight.compute(p.tid, (tid, existing) -> {
+              if (existing == null) existing = new Pair();
+              existing.add(p);
+              return existing;
+            });
 
-            // backpressure
-            while (inflight.size() > maxInflight) Thread.sleep(2);
-
-            Pair slot = inflight.computeIfAbsent(p.tid, k -> new Pair());
-            slot.add(p);
             if (slot.req != null && slot.rsp != null) {
               inflight.remove(p.tid, slot);
               pairsEmitted.incrementAndGet();
-              Part reqP = slot.req, rspP = slot.rsp;
-              pool.execute(() -> writeTransaction(blobs, outDir, reqP, rspP, decode));
+              Part reqP = slot.req;
+              Part rspP = slot.rsp;
+              pool.execute(() -> writeTransaction(blobs, outDir, reqP, rspP, cfg.decode));
+            } else {
+              while (inflight.size() > cfg.maxInflight) {
+                try {
+                  Thread.sleep(2);
+                } catch (InterruptedException ie) {
+                  Thread.currentThread().interrupt();
+                  break;
+                }
+              }
             }
 
             if ((n % PROGRESS_EVERY) == 0) {
-              System.out.printf("%s POST Read %,d lines; inflight %,d; written pairs %,d%n",
+              System.out.printf("%s POST HTTP Read %,d lines; inflight %,d; written pairs %,d%n",
                   Util.tsNow(), n, inflight.size(), pairsEmitted.get());
             }
           }
         }
-        System.out.printf("%s POST Scanned %s (%,d lines)%n", Util.tsNow(), idx.getFileName(), nLocal);
+
+        System.out.printf("%s POST HTTP Scanned %s (%,d lines)%n", Util.tsNow(), idx.getFileName(), nLocal);
       }
 
-      // flush leftovers
-      System.out.printf("%s POST Flushing %,d incomplete TIDs...%n", Util.tsNow(), inflight.size());
-      for (Map.Entry<String,Pair> e : inflight.entrySet()) {
-        Pair pr = e.getValue();
-        Part req = pr.req, rsp = pr.rsp;
-        pool.execute(() -> writeTransaction(blobs, outDir, req, rsp, decode));
+      System.out.printf("%s POST HTTP Flushing %,d incomplete TIDs...%n", Util.tsNow(), inflight.size());
+      for (Pair pr : inflight.values()) {
+        Part req = pr.req;
+        Part rsp = pr.rsp;
+        pool.execute(() -> writeTransaction(blobs, outDir, req, rsp, cfg.decode));
       }
 
       pool.shutdown();
       pool.awaitTermination(365, TimeUnit.DAYS);
-      System.out.printf("%s POST Done. Pairs written: %,d  singles: %,d%n",
+      System.out.printf("%s POST HTTP Done. Pairs written: %,d  singles: %,d%n",
           Util.tsNow(), pairsEmitted.get(), Math.max(0, inflight.size()));
     }
   }
+  private static void runTn(PosterConfig cfg) throws Exception {
+    Path inDir = cfg.tnIn;
+    Path outDir = cfg.tnOut;
+    Files.createDirectories(outDir);
 
+    System.out.printf("%s POST TN Config in=%s out=%s maxOpenBlobs=%d indexGlob=%s%n",
+        Util.tsNow(), inDir, outDir, cfg.maxOpenBlobs, cfg.tnIndexGlob);
+
+    List<Path> allBlobs = listBlobFiles(inDir);
+    final String singleBlobName = (allBlobs.size() == 1 ? allBlobs.get(0).getFileName().toString() : null);
+
+    List<Path> indexFiles = listIndexFiles(inDir, cfg.tnIndexGlob);
+    System.out.printf("%s POST TN Found %d index files%n", Util.tsNow(), indexFiles.size());
+
+    try (BlobStore blobs = new BlobStore(inDir, cfg.maxOpenBlobs)) {
+      Map<String, TnPair> pairs = new LinkedHashMap<>();
+      long totalLines = 0;
+
+      for (Path idx : indexFiles) {
+        final String siblingBlob = deriveSiblingBlobName(inDir, idx, allBlobs, singleBlobName);
+        long local = 0;
+
+        try (BufferedReader br = Files.newBufferedReader(idx, StandardCharsets.UTF_8)) {
+          for (String line; (line = br.readLine()) != null; ) {
+            local++;
+            totalLines++;
+            Part raw = parseIndexLine(line);
+            if (raw == null) continue;
+
+            String kindUpper = raw.kind == null ? "" : raw.kind.toUpperCase(Locale.ROOT);
+            if (!kindUpper.contains("TN3270")) continue;
+
+            Part p = resolveBlobsForPart(raw, siblingBlob, singleBlobName);
+            if (p == null) continue;
+
+            TnPair pair = pairs.computeIfAbsent(p.tid, k -> new TnPair());
+            if ("REQ".equals(p.dir)) pair.req = p;
+            else pair.rsp = p;
+          }
+        }
+
+        System.out.printf("%s POST TN Scanned %s (%,d lines)%n", Util.tsNow(), idx.getFileName(), local);
+      }
+
+      System.out.printf("%s POST TN Writing %,d screen pairs (from %,d lines)%n",
+          Util.tsNow(), pairs.size(), totalLines);
+
+      for (Map.Entry<String, TnPair> entry : pairs.entrySet()) {
+        writeTn3270(blobs, outDir, entry.getKey(), entry.getValue().req, entry.getValue().rsp);
+      }
+    }
+  }
+  private static Part resolveBlobsForPart(Part p, String siblingBlob, String singleBlob) {
+    String hb = p.hdrBlob;
+    String bb = p.bodyBlob;
+    if ((hb == null || hb.isEmpty()) && (bb == null || bb.isEmpty())) {
+      String use = siblingBlob != null ? siblingBlob : singleBlob;
+      if (use == null) return null;
+      return withBlobs(p, use, use);
+    }
+    if (hb == null || hb.isEmpty()) {
+      hb = (bb != null && !bb.isEmpty()) ? bb : (siblingBlob != null ? siblingBlob : singleBlob);
+    }
+    if (bb == null || bb.isEmpty()) {
+      bb = hb;
+    }
+    if (hb == null || bb == null) return null;
+    return withBlobs(p, hb, bb);
+  }
   private static Part withBlobs(Part p, String hdrBlob, String bodyBlob){
-    return new Part(p.tid, p.dir,
+    return new Part(p.tid, p.dir, p.kind,
         hdrBlob, bodyBlob,
         p.hdrOff, p.hdrLen, p.bodyOff, p.bodyLen,
         p.method, p.host, p.path, p.status, p.xferEnc, p.contentEnc, p.contentType,
@@ -217,6 +399,59 @@ public final class PosterMain {
     return ipPortMaybe;
   }
 
+  private static void writeTn3270(BlobStore blobs, Path outDir, String tid, Part req, Part rsp) {
+    Part anchor = rsp != null ? rsp : req;
+    if (anchor == null) return;
+
+    String fileName = String.format("%d-%s-%s-to-%s.tn3270",
+        anchor.tsFirst,
+        safe(tid),
+        safeOr(anchor.a, "client"),
+        safeOr(anchor.b, "server"));
+    Path out = outDir.resolve(fileName);
+
+    try (OutputStream fos = Files.newOutputStream(out, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+         BufferedOutputStream bos = new BufferedOutputStream(fos, 1 << 18)) {
+
+      writeLine(bos, String.format("# TN3270 TID=%s", tid));
+      writeLine(bos, String.format("# SRC=%s DST=%s",
+          addr(anchor.a, anchor.ap), addr(anchor.b, anchor.bp)));
+      writeLine(bos, "");
+
+      if (req != null) {
+        writeLine(bos, String.format("# REQUEST tsFirst=%d tsLast=%d",
+            req.tsFirst, req.tsLast));
+        writeBlock("-- TN3270 REQUEST HEADERS --", bos);
+        if (req.hdrOff >= 0 && req.hdrLen > 0) blobs.copyBytes(req.hdrBlob, req.hdrOff, req.hdrLen, bos);
+        else writeLine(bos, "(no headers: invalid offset/length)");
+        writeLine(bos, "");
+        writeBlock("-- TN3270 REQUEST SCREEN --", bos);
+        copyRawBody(blobs, req, bos);
+        writeLine(bos, "");
+      }
+
+      if (rsp != null) {
+        writeLine(bos, String.format("# RESPONSE tsFirst=%d tsLast=%d",
+            rsp.tsFirst, rsp.tsLast));
+        writeBlock("-- TN3270 RESPONSE HEADERS --", bos);
+        if (rsp.hdrOff >= 0 && rsp.hdrLen > 0) blobs.copyBytes(rsp.hdrBlob, rsp.hdrOff, rsp.hdrLen, bos);
+        else writeLine(bos, "(no headers: invalid offset/length)");
+        writeLine(bos, "");
+        writeBlock("-- TN3270 RESPONSE SCREEN --", bos);
+        copyRawBody(blobs, rsp, bos);
+        writeLine(bos, "");
+      }
+
+      bos.flush();
+    } catch (Throwable t) {
+      System.err.printf("%s POST TN ERROR writing %s : %s%n", Util.tsNow(), out.getFileName(), t);
+    }
+  }
+
+  private static void copyRawBody(BlobStore blobs, Part p, OutputStream out) throws IOException {
+    if (p == null || p.bodyBlob == null || p.bodyOff < 0 || p.bodyLen <= 0) return;
+    blobs.copyBytes(p.bodyBlob, p.bodyOff, p.bodyLen, out);
+  }
   private static void streamBody(BlobStore blobs, Part p, String decodeMode, OutputStream out) throws IOException {
     if (p.bodyLen <= 0 || p.bodyOff < 0 || p.bodyBlob == null) return;
     InputStream raw = blobs.openSlice(p.bodyBlob, p.bodyOff, p.bodyLen);
@@ -323,7 +558,8 @@ public final class PosterMain {
   private static Part parseIndexLine(String j){
     String tid = anyString(j, "tid", "txid", "id", "stream_id"); if (tid == null) return null;
     String dirRaw = anyString(j, "dir", "kind", "type", "role", "io"); if (dirRaw == null) return null;
-    String dir = normalizeDir(dirRaw); if (dir == null) return null;
+    String kind = dirRaw.trim();
+    String dir = normalizeDir(kind); if (dir == null) return null;
 
     // Accept separate blobs for headers/body; also handle single "blob"
     String blobSingle = anyString(j, "blob", "blob_file", "blobfile", "blobName", "seg", "segment", "blobname");
@@ -357,16 +593,18 @@ public final class PosterMain {
 
     String session = anyString(j, "session", "sess", "user_session");
 
-    return new Part(tid, dir, hdrBlob, bodyBlob,
+    return new Part(tid, dir, kind, hdrBlob, bodyBlob,
         hdrOff, hdrLen, bodyOff, bodyLen,
         method, host, path, status, xferEnc, contentEnc, contentType,
         a, ap, b, bp, tsFirst, tsLast, session);
   }
 
   private static String normalizeDir(String v){
-    String s = v.trim().toUpperCase(Locale.ROOT);
+    String s = v.trim().toUpperCase(Locale.ROOT).replace('-', '_');
     if (s.equals("REQ") || s.equals("REQUEST") || s.equals("C2S")) return "REQ";
     if (s.equals("RSP") || s.equals("RESPONSE") || s.equals("S2C")) return "RSP";
+    if (s.endsWith("_REQ") || s.endsWith("_REQUEST")) return "REQ";
+    if (s.endsWith("_RSP") || s.endsWith("_RESPONSE")) return "RSP";
     return null;
   }
 
@@ -448,24 +686,38 @@ public final class PosterMain {
   private static String safe(String s){ return s==null? "-" : s.replaceAll("[\\r\\n\\t ]","_"); }
   private static String safeOr(String s, String def){ return s==null? def : safe(s); }
 
-  private static Map<String,String> parseArgs(String[] args){
-    Map<String,String> m = new HashMap<>();
-    for (int i=0;i<args.length;i++){
-      String a = args[i];
-      if (a.startsWith("--")){
-        String v = "true";
-        if (i+1<args.length && !args[i+1].startsWith("--")) v = args[++i];
-        m.put(a, v);
-      }
-    }
-    if (!m.containsKey("--in") || !m.containsKey("--out")) {
-      System.err.println("Usage: PosterMain --in <http-out-dir> --out <poster-out-dir> [--workers N] [--decode none|transfer|all] [--maxOpenBlobs N] [--maxInflightTids N] [--indexGlob <glob>]");
-      System.exit(2);
-    }
-    return m;
+
+  private static void printUsage() {
+    System.err.println("Usage: PosterMain [--httpIn <dir> --httpOut <dir>] [--tnIn <dir> --tnOut <dir>] " +
+        "[--workers N] [--decode none|transfer|all] [--maxOpenBlobs N] [--maxInflightTids N] " +
+        "[--indexGlob <glob>] [--tnIndexGlob <glob>] [--httpEnabled {true|false}] [--tnEnabled {true|false}]");
   }
-  private static String req(Map<String,String> m, String k){ String v=m.get(k); if (v==null) throw new IllegalArgumentException("Missing "+k); return v; }
   private static int intOpt(Map<String,String> m, String k, int def){ try { return Integer.parseInt(m.getOrDefault(k, String.valueOf(def))); } catch(Exception e){ return def; } }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
