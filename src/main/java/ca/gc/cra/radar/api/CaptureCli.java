@@ -3,6 +3,7 @@ package ca.gc.cra.radar.api;
 import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
 import ca.gc.cra.radar.config.CaptureConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.IoMode;
 import java.util.Map;
 
 /**
@@ -27,6 +28,12 @@ public final class CaptureCli {
       return;
     }
 
+    if (captureCfg.ioMode() == IoMode.KAFKA && captureCfg.kafkaBootstrap() == null) {
+      System.err.println("Invalid capture options: kafkaBootstrap is required for Kafka mode");
+      usage();
+      return;
+    }
+
     CompositionRoot root =
         new CompositionRoot(ca.gc.cra.radar.config.Config.defaults(), captureCfg);
     SegmentCaptureUseCase useCase = root.segmentCaptureUseCase();
@@ -35,6 +42,8 @@ public final class CaptureCli {
 
   private static void usage() {
     System.err.println(
-        "usage: iface=<nic> [bufmb=1024 snap=65535 timeout=1 bpf='<expr>' immediate=true promisc=true out=out/segments fileBase=segments rollMiB=1024]");
+        "usage: capture iface=<nic> [bufmb=1024 snap=65535 timeout=1 bpf='<expr>' immediate=true promisc=true] "
+            + "[out=out/segments|out=kafka:<topic>] [ioMode=FILE|KAFKA] "
+            + "[kafkaBootstrap=host:port] [kafkaTopicSegments=radar.segments]");
   }
 }

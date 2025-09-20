@@ -462,9 +462,6 @@ final class SegmentPosterProcessor {
       sb.append('|');
       sb.append(System.lineSeparator());
     }
-    if (escaping) {
-      sb.append('\\');
-    }
     return sb.toString();
   }
 
@@ -751,26 +748,24 @@ final class SegmentPosterProcessor {
       char c = value.charAt(i);
       if (escaping) {
         switch (c) {
-          case '\\"' -> sb.append('"');
-          case '\\\\' -> sb.append('\\');
+          case '"' -> sb.append('"');
+          case '\\' -> sb.append('\\');
           case 'n' -> sb.append('\n');
           case 'r' -> sb.append('\r');
           case 't' -> sb.append('\t');
           default -> sb.append(c);
         }
         escaping = false;
-      } else if (c == '\\\\') {
+      } else if (c == '\\') {
         escaping = true;
       } else {
         sb.append(c);
       }
     }
-    if (escaping) {
-      sb.append('\\');
-    }
     return sb.toString();
   }
 }
+
 
 
 

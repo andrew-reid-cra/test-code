@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 class HttpMessageReconstructorTest {
   @Test
-  void reassemblesRequestWithContentLength() {
+  void reassemblesRequestWithContentLength() throws Exception {
     MessageReconstructor recon = new HttpMessageReconstructor(ClockPort.SYSTEM, MetricsPort.NO_OP);
     recon.onStart();
     FiveTuple flow = new FiveTuple("10.0.0.1", 1234, "10.0.0.2", 80, "TCP");
@@ -40,7 +40,7 @@ class HttpMessageReconstructorTest {
   }
 
   @Test
-  void emitsResponseHeadersWhenNoBodyLength() {
+  void emitsResponseHeadersWhenNoBodyLength() throws Exception {
     MessageReconstructor recon = new HttpMessageReconstructor(ClockPort.SYSTEM, MetricsPort.NO_OP);
     recon.onStart();
     FiveTuple flow = new FiveTuple("10.0.0.2", 80, "10.0.0.1", 1234, "TCP");

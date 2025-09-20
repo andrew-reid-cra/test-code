@@ -14,9 +14,9 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
-import sniffer.spi.Pcap;
-import sniffer.spi.PcapException;
-import sniffer.spi.PcapHandle;
+import ca.gc.cra.radar.infrastructure.capture.libpcap.Pcap;
+import ca.gc.cra.radar.infrastructure.capture.libpcap.PcapException;
+import ca.gc.cra.radar.infrastructure.capture.libpcap.PcapHandle;
 
 class PcapPacketSourceTest {
   @Test
@@ -143,7 +143,7 @@ class PcapPacketSourceTest {
     }
 
     @Override
-    public void setFilter(String bpf) {
+    public void setFilter(String bpf) throws PcapException {
       this.filter = bpf;
     }
 

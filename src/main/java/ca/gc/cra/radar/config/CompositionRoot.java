@@ -12,17 +12,21 @@ import ca.gc.cra.radar.application.port.PersistencePort;
 import ca.gc.cra.radar.application.port.ProtocolDetector;
 import ca.gc.cra.radar.application.port.ProtocolModule;
 import ca.gc.cra.radar.application.port.SegmentPersistencePort;
+import ca.gc.cra.radar.adapter.kafka.HttpKafkaPersistenceAdapter;
+import ca.gc.cra.radar.adapter.kafka.KafkaSegmentReader;
+import ca.gc.cra.radar.adapter.kafka.KafkaSegmentRecordReaderAdapter;
+import ca.gc.cra.radar.adapter.kafka.SegmentKafkaSinkAdapter;
+import ca.gc.cra.radar.adapter.kafka.Tn3270KafkaPersistenceAdapter;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.capture.PcapPacketSource;
 import ca.gc.cra.radar.infrastructure.detect.DefaultProtocolDetector;
 import ca.gc.cra.radar.infrastructure.metrics.NoOpMetricsAdapter;
 import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
 import ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler;
-
 import ca.gc.cra.radar.infrastructure.persistence.NoOpPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapter;
-import ca.gc.cra.radar.infrastructure.persistence.tn3270.Tn3270SegmentSinkPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentFileSinkAdapter;
+import ca.gc.cra.radar.infrastructure.persistence.tn3270.Tn3270SegmentSinkPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.http.HttpMessageReconstructor;
 import ca.gc.cra.radar.infrastructure.protocol.http.HttpPairingEngineAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.http.HttpProtocolModule;
@@ -34,8 +38,8 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -51,8 +55,8 @@ public final class CompositionRoot {
   }
 
   public CompositionRoot(Config config, CaptureConfig captureConfig) {
-    this.config = Objects.requireNonNull(config);
-    this.captureConfig = Objects.requireNonNull(captureConfig);
+    this.config = Objects.requireNonNull(config, "config");
+    this.captureConfig = Objects.requireNonNull(captureConfig, "captureConfig");
   }
 
   public List<ProtocolModule> protocolModules() {
@@ -88,18 +92,20 @@ public final class CompositionRoot {
   }
 
   public AssembleUseCase assembleUseCase(AssembleConfig assembleConfig) {
+    Objects.requireNonNull(assembleConfig, "assembleConfig");
     MetricsPort metricsPort = metrics();
-    Set<ProtocolId> enabled = enabledProtocolsForAssemble(Objects.requireNonNull(assembleConfig, "assembleConfig"));
+    ClockPort clockPort = clock();
+    Set<ProtocolId> enabled = enabledProtocolsForAssemble(assembleConfig);
     return new AssembleUseCase(
         assembleConfig,
         new ReorderingFlowAssembler(metricsPort, "assemble.flowAssembler"),
         protocolDetector(),
-        reconstructorFactories(clock(), metricsPort),
+        reconstructorFactories(clockPort, metricsPort),
         pairingFactories(),
         messagePersistence(assembleConfig),
         metricsPort,
         enabled,
-        AssembleUseCase.segmentIoReaderFactory());
+        buildSegmentReaderFactory());
   }
 
   public MetricsPort metrics() {
@@ -122,33 +128,56 @@ public final class CompositionRoot {
   }
 
   private SegmentPersistencePort segmentPersistence() {
+    if (captureConfig.ioMode() == IoMode.KAFKA) {
+      return new SegmentKafkaSinkAdapter(
+          captureConfig.kafkaBootstrap(),
+          captureConfig.kafkaTopicSegments());
+    }
     return new SegmentFileSinkAdapter(
         captureConfig.outputDirectory(),
         captureConfig.fileBase(),
         captureConfig.rollMiB());
   }
 
-
   private PersistencePort messagePersistence() {
-    return messagePersistence(captureConfig.outputDirectory().resolve("pairs"));
-  }
-
-  private PersistencePort messagePersistence(Path baseDirectory) {
-    PersistencePort tail = new NoOpPersistenceAdapter();
-    PersistencePort tn = new Tn3270SegmentSinkPersistenceAdapter(baseDirectory.resolve("tn3270"), tail);
-    return new HttpSegmentSinkPersistenceAdapter(baseDirectory.resolve("http"), tn);
+    return buildFilePersistence(
+        captureConfig.httpOutputDirectory(),
+        captureConfig.tn3270OutputDirectory(),
+        true,
+        true);
   }
 
   private PersistencePort messagePersistence(AssembleConfig assembleConfig) {
-    PersistencePort tail = new NoOpPersistenceAdapter();
-    if (assembleConfig.tnEnabled()) {
-      tail = new Tn3270SegmentSinkPersistenceAdapter(assembleConfig.effectiveTnOut(), tail);
+    if (assembleConfig.ioMode() == IoMode.KAFKA) {
+      String bootstrap = assembleConfig.kafkaBootstrap()
+          .orElseThrow(() -> new IllegalStateException("kafkaBootstrap required for assemble Kafka mode"));
+      return buildKafkaPersistence(
+          bootstrap,
+          assembleConfig.kafkaHttpPairsTopic(),
+          assembleConfig.kafkaTnPairsTopic(),
+          assembleConfig.httpEnabled(),
+          assembleConfig.tnEnabled());
     }
-    if (assembleConfig.httpEnabled()) {
-      tail = new HttpSegmentSinkPersistenceAdapter(assembleConfig.effectiveHttpOut(), tail);
-    }
-    return tail;
+    return buildFilePersistence(
+        assembleConfig.effectiveHttpOut(),
+        assembleConfig.effectiveTnOut(),
+        assembleConfig.httpEnabled(),
+        assembleConfig.tnEnabled());
   }
+
+  private AssembleUseCase.SegmentReaderFactory buildSegmentReaderFactory() {
+    AssembleUseCase.SegmentReaderFactory fileFactory = AssembleUseCase.segmentIoReaderFactory();
+    return cfg -> {
+      if (cfg.ioMode() == IoMode.KAFKA) {
+        String bootstrap = cfg.kafkaBootstrap()
+            .orElseThrow(() -> new IllegalStateException("kafkaBootstrap required for assemble Kafka mode"));
+        KafkaSegmentReader reader = new KafkaSegmentReader(bootstrap, cfg.kafkaSegmentsTopic());
+        return new KafkaSegmentRecordReaderAdapter(reader);
+      }
+      return fileFactory.open(cfg);
+    };
+  }
+
   private Set<ProtocolId> enabledProtocolsForAssemble(AssembleConfig assembleConfig) {
     Set<ProtocolId> enabled = new HashSet<>();
     if (assembleConfig.httpEnabled()) {
@@ -158,6 +187,37 @@ public final class CompositionRoot {
       enabled.add(ProtocolId.TN3270);
     }
     return enabled;
+  }
+
+  private PersistencePort buildFilePersistence(
+      Path httpDirectory,
+      Path tnDirectory,
+      boolean httpEnabled,
+      boolean tnEnabled) {
+    PersistencePort tail = new NoOpPersistenceAdapter();
+    if (tnEnabled) {
+      tail = new Tn3270SegmentSinkPersistenceAdapter(tnDirectory, tail);
+    }
+    if (httpEnabled) {
+      tail = new HttpSegmentSinkPersistenceAdapter(httpDirectory, tail);
+    }
+    return tail;
+  }
+
+  private PersistencePort buildKafkaPersistence(
+      String bootstrap,
+      String httpPairsTopic,
+      String tnPairsTopic,
+      boolean httpEnabled,
+      boolean tnEnabled) {
+    PersistencePort tail = new NoOpPersistenceAdapter();
+    if (tnEnabled) {
+      tail = new Tn3270KafkaPersistenceAdapter(bootstrap, tnPairsTopic, tail);
+    }
+    if (httpEnabled) {
+      tail = new HttpKafkaPersistenceAdapter(bootstrap, httpPairsTopic, tail);
+    }
+    return tail;
   }
 
   private Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories(
@@ -181,26 +241,3 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

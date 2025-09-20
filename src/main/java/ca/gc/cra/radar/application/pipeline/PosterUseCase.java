@@ -1,10 +1,16 @@
 package ca.gc.cra.radar.application.pipeline;
 
+import ca.gc.cra.radar.adapter.kafka.HttpKafkaPosterPipeline;
+import ca.gc.cra.radar.adapter.kafka.KafkaPosterOutputAdapter;
+import ca.gc.cra.radar.adapter.kafka.Tn3270KafkaPosterPipeline;
+import ca.gc.cra.radar.application.port.poster.PosterOutputPort;
 import ca.gc.cra.radar.application.port.poster.PosterPipeline;
+import ca.gc.cra.radar.config.IoMode;
 import ca.gc.cra.radar.config.PosterConfig;
 import ca.gc.cra.radar.config.PosterConfig.DecodeMode;
 import ca.gc.cra.radar.config.PosterConfig.ProtocolConfig;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import ca.gc.cra.radar.infrastructure.poster.FilePosterOutputAdapter;
 import ca.gc.cra.radar.infrastructure.poster.HttpPosterPipeline;
 import ca.gc.cra.radar.infrastructure.poster.Tn3270PosterPipeline;
 import java.util.ArrayList;
@@ -35,8 +41,8 @@ public final class PosterUseCase {
     Objects.requireNonNull(config, "config");
     List<Callable<Void>> tasks = new ArrayList<>();
 
-    addTask(tasks, ProtocolId.HTTP, config.http(), config.decodeMode());
-    addTask(tasks, ProtocolId.TN3270, config.tn3270(), config.decodeMode());
+    addTask(tasks, ProtocolId.HTTP, config.http(), config);
+    addTask(tasks, ProtocolId.TN3270, config.tn3270(), config);
 
     if (tasks.isEmpty()) {
       throw new IllegalArgumentException("poster: no protocol inputs configured");
@@ -70,17 +76,73 @@ public final class PosterUseCase {
       List<Callable<Void>> tasks,
       ProtocolId protocol,
       Optional<ProtocolConfig> maybeConfig,
-      DecodeMode decodeMode) {
+      PosterConfig rootConfig) {
     maybeConfig.ifPresent(cfg -> {
+      PosterPipeline pipeline = selectPipeline(protocol, cfg, rootConfig);
+      PosterOutputPort outputPort = selectOutputPort(protocol, cfg, rootConfig);
+      DecodeMode decodeMode = rootConfig.decodeMode();
+      tasks.add(() -> {
+        try {
+          pipeline.process(cfg, decodeMode, outputPort);
+        } finally {
+          outputPort.close();
+        }
+        return null;
+      });
+    });
+  }
+
+  private PosterPipeline selectPipeline(
+      ProtocolId protocol,
+      ProtocolConfig config,
+      PosterConfig rootConfig) {
+    boolean kafkaInput = config.kafkaInputTopic().isPresent();
+    if (!kafkaInput) {
       PosterPipeline pipeline = pipelines.get(protocol);
       if (pipeline == null) {
         throw new IllegalStateException("No poster pipeline registered for " + protocol);
       }
-      tasks.add(() -> {
-        pipeline.process(cfg, decodeMode);
-        return null;
-      });
-    });
+      return pipeline;
+    }
+
+    String bootstrap = rootConfig.kafkaBootstrap()
+        .orElseThrow(() -> new IllegalArgumentException("kafkaBootstrap required for Kafka poster input"));
+    return switch (protocol) {
+      case HTTP -> new HttpKafkaPosterPipeline(bootstrap);
+      case TN3270 -> new Tn3270KafkaPosterPipeline(bootstrap);
+      default -> throw new IllegalArgumentException("Unsupported protocol: " + protocol);
+    };
+  }
+
+  private PosterOutputPort selectOutputPort(
+      ProtocolId protocol,
+      ProtocolConfig config,
+      PosterConfig rootConfig) {
+    IoMode mode = rootConfig.posterOutMode();
+    boolean kafkaInput = config.kafkaInputTopic().isPresent();
+
+    if (!kafkaInput) {
+      if (mode == IoMode.KAFKA) {
+        throw new IllegalArgumentException("posterOutMode=KAFKA requires Kafka input for " + protocol);
+      }
+      return new FilePosterOutputAdapter(
+          config.outputDirectory().orElseThrow(() ->
+              new IllegalArgumentException(protocol + " output directory required")),
+          protocol);
+    }
+
+    if (mode == IoMode.KAFKA) {
+      String bootstrap = rootConfig.kafkaBootstrap()
+          .orElseThrow(() -> new IllegalArgumentException("kafkaBootstrap required for Kafka poster output"));
+      String topic = config.kafkaOutputTopic()
+          .orElseThrow(() -> new IllegalArgumentException("Kafka report topic required for " + protocol));
+      return new KafkaPosterOutputAdapter(bootstrap, topic);
+    }
+
+    return new FilePosterOutputAdapter(
+        config.outputDirectory().orElseThrow(() ->
+            new IllegalArgumentException(protocol + " output directory required")),
+        protocol);
   }
 
   private static Map<ProtocolId, PosterPipeline> defaultPipelines() {
@@ -90,4 +152,3 @@ public final class PosterUseCase {
     return map;
   }
 }
-

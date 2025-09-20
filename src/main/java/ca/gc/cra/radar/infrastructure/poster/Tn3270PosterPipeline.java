@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.infrastructure.poster;
 
 import ca.gc.cra.radar.application.port.poster.PosterPipeline;
+import ca.gc.cra.radar.application.port.poster.PosterOutputPort;
 import ca.gc.cra.radar.config.PosterConfig;
 import ca.gc.cra.radar.config.PosterConfig.DecodeMode;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
@@ -23,8 +24,14 @@ public final class Tn3270PosterPipeline implements PosterPipeline {
   }
 
   @Override
-  public void process(PosterConfig.ProtocolConfig config, DecodeMode decodeMode) throws Exception {
+  public void process(PosterConfig.ProtocolConfig config, DecodeMode decodeMode, PosterOutputPort outputPort) throws Exception {
     Objects.requireNonNull(config, "config");
-    processor.process(config.inputDirectory(), config.outputDirectory(), ProtocolId.TN3270, decodeMode);
+    processor.process(
+        config.inputDirectory().orElseThrow(() -> new IllegalArgumentException("tnIn path required for file mode")),
+        config.outputDirectory().orElseThrow(() -> new IllegalArgumentException("tnOut path required for file mode")),
+        ProtocolId.TN3270,
+        decodeMode);
   }
 }
+
+

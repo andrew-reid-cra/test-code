@@ -3,6 +3,7 @@ package ca.gc.cra.radar.config;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public record CaptureConfig(
     String iface,
@@ -16,7 +17,10 @@ public record CaptureConfig(
     String fileBase,
     int rollMiB,
     Path httpOutputDirectory,
-    Path tn3270OutputDirectory) {
+    Path tn3270OutputDirectory,
+    IoMode ioMode,
+    String kafkaBootstrap,
+    String kafkaTopicSegments) {
 
   public CaptureConfig {
     if (iface == null || iface.isBlank()) {
@@ -28,11 +32,23 @@ public record CaptureConfig(
     if (httpOutputDirectory == null) {
       throw new IllegalArgumentException("httpOutputDirectory must be provided");
     }
+    if (tn3270OutputDirectory == null) {
+      throw new IllegalArgumentException("tn3270OutputDirectory must be provided");
+    }
     if (fileBase == null || fileBase.isBlank()) {
       throw new IllegalArgumentException("fileBase must be provided");
     }
     if (rollMiB <= 0) {
       throw new IllegalArgumentException("rollMiB must be positive");
+    }
+    ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
+    if (ioMode == IoMode.KAFKA) {
+      if (kafkaBootstrap == null || kafkaBootstrap.isBlank()) {
+        throw new IllegalArgumentException("kafkaBootstrap is required when ioMode=KAFKA");
+      }
+      if (kafkaTopicSegments == null || kafkaTopicSegments.isBlank()) {
+        throw new IllegalArgumentException("kafkaTopicSegments is required when ioMode=KAFKA");
+      }
     }
   }
 
@@ -49,7 +65,10 @@ public record CaptureConfig(
         "segments",
         1_024,
         Path.of("out", "http"),
-        Path.of("out", "tn3270"));
+        Path.of("out", "tn3270"),
+        IoMode.FILE,
+        null,
+        "radar.segments");
   }
 
   public static CaptureConfig fromArgs(String[] args) {
@@ -81,11 +100,28 @@ public record CaptureConfig(
     int timeout = parseInt(kv.get("timeout"), defaults.timeoutMillis());
     boolean promisc = parseBoolean(kv.get("promisc"), defaults.promiscuous());
     boolean immediate = parseBoolean(kv.get("immediate"), defaults.immediate());
-    Path outputDir = parsePath(kv.get("out"), defaults.outputDirectory());
+
+    String outRaw = normalized(firstNonBlank(kv, "out", "segmentsOut"));
+    Path outputDir = defaults.outputDirectory();
+    IoMode ioMode = parseIoMode(kv.get("ioMode"), defaults.ioMode());
+    String kafkaTopicSegments = defaults.kafkaTopicSegments();
+
+    if (outRaw != null) {
+      if (outRaw.startsWith("kafka:")) {
+        ioMode = IoMode.KAFKA;
+        kafkaTopicSegments = sanitizeTopic(outRaw.substring("kafka:".length()));
+      } else {
+        outputDir = Path.of(outRaw);
+      }
+    }
+
     String fileBase = normalized(kv.getOrDefault("fileBase", defaults.fileBase()));
     int rollMiB = parseInt(kv.get("rollMiB"), defaults.rollMiB());
     Path httpOut = parsePath(kv.get("httpOut"), defaults.httpOutputDirectory());
     Path tnOut = parsePath(kv.get("tnOut"), defaults.tn3270OutputDirectory());
+
+    String kafkaBootstrap = normalized(kv.get("kafkaBootstrap"));
+    kafkaTopicSegments = normalized(kv.getOrDefault("kafkaTopicSegments", kafkaTopicSegments));
 
     return new CaptureConfig(
         iface,
@@ -99,7 +135,28 @@ public record CaptureConfig(
         fileBase,
         rollMiB,
         httpOut,
-        tnOut);
+        tnOut,
+        ioMode,
+        kafkaBootstrap,
+        kafkaTopicSegments);
+  }
+
+  private static IoMode parseIoMode(String value, IoMode fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
+    }
+    return IoMode.fromString(value.trim());
+  }
+
+  private static String sanitizeTopic(String topic) {
+    if (topic == null) {
+      return null;
+    }
+    String trimmed = topic.trim();
+    if (trimmed.isEmpty()) {
+      throw new IllegalArgumentException("Kafka topic must not be blank");
+    }
+    return trimmed;
   }
 
   private static String normalized(String value) {
@@ -131,5 +188,15 @@ public record CaptureConfig(
   private static Path parsePath(String value, Path fallback) {
     String normalized = normalized(value);
     return normalized == null ? fallback : Path.of(normalized);
+  }
+
+  private static String firstNonBlank(Map<String, String> map, String... keys) {
+    for (String key : keys) {
+      String value = map.get(key);
+      if (value != null && !value.isBlank()) {
+        return value;
+      }
+    }
+    return null;
   }
 }

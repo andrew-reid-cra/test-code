@@ -13,7 +13,6 @@ public final class HttpPairingEngineAdapter implements PairingEngine, AutoClosea
   private final MessagePairer delegate = new MessagePairer();
 
   @Override
-  @Override
   public Optional<MessagePair> accept(MessageEvent event) throws Exception {
     Objects.requireNonNull(event, "event");
     boolean isRequest = event.type() == MessageType.REQUEST;

@@ -57,8 +57,9 @@ final class LiveProcessingUseCaseTest {
     StubFrameDecoder frameDecoder = new StubFrameDecoder(List.of(requestSegment, responseSegment));
     FlowAssembler flowAssembler = new EchoFlowAssembler();
 
+    Set<ProtocolId> enabledProtocols = Set.of(ProtocolId.HTTP);
     ProtocolDetector detector =
-        new DefaultProtocolDetector(List.of(new HttpProtocolModule()), Set.of(ProtocolId.HTTP));
+        new DefaultProtocolDetector(List.of(new HttpProtocolModule()), enabledProtocols);
 
     Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories =
         Map.of(ProtocolId.HTTP, () -> new HttpMessageReconstructor(ClockPort.SYSTEM, MetricsPort.NO_OP));
@@ -76,7 +77,8 @@ final class LiveProcessingUseCaseTest {
             reconstructorFactories,
             pairingFactories,
             persistence,
-            MetricsPort.NO_OP);
+            MetricsPort.NO_OP,
+            enabledProtocols);
 
     Thread worker =
         new Thread(

@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class PosterUseCaseTest {
@@ -28,8 +29,7 @@ class PosterUseCaseTest {
     Path outputDir = Files.createTempDirectory("poster-http-out");
 
     try (HttpSegmentSinkPersistenceAdapter adapter = new HttpSegmentSinkPersistenceAdapter(inputDir)) {
-      MessagePair pair = httpPair();
-      adapter.persist(pair);
+      adapter.persist(httpPair());
     }
 
     PosterConfig config = PosterConfig.fromMap(Map.of(
@@ -56,8 +56,7 @@ class PosterUseCaseTest {
     Path outputDir = Files.createTempDirectory("poster-tn-out");
 
     try (Tn3270SegmentSinkPersistenceAdapter adapter = new Tn3270SegmentSinkPersistenceAdapter(inputDir)) {
-      MessagePair pair = tnPair();
-      adapter.persist(pair);
+      adapter.persist(tnPair());
     }
 
     PosterConfig config = PosterConfig.fromMap(Map.of(
@@ -74,7 +73,17 @@ class PosterUseCaseTest {
       assertTrue(content.contains("f1 f2"));
     }
   }
-\n  @Test\n  void processesHttpAndTnPipelinesTogether() throws Exception {\\n  }\n\n  private static MessagePair httpPair() {
+
+  @Test
+  void posterOutModeKafkaRequiresKafkaInput() {
+    PosterConfig config = PosterConfig.fromMap(Map.of(
+        "httpIn", "./pairs",
+        "httpOut", "./poster",
+        "posterOutMode", "KAFKA"));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> new PosterUseCase().run(config));
+  }
+
+  private static MessagePair httpPair() {
     FiveTuple flow = new FiveTuple("10.1.1.1", 1234, "10.1.1.2", 80, "TCP");
     byte[] requestBytes = "GET /demo HTTP/1.1\r\nHost: example\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1);
     byte[] responseBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello".getBytes(StandardCharsets.ISO_8859_1);
@@ -108,4 +117,3 @@ class PosterUseCaseTest {
     return new MessagePair(request, response);
   }
 }
-

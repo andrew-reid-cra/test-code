@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class Tn3270MessageReconstructorTest {
   @Test
-  void decodesServerAndClientRecords() {
+  void decodesServerAndClientRecords() throws Exception {
     MessageReconstructor recon = new Tn3270MessageReconstructor(ClockPort.SYSTEM, MetricsPort.NO_OP);
     recon.onStart();
     FiveTuple flow = new FiveTuple("192.168.0.1", 23, "192.168.0.50", 5000, "TCP");

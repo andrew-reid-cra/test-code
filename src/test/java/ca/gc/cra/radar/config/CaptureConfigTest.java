@@ -11,21 +11,20 @@ import org.junit.jupiter.api.Test;
 class CaptureConfigTest {
   @Test
   void fromMapOverridesDefaults() {
-    CaptureConfig cfg =
-        CaptureConfig.fromMap(
-            Map.of(
-                "iface", "en0",
-                "snap", "4096",
-                "promisc", "false",
-                "timeout", "200",
-                "bufmb", "8",
-                "immediate", "false",
-                "bpf", "tcp port 80",
-                "out", "capture/out",
-                "fileBase", "capture",
-                "rollMiB", "256",
-                "httpOut", "capture/http",
-                "tnOut", "capture/tn"));
+    Map<String, String> inputs = Map.ofEntries(
+        Map.entry("iface", "en0"),
+        Map.entry("snap", "4096"),
+        Map.entry("promisc", "false"),
+        Map.entry("timeout", "200"),
+        Map.entry("bufmb", "8"),
+        Map.entry("immediate", "false"),
+        Map.entry("bpf", "tcp port 80"),
+        Map.entry("out", "capture/out"),
+        Map.entry("fileBase", "capture"),
+        Map.entry("rollMiB", "256"),
+        Map.entry("httpOut", "capture/http"),
+        Map.entry("tnOut", "capture/tn"));
+    CaptureConfig cfg = CaptureConfig.fromMap(inputs);
 
     assertEquals("en0", cfg.iface());
     assertEquals("tcp port 80", cfg.filter());

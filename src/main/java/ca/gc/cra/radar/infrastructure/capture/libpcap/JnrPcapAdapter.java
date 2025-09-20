@@ -44,6 +44,9 @@ public final class JnrPcapAdapter implements Pcap {
   }
 
   @Override
+  public void close() {}
+
+  @Override
   public String libVersion() {
     return p.pcap_lib_version();
   }

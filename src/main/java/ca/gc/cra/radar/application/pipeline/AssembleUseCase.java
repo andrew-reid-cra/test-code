@@ -14,7 +14,6 @@ import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.TcpSegment;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.persistence.SegmentIoAdapter;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +58,7 @@ public final class AssembleUseCase {
 
   public void run() throws Exception {
     try (PersistencePort sink = this.persistence;
-         SegmentRecordReader reader = readerFactory.open(config.inputDirectory())) {
+         SegmentRecordReader reader = readerFactory.open(config)) {
       SegmentRecord record;
       while ((record = reader.next()) != null) {
         TcpSegment segment = toSegment(record);
@@ -112,11 +111,11 @@ public final class AssembleUseCase {
 
   @FunctionalInterface
   public interface SegmentReaderFactory {
-    SegmentRecordReader open(Path directory) throws Exception;
+    SegmentRecordReader open(AssembleConfig config) throws Exception;
   }
 
   public static SegmentReaderFactory segmentIoReaderFactory() {
-    return directory -> new SegmentIoAdapterRecordReader(new SegmentIoAdapter.Reader(directory));
+    return config -> new SegmentIoAdapterRecordReader(new SegmentIoAdapter.Reader(config.inputDirectory()));
   }
 
   private static final class SegmentIoAdapterRecordReader implements SegmentRecordReader {
