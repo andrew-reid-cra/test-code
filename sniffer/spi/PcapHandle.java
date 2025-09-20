@@ -6,3 +6,5 @@ public interface PcapHandle extends AutoCloseable {
   boolean next(Pcap.PacketCallback cb) throws PcapException;
   @Override void close();
 }
+
+

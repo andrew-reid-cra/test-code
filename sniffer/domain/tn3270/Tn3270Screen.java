@@ -1,4 +1,4 @@
-﻿package sniffer.domain.tn3270;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -136,6 +136,8 @@ final class Tn3270Screen {
     return EBCDIC_TABLE[ebcdic & 0xFF];
   }
 }
+
+
 
 
 

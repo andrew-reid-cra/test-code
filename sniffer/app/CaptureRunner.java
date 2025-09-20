@@ -1,8 +1,8 @@
-﻿package sniffer.app;
+package sniffer.app;
 
 import sniffer.adapters.libpcap.JnrPcapAdapter;
-import sniffer.domain.CaptureLoop;
-import sniffer.domain.SegmentSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.CaptureLoop;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SegmentSink;
 
 import java.nio.file.Paths;
 
@@ -43,7 +43,9 @@ public final class CaptureRunner {
   static final class StdoutSink implements CaptureLoop.PacketSink {
     @Override public void onHttpLine(long tsMicros, String text){ System.out.print(text); }
     @Override public void onUdp(long tsMicros, String src, int sport, String dst, int dport){
-      System.out.printf("%d TAP %s:%d�+'%s:%d UDP%n", tsMicros, src, sport, dst, dport);
+      System.out.printf("%d TAP %s:%d?+'%s:%d UDP%n", tsMicros, src, sport, dst, dport);
     }
   }
 }
+
+

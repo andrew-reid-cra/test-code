@@ -1,4 +1,4 @@
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -283,3 +283,5 @@ public final class SegmentSink implements AutoCloseable, HttpEventSink, HttpStre
     @Override public void close() throws IOException { closeCurrent(); }
   }
 }
+
+

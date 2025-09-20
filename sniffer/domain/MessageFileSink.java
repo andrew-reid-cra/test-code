@@ -1,5 +1,5 @@
 // sniffer/domain/MessageFileSink.java
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import java.io.*;
 import java.nio.file.*;
@@ -82,4 +82,6 @@ public final class MessageFileSink implements AutoCloseable {
     worker.interrupt();
   }
 }
+
+
 

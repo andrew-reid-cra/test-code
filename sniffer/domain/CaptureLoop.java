@@ -1,6 +1,6 @@
-﻿package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
-import sniffer.domain.tn3270.Tn3270Assembler;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270.Tn3270Assembler;
 import sniffer.spi.Pcap;
 
 import java.nio.charset.StandardCharsets;
@@ -122,7 +122,7 @@ public final class CaptureLoop {
         // Only print if the payload looks like an HTTP first line
         if (looksLikeHttpFirstLine(pkt, pay, payloadLen)) {
           String text = HttpPrinter.firstLineAndMaybeHeaders(pkt, pay, caplen, showHeaders);
-          sink.onHttpLine(tsMicros, "%d TAP %s:%d�+'%s:%d %s".formatted(
+          sink.onHttpLine(tsMicros, "%d TAP %s:%d?+'%s:%d %s".formatted(
               tsMicros, ip(srcIpBE), sport, ip(dstIpBE), dport, text));
         }
       }
@@ -192,3 +192,5 @@ public final class CaptureLoop {
     boolean isClient(int ip, int port){ return known && ip==clientIp && port==clientPort; }
   }
 }
+
+

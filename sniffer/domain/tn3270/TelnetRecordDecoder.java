@@ -1,4 +1,4 @@
-﻿package sniffer.domain.tn3270;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,3 +100,5 @@ final class TelnetRecordDecoder {
     }
   }
 }
+
+

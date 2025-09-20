@@ -1,7 +1,7 @@
-﻿package sniffer.domain.tn3270;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270;
 
-import sniffer.domain.HttpIds;
-import sniffer.domain.SegmentSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.HttpIds;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SegmentSink;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -161,4 +161,6 @@ final class Tn3270Session {
     };
   }
 }
+
+
 

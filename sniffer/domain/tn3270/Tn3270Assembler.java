@@ -1,6 +1,6 @@
-﻿package sniffer.domain.tn3270;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270;
 
-import sniffer.domain.SegmentSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SegmentSink;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -152,3 +152,5 @@ public final class Tn3270Assembler {
     }
   }
 }
+
+

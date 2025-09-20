@@ -1,4 +1,4 @@
-﻿package sniffer.poster;
+package sniffer.poster;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -694,6 +694,8 @@ public final class PosterMain {
   }
   private static int intOpt(Map<String,String> m, String k, int def){ try { return Integer.parseInt(m.getOrDefault(k, String.valueOf(def))); } catch(Exception e){ return def; } }
 }
+
+
 
 
 

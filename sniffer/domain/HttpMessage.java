@@ -1,5 +1,5 @@
 // sniffer/domain/HttpMessage.java
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 public sealed interface HttpMessage permits HttpRequest, HttpResponse {
   String id(); String sessionId(); long tsFirstMicros(); long tsLastMicros();
@@ -25,4 +25,6 @@ final class HttpResponse implements HttpMessage {
   public String srcIp(){return src;} public int srcPort(){return sp;} public String dstIp(){return dst;} public int dstPort(){return dp;}
   public byte[] rawStartLineAndHeaders(){return head;} public byte[] rawBody(){return body;}
 }
+
+
 

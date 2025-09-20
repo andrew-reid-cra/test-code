@@ -1,5 +1,5 @@
 // sniffer/domain/HttpIds.java
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,4 +17,6 @@ public final class HttpIds {
   private static void enc80(long r1,long r2,char[]d){ long a=(r1<<16)|((r2>>>48)&0xFFFFL), b=r2&0x0000FFFFFFFFFFFFL;
     for(int i=25;i>=10;i--){ int idx=(int)((i>=18?b:a)&31); d[i]=ENC[idx]; if(i==18)continue; if(i>18)b>>>=5; else a>>>=5; } }
 }
+
+
 

@@ -1,4 +1,4 @@
-﻿package sniffer.app;
+package sniffer.app;
 
 final class CliConfig {
   final String iface;
@@ -66,3 +66,5 @@ final class CliConfig {
     return trimmed.isEmpty() ? null : trimmed;
   }
 }
+
+

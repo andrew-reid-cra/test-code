@@ -1,8 +1,8 @@
-﻿package sniffer.capture;
+package sniffer.capture;
 
 import sniffer.adapters.libpcap.JnrPcapAdapter;
-import sniffer.domain.SegmentSink;
-import sniffer.domain.tn3270.Tn3270Assembler;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SegmentSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270.Tn3270Assembler;
 import sniffer.pipe.SegmentIO;
 import sniffer.pipe.SegmentRecord;
 import sniffer.spi.Pcap;
@@ -135,3 +135,5 @@ public final class CaptureMain {
 
   private CaptureMain() {}
 }
+
+

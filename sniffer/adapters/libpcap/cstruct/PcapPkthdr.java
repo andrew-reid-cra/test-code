@@ -9,3 +9,5 @@ public final class PcapPkthdr extends Struct {
   public final Unsigned32 len    = new Unsigned32();
   public PcapPkthdr(Runtime r) { super(r); ts = inner(new TimeVal(r)); }
 }
+
+

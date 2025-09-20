@@ -43,3 +43,5 @@ public final class SegmentRecord {
   // Flags for convenience
   public static final int FIN = 1, SYN = 2, RST = 4, PSH = 8, ACK = 16;
 }
+
+

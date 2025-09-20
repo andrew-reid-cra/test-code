@@ -1,4 +1,4 @@
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import static sniffer.common.Bytes.*;
 
@@ -13,3 +13,5 @@ public final class Decoders {
     return (vihl & 0x0F) * 4;
   }
 }
+
+

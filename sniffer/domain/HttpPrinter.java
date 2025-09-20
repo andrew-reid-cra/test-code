@@ -1,4 +1,4 @@
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import java.nio.charset.StandardCharsets;
 
@@ -25,3 +25,5 @@ public final class HttpPrinter {
     return sb.toString();
   }
 }
+
+

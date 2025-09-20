@@ -1,5 +1,5 @@
 // sniffer/domain/SessionIdExtractor.java
-package sniffer.domain;
+package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 import java.util.*;
 import java.util.regex.*;
@@ -40,4 +40,6 @@ public final class SessionIdExtractor {
     return null;
   }
 }
+
+
 

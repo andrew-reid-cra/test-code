@@ -1,10 +1,10 @@
-﻿package sniffer.assemble;
+package sniffer.assemble;
 
-import sniffer.domain.HttpAssembler;
-import sniffer.domain.HttpStreamSink;
-import sniffer.domain.SegmentSink;
-import sniffer.domain.SessionIdExtractor;
-import sniffer.domain.tn3270.Tn3270Assembler;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.HttpAssembler;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.HttpStreamSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SegmentSink;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.SessionIdExtractor;
+import ca.gc.cra.radar.infrastructure.protocol.http.legacy.tn3270.Tn3270Assembler;
 import sniffer.pipe.SegmentIO;
 import sniffer.pipe.SegmentRecord;
 
@@ -150,4 +150,6 @@ public final class AssembleMain {
 
   private AssembleMain() {}
 }
+
+
 
