@@ -26,6 +26,7 @@ public final class AssembleCli {
 
   private static void usage() {
     System.err.println(
-        "usage: in=./cap-out out=./pairs-out [httpEnabled=true] -- replays captured segments into message pairs");
+        "usage: assemble in=./cap-out out=./pairs-out [httpOut=<dir>] [tnOut=<dir>] [httpEnabled=true] [tnEnabled=false] -- replays captured segments into message pairs");
   }
 }
+

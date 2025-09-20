@@ -23,6 +23,8 @@ public final class PosterCli {
 
   private static void usage() {
     System.err.println(
-        "usage: poster in=<dir> out=<dir> [decode=none|transfer|all] -- renders message pairs");
+        "usage: poster [--httpIn=<dir> --httpOut=<dir>] [--tnIn=<dir> --tnOut=<dir>] [decode=none|transfer|all] -- renders message pairs");
   }
 }
+
+

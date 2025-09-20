@@ -96,7 +96,7 @@ public final class CompositionRoot {
         protocolDetector(),
         reconstructorFactories(clock(), metricsPort),
         pairingFactories(),
-        messagePersistence(assembleConfig.outputDirectory()),
+        messagePersistence(assembleConfig),
         metricsPort,
         enabled,
         AssembleUseCase.segmentIoReaderFactory());
@@ -134,13 +134,21 @@ public final class CompositionRoot {
   }
 
   private PersistencePort messagePersistence(Path baseDirectory) {
-    Path httpDir = baseDirectory.resolve("http");
-    Path tnDir = baseDirectory.resolve("tn3270");
     PersistencePort tail = new NoOpPersistenceAdapter();
-    PersistencePort tn = new Tn3270SegmentSinkPersistenceAdapter(tnDir, tail);
-    return new HttpSegmentSinkPersistenceAdapter(httpDir, tn);
+    PersistencePort tn = new Tn3270SegmentSinkPersistenceAdapter(baseDirectory.resolve("tn3270"), tail);
+    return new HttpSegmentSinkPersistenceAdapter(baseDirectory.resolve("http"), tn);
   }
 
+  private PersistencePort messagePersistence(AssembleConfig assembleConfig) {
+    PersistencePort tail = new NoOpPersistenceAdapter();
+    if (assembleConfig.tnEnabled()) {
+      tail = new Tn3270SegmentSinkPersistenceAdapter(assembleConfig.effectiveTnOut(), tail);
+    }
+    if (assembleConfig.httpEnabled()) {
+      tail = new HttpSegmentSinkPersistenceAdapter(assembleConfig.effectiveHttpOut(), tail);
+    }
+    return tail;
+  }
   private Set<ProtocolId> enabledProtocolsForAssemble(AssembleConfig assembleConfig) {
     Set<ProtocolId> enabled = new HashSet<>();
     if (assembleConfig.httpEnabled()) {
@@ -173,6 +181,7 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
+
 
 
 

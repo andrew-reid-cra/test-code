@@ -61,8 +61,8 @@ class PosterUseCaseTest {
     }
 
     PosterConfig config = PosterConfig.fromMap(Map.of(
-        "in", inputDir.toString(),
-        "out", outputDir.toString()));
+        "tnIn", inputDir.toString(),
+        "tnOut", outputDir.toString()));
 
     new PosterUseCase().run(config);
 
@@ -74,8 +74,7 @@ class PosterUseCaseTest {
       assertTrue(content.contains("f1 f2"));
     }
   }
-
-  private static MessagePair httpPair() {
+\n  @Test\n  void processesHttpAndTnPipelinesTogether() throws Exception {\\n  }\n\n  private static MessagePair httpPair() {
     FiveTuple flow = new FiveTuple("10.1.1.1", 1234, "10.1.1.2", 80, "TCP");
     byte[] requestBytes = "GET /demo HTTP/1.1\r\nHost: example\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1);
     byte[] responseBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello".getBytes(StandardCharsets.ISO_8859_1);
@@ -109,3 +108,4 @@ class PosterUseCaseTest {
     return new MessagePair(request, response);
   }
 }
+
