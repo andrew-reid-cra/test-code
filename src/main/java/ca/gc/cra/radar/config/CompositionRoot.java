@@ -2,7 +2,6 @@ package ca.gc.cra.radar.config;
 
 import ca.gc.cra.radar.application.pipeline.AssembleUseCase;
 import ca.gc.cra.radar.application.pipeline.LiveProcessingUseCase;
-import ca.gc.cra.radar.application.pipeline.PosterUseCase;
 import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
 import ca.gc.cra.radar.application.port.ClockPort;
 import ca.gc.cra.radar.application.port.MessageReconstructor;
@@ -18,9 +17,11 @@ import ca.gc.cra.radar.infrastructure.capture.PcapPacketSource;
 import ca.gc.cra.radar.infrastructure.detect.DefaultProtocolDetector;
 import ca.gc.cra.radar.infrastructure.metrics.NoOpMetricsAdapter;
 import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
-import ca.gc.cra.radar.infrastructure.net.PayloadFlowAssemblerAdapter;
-import ca.gc.cra.radar.infrastructure.persistence.LegacySegmentPersistenceAdapter;
+import ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler;
+
+import ca.gc.cra.radar.infrastructure.persistence.NoOpPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapter;
+import ca.gc.cra.radar.infrastructure.persistence.tn3270.Tn3270SegmentSinkPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentFileSinkAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.http.HttpMessageReconstructor;
 import ca.gc.cra.radar.infrastructure.protocol.http.HttpPairingEngineAdapter;
@@ -77,7 +78,7 @@ public final class CompositionRoot {
     return new LiveProcessingUseCase(
         newPacketSource(),
         new FrameDecoderLibpcap(),
-        new PayloadFlowAssemblerAdapter(metricsPort, "live.flowAssembler"),
+        new ReorderingFlowAssembler(metricsPort, "live.flowAssembler"),
         protocolDetector(),
         reconstructorFactories(clockPort, metricsPort),
         pairingFactories(),
@@ -91,7 +92,7 @@ public final class CompositionRoot {
     Set<ProtocolId> enabled = enabledProtocolsForAssemble(Objects.requireNonNull(assembleConfig, "assembleConfig"));
     return new AssembleUseCase(
         assembleConfig,
-        new PayloadFlowAssemblerAdapter(metricsPort, "assemble.flowAssembler"),
+        new ReorderingFlowAssembler(metricsPort, "assemble.flowAssembler"),
         protocolDetector(),
         reconstructorFactories(clock(), metricsPort),
         pairingFactories(),
@@ -99,10 +100,6 @@ public final class CompositionRoot {
         metricsPort,
         enabled,
         AssembleUseCase.segmentIoReaderFactory());
-  }
-
-  public PosterUseCase posterUseCase() {
-    return new PosterUseCase(messagePersistence());
   }
 
   public MetricsPort metrics() {
@@ -136,8 +133,12 @@ public final class CompositionRoot {
     return messagePersistence(captureConfig.outputDirectory().resolve("pairs"));
   }
 
-  private PersistencePort messagePersistence(Path directory) {
-    return new LegacySegmentPersistenceAdapter(directory);
+  private PersistencePort messagePersistence(Path baseDirectory) {
+    Path httpDir = baseDirectory.resolve("http");
+    Path tnDir = baseDirectory.resolve("tn3270");
+    PersistencePort tail = new NoOpPersistenceAdapter();
+    PersistencePort tn = new Tn3270SegmentSinkPersistenceAdapter(tnDir, tail);
+    return new HttpSegmentSinkPersistenceAdapter(httpDir, tn);
   }
 
   private Set<ProtocolId> enabledProtocolsForAssemble(AssembleConfig assembleConfig) {
@@ -172,6 +173,15 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
+
+
+
+
+
+
+
+
+
 
 
 

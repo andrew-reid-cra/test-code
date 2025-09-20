@@ -1,7 +1,7 @@
 package ca.gc.cra.radar.infrastructure.persistence;
 
 import ca.gc.cra.radar.domain.capture.SegmentRecord;
-import ca.gc.cra.radar.infrastructure.persistence.legacy.SegmentRecordMapper;
+import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentBinIO;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -9,14 +9,14 @@ public final class SegmentIoAdapter {
   private SegmentIoAdapter() {}
 
   public static final class Writer implements AutoCloseable {
-    private final sniffer.pipe.SegmentIO.Writer delegate;
+    private final SegmentBinIO.Writer delegate;
 
     public Writer(Path directory, String baseName, int rollMiB) throws IOException {
-      this.delegate = new sniffer.pipe.SegmentIO.Writer(directory, baseName, rollMiB);
+      this.delegate = new SegmentBinIO.Writer(directory, baseName, rollMiB);
     }
 
     public void append(SegmentRecord record) throws Exception {
-      delegate.append(SegmentRecordMapper.toLegacy(record));
+      delegate.append(record);
     }
 
     public void flush() throws Exception {
@@ -30,18 +30,14 @@ public final class SegmentIoAdapter {
   }
 
   public static final class Reader implements AutoCloseable {
-    private final sniffer.pipe.SegmentIO.Reader delegate;
+    private final SegmentBinIO.Reader delegate;
 
     public Reader(Path directory) throws IOException {
-      this.delegate = new sniffer.pipe.SegmentIO.Reader(directory);
+      this.delegate = new SegmentBinIO.Reader(directory);
     }
 
     public SegmentRecord next() throws Exception {
-      sniffer.pipe.SegmentRecord legacy = delegate.next();
-      if (legacy == null) {
-        return null;
-      }
-      return SegmentRecordMapper.fromLegacy(legacy);
+      return delegate.next();
     }
 
     @Override
@@ -50,5 +46,3 @@ public final class SegmentIoAdapter {
     }
   }
 }
-
-

@@ -128,11 +128,7 @@ public final class AssembleUseCase {
 
     @Override
     public SegmentRecord next() throws Exception {
-      sniffer.pipe.SegmentRecord legacy = delegate.next();
-      if (legacy == null) {
-        return null;
-      }
-      return ca.gc.cra.radar.infrastructure.persistence.legacy.SegmentRecordMapper.fromLegacy(legacy);
+      return delegate.next();
     }
 
     @Override
@@ -141,4 +137,5 @@ public final class AssembleUseCase {
     }
   }
 }
+
 

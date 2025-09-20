@@ -10,8 +10,7 @@ import ca.gc.cra.radar.domain.msg.MessageType;
 import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
-import ca.gc.cra.radar.infrastructure.persistence.legacy.LegacySegmentIO;
-import ca.gc.cra.radar.infrastructure.persistence.legacy.SegmentRecordMapper;
+import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentBinIO;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,9 +38,9 @@ class LegacySegmentPersistenceAdapterTest {
     adapter.persist(new MessagePair(request, response));
     adapter.close();
 
-    try (LegacySegmentIO.Reader reader = new LegacySegmentIO.Reader(tempDir)) {
-      var first = SegmentRecordMapper.fromLegacy(reader.next());
-      var second = SegmentRecordMapper.fromLegacy(reader.next());
+    try (SegmentBinIO.Reader reader = new SegmentBinIO.Reader(tempDir)) {
+      var first = reader.next();
+      var second = reader.next();
 
       assertEquals("10.0.0.1", first.srcIp());
       assertEquals("10.0.0.2", first.dstIp());
@@ -55,3 +54,5 @@ class LegacySegmentPersistenceAdapterTest {
     }
   }
 }
+
+

@@ -6,19 +6,18 @@ import ca.gc.cra.radar.domain.msg.MessageEvent;
 import ca.gc.cra.radar.domain.msg.MessagePair;
 import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
-import ca.gc.cra.radar.infrastructure.persistence.legacy.LegacySegmentIO;
-import ca.gc.cra.radar.infrastructure.persistence.legacy.SegmentRecordMapper;
+import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentBinIO;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 public final class LegacySegmentPersistenceAdapter implements PersistencePort {
-  private final LegacySegmentIO.Writer writer;
+  private final SegmentBinIO.Writer writer;
   private final Map<String, Long> nextSequence = new HashMap<>();
 
   public LegacySegmentPersistenceAdapter(Path directory) {
     try {
-      this.writer = new LegacySegmentIO.Writer(directory, "pairs", 1024);
+      this.writer = new SegmentBinIO.Writer(directory, "pairs", 1024);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to initialize legacy segment writer", e);
     }
@@ -38,7 +37,7 @@ public final class LegacySegmentPersistenceAdapter implements PersistencePort {
       return;
     }
     SegmentRecord record = toSegmentRecord(stream);
-    writer.append(SegmentRecordMapper.toLegacy(record));
+    writer.append(record);
   }
 
   private SegmentRecord toSegmentRecord(ByteStream stream) {
@@ -81,3 +80,4 @@ public final class LegacySegmentPersistenceAdapter implements PersistencePort {
     writer.close();
   }
 }
+

@@ -1,6 +1,6 @@
 package ca.gc.cra.radar.infrastructure.capture.libpcap;
 
-public interface Pcap {
+public interface Pcap extends AutoCloseable {
   PcapHandle openLive(String iface, int snapLen, boolean promiscuous,
                       int timeoutMs, int bufferBytes, boolean immediate) throws PcapException;
 
@@ -10,3 +10,4 @@ public interface Pcap {
     void onPacket(long tsMicros, byte[] data, int capLen);
   }
 }
+
