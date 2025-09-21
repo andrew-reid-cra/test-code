@@ -24,6 +24,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Coordinates protocol-specific poster pipelines that render reconstructed traffic for reporting.
@@ -33,22 +36,21 @@ import java.util.concurrent.Future;
  * @since RADAR 0.1-doc
  */
 public final class PosterUseCase {
+  private static final Logger log = LoggerFactory.getLogger(PosterUseCase.class);
+
   private final Map<ProtocolId, PosterPipeline> pipelines;
 
   /**
-   * Creates a poster use case with the default protocol pipelines (HTTP, TN3270).
-   *
-   * @since RADAR 0.1-doc
+   * Creates a poster use case with the default protocol pipelines.
    */
   public PosterUseCase() {
     this(defaultPipelines());
   }
 
   /**
-   * Creates a poster use case with custom protocol pipeline implementations.
+   * Creates a poster use case with custom pipelines.
    *
-   * @param pipelines mapping from protocol ids to executable poster pipelines
-   * @since RADAR 0.1-doc
+   * @param pipelines map of protocol identifiers to pipeline implementations
    */
   public PosterUseCase(Map<ProtocolId, PosterPipeline> pipelines) {
     Objects.requireNonNull(pipelines, "pipelines");
@@ -56,12 +58,10 @@ public final class PosterUseCase {
   }
 
   /**
-   * Runs the configured poster pipelines based on CLI configuration.
+   * Runs the configured poster pipelines.
    *
-   * @param config poster configuration describing protocol inputs and outputs
-   * @throws Exception if a pipeline fails or required configuration is missing
-   * @implNote Launches worker threads when multiple protocols are enabled simultaneously.
-   * @since RADAR 0.1-doc
+   * @param config poster configuration supplied by the CLI layer
+   * @throws Exception if any pipeline fails
    */
   public void run(PosterConfig config) throws Exception {
     Objects.requireNonNull(config, "config");
@@ -93,8 +93,14 @@ public final class PosterUseCase {
           throw new RuntimeException(cause);
         }
       }
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      log.warn("Poster pipelines interrupted; requesting shutdown");
+      executor.shutdownNow();
+      throw ex;
     } finally {
       executor.shutdown();
+      log.info("Poster worker pool shutdown initiated");
     }
   }
 
@@ -108,10 +114,36 @@ public final class PosterUseCase {
       PosterOutputPort outputPort = selectOutputPort(protocol, cfg, rootConfig);
       DecodeMode decodeMode = rootConfig.decodeMode();
       tasks.add(() -> {
+        String previousProtocol = MDC.get("protocol");
+        Exception failure = null;
         try {
+          MDC.put("protocol", protocol.name());
+          log.info("Poster {} pipeline started", protocol);
           pipeline.process(cfg, decodeMode, outputPort);
+          log.info("Poster {} pipeline completed", protocol);
+        } catch (Exception ex) {
+          failure = ex;
+          log.error("Poster {} pipeline failed", protocol, ex);
+          throw ex;
         } finally {
-          outputPort.close();
+          try {
+            outputPort.close();
+            log.info("Poster {} output closed", protocol);
+          } catch (Exception closeEx) {
+            if (failure != null) {
+              failure.addSuppressed(closeEx);
+              log.error("Poster {} output close failure (suppressed)", protocol, closeEx);
+            } else {
+              log.error("Poster {} output close failure", protocol, closeEx);
+              throw closeEx;
+            }
+          } finally {
+            if (previousProtocol == null) {
+              MDC.remove("protocol");
+            } else {
+              MDC.put("protocol", previousProtocol);
+            }
+          }
         }
         return null;
       });

@@ -22,12 +22,14 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPoster
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\Config.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\MessageMetadata.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaPosterOutputAdapter.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\logging\LoggingConfigurator.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\ProtocolModule.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\PairingEngine.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\NoOpPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CliArgsParser.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\ExitCode.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\time\SystemClockAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\MessagePair.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270ProtocolModule.java
@@ -35,6 +37,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\poster\PosterO
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\detect\DefaultProtocolDetector.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\PosterCli.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CliPrinter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\IoMode.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\Pcap.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CompositionRoot.java
@@ -48,6 +51,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\SegmentCap
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\MessageType.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\AssembleCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpSignature.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CliInput.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\net\TcpSegment.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\poster\PosterPipeline.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\package-info.java

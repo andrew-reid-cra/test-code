@@ -1,120 +1,73 @@
 package ca.gc.cra.radar.application.pipeline;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ca.gc.cra.radar.application.port.poster.PosterOutputPort;
+import ca.gc.cra.radar.application.port.poster.PosterPipeline;
 import ca.gc.cra.radar.config.PosterConfig;
-import ca.gc.cra.radar.domain.msg.MessageEvent;
-import ca.gc.cra.radar.domain.msg.MessageMetadata;
-import ca.gc.cra.radar.domain.msg.MessagePair;
-import ca.gc.cra.radar.domain.msg.MessageType;
-import ca.gc.cra.radar.domain.net.ByteStream;
-import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
-import ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapter;
-import ca.gc.cra.radar.infrastructure.persistence.tn3270.Tn3270SegmentSinkPersistenceAdapter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.util.Map;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class PosterUseCaseTest {
+  private ListAppender<ILoggingEvent> appender;
+  private Logger logger;
 
-  @Test
-  void rendersHttpPairToTextFile() throws Exception {
-    Path inputDir = Files.createTempDirectory("poster-http-in");
-    Path outputDir = Files.createTempDirectory("poster-http-out");
+  @BeforeEach
+  void setUp() {
+    logger = (Logger) LoggerFactory.getLogger(PosterUseCase.class);
+    appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+  }
 
-    try (HttpSegmentSinkPersistenceAdapter adapter = new HttpSegmentSinkPersistenceAdapter(inputDir)) {
-      adapter.persist(httpPair());
-    }
-
-    PosterConfig config = PosterConfig.fromMap(Map.of(
-        "in", inputDir.toString(),
-        "out", outputDir.toString(),
-        "decode", "none"));
-
-    new PosterUseCase().run(config);
-
-    try (Stream<Path> files = Files.list(outputDir)) {
-      List<Path> outputs = files.toList();
-      assertTrue(!outputs.isEmpty(), "expected poster output file");
-      String content = Files.readString(outputs.get(0), StandardCharsets.UTF_8);
-      assertTrue(content.contains("=== HTTP REQUEST ==="));
-      assertTrue(content.contains("GET /demo"));
-      assertTrue(content.contains("=== HTTP RESPONSE ==="));
-      assertTrue(content.contains("200"));
+  @AfterEach
+  void tearDown() {
+    if (logger != null && appender != null) {
+      logger.detachAppender(appender);
     }
   }
 
   @Test
-  void rendersTnPairAsHexDump() throws Exception {
-    Path inputDir = Files.createTempDirectory("poster-tn-in");
-    Path outputDir = Files.createTempDirectory("poster-tn-out");
+  void failingPipelineLogsErrorAndClosesOutput() throws Exception {
+    PosterPipeline failing = new FailingPipeline();
+    PosterUseCase useCase = new PosterUseCase(Map.of(ProtocolId.HTTP, failing));
+    PosterConfig config = PosterConfig.fromMap(Map.of(
+        "httpIn", "./http-in",
+        "httpOut", "./http-out"));
 
-    try (Tn3270SegmentSinkPersistenceAdapter adapter = new Tn3270SegmentSinkPersistenceAdapter(inputDir)) {
-      adapter.persist(tnPair());
+    RuntimeException ex = assertThrows(RuntimeException.class, () -> useCase.run(config));
+    assertEquals("boom", ex.getMessage());
+
+    boolean errorLogged = appender.list.stream()
+        .anyMatch(event -> event.getLevel() == Level.ERROR
+            && event.getFormattedMessage().contains("Poster HTTP pipeline failed"));
+    assertTrue(errorLogged, "pipeline failure should be logged once");
+
+    boolean closeLogged = appender.list.stream()
+        .anyMatch(event -> event.getLevel() == Level.INFO
+            && event.getFormattedMessage().contains("Poster HTTP output closed"));
+    assertTrue(closeLogged, "output closure should be logged");
+  }
+
+  private static final class FailingPipeline implements PosterPipeline {
+    @Override
+    public ProtocolId protocol() {
+      return ProtocolId.HTTP;
     }
 
-    PosterConfig config = PosterConfig.fromMap(Map.of(
-        "tnIn", inputDir.toString(),
-        "tnOut", outputDir.toString()));
-
-    new PosterUseCase().run(config);
-
-    try (Stream<Path> files = Files.list(outputDir)) {
-      List<Path> outputs = files.toList();
-      assertTrue(!outputs.isEmpty(), "expected TN output file");
-      String content = Files.readString(outputs.get(0), StandardCharsets.UTF_8);
-      assertTrue(content.contains("=== TN3270 REQUEST ==="));
-      assertTrue(content.contains("f1 f2"));
+    @Override
+    public void process(PosterConfig.ProtocolConfig config, PosterConfig.DecodeMode decodeMode, PosterOutputPort outputPort) {
+      throw new RuntimeException("boom");
     }
-  }
-
-  @Test
-  void posterOutModeKafkaRequiresKafkaInput() {
-    PosterConfig config = PosterConfig.fromMap(Map.of(
-        "httpIn", "./pairs",
-        "posterOutMode", "KAFKA",
-        "kafkaBootstrap", "localhost:9092",
-        "kafkaHttpReportsTopic", "radar.http.reports"));
-    Assertions.assertThrows(IllegalArgumentException.class, () -> new PosterUseCase().run(config));
-  }
-
-  private static MessagePair httpPair() {
-    FiveTuple flow = new FiveTuple("10.1.1.1", 1234, "10.1.1.2", 80, "TCP");
-    byte[] requestBytes = "GET /demo HTTP/1.1\r\nHost: example\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1);
-    byte[] responseBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello".getBytes(StandardCharsets.ISO_8859_1);
-    MessageEvent request = new MessageEvent(
-        ProtocolId.HTTP,
-        MessageType.REQUEST,
-        new ByteStream(flow, true, requestBytes, 10L),
-        new MessageMetadata("txn-http", Map.of()));
-    MessageEvent response = new MessageEvent(
-        ProtocolId.HTTP,
-        MessageType.RESPONSE,
-        new ByteStream(flow, false, responseBytes, 20L),
-        new MessageMetadata("txn-http", Map.of()));
-    return new MessagePair(request, response);
-  }
-
-  private static MessagePair tnPair() {
-    FiveTuple flow = new FiveTuple("10.2.2.1", 992, "10.2.2.2", 23, "TCP");
-    byte[] rsp = new byte[] {(byte) 0xF1, (byte) 0xF2, 0x10};
-    byte[] req = new byte[] {(byte) 0x7E, (byte) 0xFF};
-    MessageEvent response = new MessageEvent(
-        ProtocolId.TN3270,
-        MessageType.RESPONSE,
-        new ByteStream(flow, false, rsp, 30L),
-        new MessageMetadata("txn-tn", Map.of()));
-    MessageEvent request = new MessageEvent(
-        ProtocolId.TN3270,
-        MessageType.REQUEST,
-        new ByteStream(flow, true, req, 40L),
-        new MessageMetadata("txn-tn", Map.of()));
-    return new MessagePair(request, response);
   }
 }

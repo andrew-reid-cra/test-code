@@ -10,6 +10,9 @@ import ca.gc.cra.radar.domain.net.RawFrame;
 import ca.gc.cra.radar.domain.net.TcpSegment;
 import java.util.Objects;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Coordinates packet capture by polling a {@link PacketSource}, decoding frames, and persisting
@@ -23,19 +26,20 @@ import java.util.Optional;
  * @since RADAR 0.1-doc
  */
 public final class SegmentCaptureUseCase {
+  private static final Logger log = LoggerFactory.getLogger(SegmentCaptureUseCase.class);
+
   private final PacketSource packetSource;
   private final FrameDecoder frameDecoder;
   private final SegmentPersistencePort persistence;
   private final MetricsPort metrics;
 
   /**
-   * Creates a capture use case wiring the required ports.
+   * Creates a capture use case with the supplied dependencies.
    *
-   * @param packetSource stream of raw frames; must be non-null and provide cooperative shutdown
-   * @param frameDecoder decoder that maps frames to TCP segments, optionally empty when not TCP
-   * @param persistence sink for accepted segments
-   * @param metrics metrics sink updated for decode skips and persisted segments
-   * @since RADAR 0.1-doc
+   * @param packetSource source of raw frames
+   * @param frameDecoder decoder that maps frames to TCP segments
+   * @param persistence sink for persisted segments
+   * @param metrics metrics sink for capture counters
    */
   public SegmentCaptureUseCase(
       PacketSource packetSource,
@@ -57,9 +61,11 @@ public final class SegmentCaptureUseCase {
    */
   public void run() throws Exception {
     boolean started = false;
+    long persistedCount = 0;
     try {
       packetSource.start();
       started = true;
+      log.info("Capture packet source started");
 
       while (!Thread.currentThread().isInterrupted()) {
         RawFrame frame;
@@ -71,6 +77,7 @@ public final class SegmentCaptureUseCase {
           frame = maybeFrame.get();
         } catch (InterruptedException ex) {
           Thread.currentThread().interrupt();
+          log.info("Capture loop interrupted; draining and shutting down");
           break;
         }
 
@@ -87,21 +94,55 @@ public final class SegmentCaptureUseCase {
         }
 
         SegmentRecord record = toRecord(frame.timestampMicros(), segment);
-        persistence.persist(record);
+        String previousFlowId = MDC.get("flowId");
+        try {
+          MDC.put("flowId", formatFlow(segment.flow()));
+          persistence.persist(record);
+          persistedCount++;
+        } finally {
+          if (previousFlowId == null) {
+            MDC.remove("flowId");
+          } else {
+            MDC.put("flowId", previousFlowId);
+          }
+        }
         metrics.increment("capture.segment.persisted");
       }
     } finally {
       try {
         persistence.flush();
+        log.info("Capture persistence flushed after {} segments", persistedCount);
+      } catch (Exception ex) {
+        log.error("Failed to flush capture persistence", ex);
+        throw ex;
       } finally {
-        persistence.close();
-        if (started) {
-          packetSource.close();
+        try {
+          persistence.close();
+          log.info("Capture persistence port closed");
+        } catch (Exception ex) {
+          log.error("Failed to close capture persistence port", ex);
+          throw ex;
+        } finally {
+          if (started) {
+            try {
+              packetSource.close();
+              log.info("Capture packet source closed");
+            } catch (Exception ex) {
+              log.error("Failed to close packet source", ex);
+              throw ex;
+            }
+          }
         }
       }
     }
   }
 
+  /**
+   * Determines whether a segment represents a pure ACK frame.
+   *
+   * @param segment segment under inspection
+   * @return {@code true} if the segment contains only the ACK flag
+   */
   private static boolean isPureAck(TcpSegment segment) {
     return segment.payload().length == 0
         && segment.ack()
@@ -111,6 +152,13 @@ public final class SegmentCaptureUseCase {
         && !segment.psh();
   }
 
+  /**
+   * Converts a decoded TCP segment into a persisted record.
+   *
+   * @param timestampMicros capture timestamp in microseconds
+   * @param segment decoded TCP segment
+   * @return record ready for persistence
+   */
   private static SegmentRecord toRecord(long timestampMicros, TcpSegment segment) {
     FiveTuple flow = segment.flow();
     int flags = 0;
@@ -129,5 +177,9 @@ public final class SegmentCaptureUseCase {
         segment.sequenceNumber(),
         flags,
         segment.payload());
+  }
+
+  private static String formatFlow(FiveTuple flow) {
+    return flow.srcIp() + ":" + flow.srcPort() + "->" + flow.dstIp() + ":" + flow.dstPort();
   }
 }

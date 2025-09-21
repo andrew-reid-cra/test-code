@@ -19,6 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Replays captured segment records to reconstruct higher-level protocol message pairs.
@@ -30,6 +33,8 @@ import java.util.function.Supplier;
  * @since RADAR 0.1-doc
  */
 public final class AssembleUseCase {
+  private static final Logger log = LoggerFactory.getLogger(AssembleUseCase.class);
+
   private final AssembleConfig config;
   private final FlowProcessingEngine flowEngine;
   private final PersistencePort persistence;
@@ -39,18 +44,17 @@ public final class AssembleUseCase {
   private final FlowDirectionService orientations = new FlowDirectionService();
 
   /**
-   * Creates an assemble use case with the supplied ports and factories.
+   * Creates an assemble use case with explicit dependencies.
    *
-   * @param config assemble configuration describing inputs and protocol toggles
-   * @param flowAssembler assembler that supplies ordered byte streams per TCP flow
-   * @param protocolDetector detects protocols for new flows
-   * @param reconstructorFactories factories for protocol-specific message reconstructors
-   * @param pairingFactories factories for protocol-specific pairing engines
-   * @param persistence sink that stores materialized {@link MessagePair} instances
-   * @param metrics metrics sink for per-stage counters
-   * @param enabledProtocols protocols that should be processed; others are skipped
-   * @param readerFactory supplier of {@link SegmentRecordReader} instances bound to {@link AssembleConfig}
-   * @since RADAR 0.1-doc
+   * @param config assemble configuration
+   * @param flowAssembler flow assembler implementation
+   * @param protocolDetector protocol detector implementation
+   * @param reconstructorFactories factories for message reconstructors
+   * @param pairingFactories factories for pairing engines
+   * @param persistence persistence port
+   * @param metrics metrics port
+   * @param enabledProtocols protocols to process
+   * @param readerFactory factory for segment readers
    */
   public AssembleUseCase(
       AssembleConfig config,
@@ -85,20 +89,48 @@ public final class AssembleUseCase {
    * @since RADAR 0.1-doc
    */
   public void run() throws Exception {
+    MDC.put("assemble.in", config.inputDirectory().toString());
+    long segmentCount = 0;
+    long pairCount = 0;
     try (PersistencePort sink = this.persistence;
          SegmentRecordReader reader = readerFactory.open(config)) {
+      log.info("Assemble pipeline reading from {}", config.inputDirectory());
       SegmentRecord record;
       while ((record = reader.next()) != null) {
+        segmentCount++;
         TcpSegment segment = toSegment(record);
-        List<MessagePair> pairs = flowEngine.onSegment(segment);
-        for (MessagePair pair : pairs) {
-          sink.persist(pair);
-          metrics.increment("assemble.pairs.persisted");
+        String previousFlowId = MDC.get("flowId");
+        try {
+          MDC.put("flowId", formatFlow(segment.flow()));
+          List<MessagePair> pairs = flowEngine.onSegment(segment);
+          for (MessagePair pair : pairs) {
+            sink.persist(pair);
+            metrics.increment("assemble.pairs.persisted");
+            pairCount++;
+          }
+        } finally {
+          if (previousFlowId == null) {
+            MDC.remove("flowId");
+          } else {
+            MDC.put("flowId", previousFlowId);
+          }
         }
       }
       sink.flush();
+      log.info("Assemble pipeline flushed {} message pairs from {} segments", pairCount, segmentCount);
+    } catch (Exception ex) {
+      log.error("Assemble pipeline failed after processing {} segments", segmentCount, ex);
+      throw ex;
     } finally {
-      flowEngine.close();
+      try {
+        flowEngine.close();
+        log.info("Assemble flow engine closed");
+      } catch (Exception ex) {
+        log.error("Failed to close assemble flow engine", ex);
+        throw ex;
+      } finally {
+        MDC.remove("assemble.in");
+      }
     }
   }
 
@@ -129,40 +161,41 @@ public final class AssembleUseCase {
         record.timestampMicros());
   }
 
+  /**
+   * Checks whether a flag mask is set.
+   *
+   * @param flags bitmask to inspect
+   * @param mask mask to test
+   * @return {@code true} when the mask is present
+   */
   private static boolean hasFlag(int flags, int mask) {
     return (flags & mask) != 0;
   }
 
   /**
    * Reader abstraction over a source of serialized {@link SegmentRecord}s.
-   *
-   * @since RADAR 0.1-doc
    */
   public interface SegmentRecordReader extends AutoCloseable {
     /**
-     * Returns the next segment record or {@code null} when the stream is exhausted.
+     * Returns the next record or {@code null} when depleted.
      *
-     * @return next record or {@code null} at end of input
+     * @return next record or {@code null} when complete
      * @throws Exception if reading fails
-     * @since RADAR 0.1-doc
      */
     SegmentRecord next() throws Exception;
   }
 
   /**
    * Factory for {@link SegmentRecordReader} instances tied to an {@link AssembleConfig} input.
-   *
-   * @since RADAR 0.1-doc
    */
   @FunctionalInterface
   public interface SegmentReaderFactory {
     /**
-     * Opens a reader over the configured segment source.
+     * Opens a reader bound to the supplied configuration.
      *
-     * @param config assemble configuration providing the segment input location
-     * @return reader that must be closed by the caller
+     * @param config assemble configuration describing the source
+     * @return opened reader
      * @throws Exception if the reader cannot be created
-     * @since RADAR 0.1-doc
      */
     SegmentRecordReader open(AssembleConfig config) throws Exception;
   }
@@ -171,40 +204,44 @@ public final class AssembleUseCase {
    * Creates a {@link SegmentReaderFactory} that streams serialized segments via {@link SegmentIoAdapter}.
    *
    * @return factory producing file-based segment readers
-   * @since RADAR 0.1-doc
    */
   public static SegmentReaderFactory segmentIoReaderFactory() {
     return config -> new SegmentIoAdapterRecordReader(new SegmentIoAdapter.Reader(config.inputDirectory()));
   }
 
+  /**
+   * Concrete reader that adapts {@link SegmentIoAdapter.Reader} to the {@link SegmentRecordReader} interface.
+   */
   private static final class SegmentIoAdapterRecordReader implements SegmentRecordReader {
     private final SegmentIoAdapter.Reader delegate;
 
+    /**
+     * Creates a reader wrapper around the provided adapter.
+     *
+     * @param delegate underlying adapter
+     */
     private SegmentIoAdapterRecordReader(SegmentIoAdapter.Reader delegate) {
       this.delegate = delegate;
     }
 
-    /**
-     * Delegates to the underlying adapter to fetch the next serialized segment.
-     *
-     * @return next segment or {@code null} when the stream is exhausted
-     * @throws Exception if the adapter fails while reading
-     * @since RADAR 0.1-doc
-     */
     @Override
     public SegmentRecord next() throws Exception {
       return delegate.next();
     }
 
-    /**
-     * Closes the underlying adapter stream.
-     *
-     * @throws Exception if closing the adapter fails
-     * @since RADAR 0.1-doc
-     */
     @Override
     public void close() throws Exception {
       delegate.close();
     }
+  }
+
+  /**
+   * Formats a five-tuple into a compact string for MDC logging.
+   *
+   * @param flow flow metadata to format
+   * @return compact textual representation
+   */
+  private static String formatFlow(FiveTuple flow) {
+    return flow.srcIp() + ":" + flow.srcPort() + "->" + flow.dstIp() + ":" + flow.dstPort();
   }
 }

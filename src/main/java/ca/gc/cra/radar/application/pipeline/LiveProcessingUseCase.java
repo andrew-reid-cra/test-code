@@ -23,6 +23,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Executes live packet capture and protocol reconstruction, persisting message pairs in real time.
@@ -32,6 +35,8 @@ import java.util.function.Supplier;
  * @since RADAR 0.1-doc
  */
 public final class LiveProcessingUseCase {
+  private static final Logger log = LoggerFactory.getLogger(LiveProcessingUseCase.class);
+
   private static final int DEFAULT_PERSISTENCE_WORKERS =
       Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
   private static final int DEFAULT_QUEUE_CAPACITY = DEFAULT_PERSISTENCE_WORKERS * 128;
@@ -145,104 +150,123 @@ public final class LiveProcessingUseCase {
    * @since RADAR 0.1-doc
    */
   public void run() throws Exception {
-    boolean started = false;
-    startPersistenceWorkers();
-    Exception primaryFailure = null;
+    MDC.put("pipeline", "live");
     try {
-      packetSource.start();
-      started = true;
+      boolean started = false;
+      long frameCount = 0;
+      long pairCount = 0;
+      startPersistenceWorkers();
+      Exception primaryFailure = null;
+      try {
+        packetSource.start();
+        started = true;
+        log.info("Live pipeline packet source started with {} persistence workers", persistenceWorkerCount);
 
-      while (!Thread.currentThread().isInterrupted()) {
-        if (persistenceFailure.get() != null) {
-          primaryFailure = persistenceFailure.get();
-          break;
-        }
-
-        Optional<RawFrame> maybeFrame;
-        try {
-          maybeFrame = packetSource.poll();
-        } catch (Exception ex) {
-          if (ex instanceof InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            break;
-          }
-          throw ex;
-        }
-
-        if (maybeFrame.isEmpty()) {
-          continue;
-        }
-
-        Optional<TcpSegment> maybeSegment = frameDecoder.decode(maybeFrame.get());
-        if (maybeSegment.isEmpty()) {
-          metrics.increment("live.segment.skipped.decode");
-          continue;
-        }
-
-        List<MessagePair> pairs = flowEngine.onSegment(maybeSegment.get());
-
-        if (pairs.isEmpty()) {
-          continue;
-        }
-
-        for (MessagePair pair : pairs) {
-          if (Thread.currentThread().isInterrupted()) {
-            break;
-          }
+        while (!Thread.currentThread().isInterrupted()) {
           if (persistenceFailure.get() != null) {
             primaryFailure = persistenceFailure.get();
             break;
           }
+
+          Optional<RawFrame> maybeFrame;
           try {
-            enqueueForPersistence(pair);
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            break;
+            maybeFrame = packetSource.poll();
+          } catch (Exception ex) {
+            if (ex instanceof InterruptedException ie) {
+              Thread.currentThread().interrupt();
+              break;
+            }
+            throw ex;
+          }
+
+          if (maybeFrame.isEmpty()) {
+            continue;
+          }
+
+          frameCount++;
+          Optional<TcpSegment> maybeSegment = frameDecoder.decode(maybeFrame.get());
+          if (maybeSegment.isEmpty()) {
+            metrics.increment("live.segment.skipped.decode");
+            continue;
+          }
+
+          List<MessagePair> pairs = flowEngine.onSegment(maybeSegment.get());
+
+          if (pairs.isEmpty()) {
+            continue;
+          }
+
+          for (MessagePair pair : pairs) {
+            if (Thread.currentThread().isInterrupted()) {
+              break;
+            }
+            if (persistenceFailure.get() != null) {
+              primaryFailure = persistenceFailure.get();
+              break;
+            }
+            try {
+              enqueueForPersistence(pair);
+              pairCount++;
+            } catch (InterruptedException ie) {
+              Thread.currentThread().interrupt();
+              break;
+            }
           }
         }
-      }
 
-      if (primaryFailure == null) {
-        primaryFailure = persistenceFailure.get();
-      }
-      if (primaryFailure == null) {
-        try {
-          flushPersistence();
-        } catch (Exception flushFailure) {
-          primaryFailure = flushFailure;
-        }
-      }
-    } catch (Exception runFailure) {
-      primaryFailure = runFailure;
-    } finally {
-      shutdownPersistenceWorkers();
-      try {
-        flowEngine.close();
-      } catch (Exception flowCloseFailure) {
         if (primaryFailure == null) {
-          primaryFailure = flowCloseFailure;
+          primaryFailure = persistenceFailure.get();
         }
-      }
-      try {
-        persistence.close();
-      } catch (Exception persistenceCloseFailure) {
         if (primaryFailure == null) {
-          primaryFailure = persistenceCloseFailure;
+          try {
+            flushPersistence();
+            log.info("Live pipeline flushed persistence queue after {} frames and {} pairs", frameCount, pairCount);
+          } catch (Exception flushFailure) {
+            primaryFailure = flushFailure;
+          }
         }
-      }
-      if (started) {
+      } catch (Exception runFailure) {
+        primaryFailure = runFailure;
+      } finally {
+        shutdownPersistenceWorkers();
         try {
-          packetSource.close();
-        } catch (Exception packetSourceCloseFailure) {
+          flowEngine.close();
+          log.info("Live flow engine closed");
+        } catch (Exception flowCloseFailure) {
+          log.error("Failed to close live flow engine", flowCloseFailure);
           if (primaryFailure == null) {
-            primaryFailure = packetSourceCloseFailure;
+            primaryFailure = flowCloseFailure;
+          }
+        }
+        try {
+          persistence.close();
+          log.info("Live persistence port closed");
+        } catch (Exception persistenceCloseFailure) {
+          log.error("Failed to close live persistence port", persistenceCloseFailure);
+          if (primaryFailure == null) {
+            primaryFailure = persistenceCloseFailure;
+          }
+        }
+        if (started) {
+          try {
+            packetSource.close();
+            log.info("Live packet source closed");
+          } catch (Exception packetSourceCloseFailure) {
+            log.error("Failed to close live packet source", packetSourceCloseFailure);
+            if (primaryFailure == null) {
+              primaryFailure = packetSourceCloseFailure;
+            }
           }
         }
       }
-    }
 
-    if (primaryFailure != null) {
-      throw primaryFailure;
+      if (primaryFailure != null) {
+        log.debug("Live pipeline terminating after {} frames and {} pairs due to failure", frameCount, pairCount);
+        throw primaryFailure;
+      }
+      log.info("Live pipeline completed; processed {} frames and emitted {} pairs", frameCount, pairCount);
+    } finally {
+      MDC.remove("pipeline");
     }
   }
 
@@ -252,6 +276,7 @@ public final class LiveProcessingUseCase {
     }
     workersStarted = true;
     persistenceFailure.set(null);
+    log.info("Starting {} persistence workers with queue capacity {}", persistenceWorkerCount, persistenceQueue.remainingCapacity());
 
     for (int i = 0; i < persistenceWorkerCount; i++) {
       Thread worker =
@@ -273,7 +298,9 @@ public final class LiveProcessingUseCase {
                     metrics.increment("live.pairs.persisted");
                   } catch (Exception ex) {
                     metrics.increment("live.persist.error");
-                    persistenceFailure.compareAndSet(null, ex);
+                    if (persistenceFailure.compareAndSet(null, ex)) {
+                      log.error("Persistence worker {} failed", Thread.currentThread().getName(), ex);
+                    }
                     break;
                   }
                 }
@@ -309,6 +336,8 @@ public final class LiveProcessingUseCase {
       return;
     }
 
+    log.info("Signalling persistence workers to stop");
+
     for (int i = 0; i < persistenceWorkerCount; i++) {
       boolean enqueued = false;
       while (!enqueued) {
@@ -333,6 +362,7 @@ public final class LiveProcessingUseCase {
         break;
       }
     }
+    log.info("Persistence workers joined");
     persistenceWorkers.clear();
     persistenceQueue.clear();
     workersStarted = false;

@@ -1,5 +1,6 @@
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\port\poster\PosterReportTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\config\PosterConfigTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\AssembleCliTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\FrameDecoderLibpcapTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapterTest.java
@@ -26,6 +27,7 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\capture\SegmentRecordTes
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\NoOpFlowAssemblerTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\PosterCliTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentReaderTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPosterPipelineTest.java
