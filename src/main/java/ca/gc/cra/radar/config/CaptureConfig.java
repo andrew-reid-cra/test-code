@@ -110,7 +110,9 @@ public record CaptureConfig(
    * @return parsed configuration
    * @throws IllegalArgumentException when required values are missing or invalid
    * @since RADAR 0.1-doc
+   * @deprecated since RADAR 0.1.1; prefer {@link #fromMap(Map)} fed by {@code CliArgsParser.toMap(args)}.
    */
+  @Deprecated(since = "0.1.1", forRemoval = true)
   public static CaptureConfig fromArgs(String[] args) {
     Map<String, String> kv = new HashMap<>();
     if (args != null) {
