@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 /**
  * Temporary adapter writing message pairs as NDJSON entries. Real SegmentSink wiring will replace this.
@@ -28,19 +29,26 @@ public final class SegmentSinkAdapter implements PersistencePort {
   }
 
   /**
-   * Writes the pair as a single NDJSON line (overwriting the file).
+   * Writes the pair as a single NDJSON line appended to the file.
    *
    * @param pair pair to serialize; {@code null} is ignored
    * @throws IOException if the file cannot be written
-   * @implNote Overwrites the file on each call; suitable only for scaffolding.
+   * @implNote Appends to the file using CREATE+APPEND to preserve previous entries.
    * @since RADAR 0.1-doc
    */
   @Override
   public void persist(MessagePair pair) throws IOException {
-    if (pair == null) return;
+    if (pair == null) {
+      return;
+    }
     Files.createDirectories(directory);
     Path file = directory.resolve("pairs.ndjson");
-    Files.writeString(file, serialize(pair) + "\n", StandardCharsets.UTF_8);
+    Files.writeString(
+        file,
+        serialize(pair) + System.lineSeparator(),
+        StandardCharsets.UTF_8,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.APPEND);
   }
 
   private static String serialize(MessagePair pair) {
@@ -55,6 +63,10 @@ public final class SegmentSinkAdapter implements PersistencePort {
   @Override
   public void close() throws Exception {}
 }
+
+
+
+
 
 
 

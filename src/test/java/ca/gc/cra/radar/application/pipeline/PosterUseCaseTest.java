@@ -78,8 +78,9 @@ class PosterUseCaseTest {
   void posterOutModeKafkaRequiresKafkaInput() {
     PosterConfig config = PosterConfig.fromMap(Map.of(
         "httpIn", "./pairs",
-        "httpOut", "./poster",
-        "posterOutMode", "KAFKA"));
+        "posterOutMode", "KAFKA",
+        "kafkaBootstrap", "localhost:9092",
+        "kafkaHttpReportsTopic", "radar.http.reports"));
     Assertions.assertThrows(IllegalArgumentException.class, () -> new PosterUseCase().run(config));
   }
 

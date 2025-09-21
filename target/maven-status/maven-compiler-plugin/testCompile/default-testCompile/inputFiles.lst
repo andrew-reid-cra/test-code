@@ -6,6 +6,7 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPersis
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\http\HttpSegmentSinkPersistenceAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\flow\FlowDirectionServiceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssemblerTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\SegmentSinkAdapterNdjsonTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\LegacySegmentPersistenceAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\AssembleUseCaseTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\A.java

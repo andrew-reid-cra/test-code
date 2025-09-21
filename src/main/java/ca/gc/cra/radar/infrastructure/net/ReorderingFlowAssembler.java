@@ -63,7 +63,10 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
 
     Optional<DirectionState.EmittedSlice> emitted = state.onSegment(segment);
 
-    if (segment.fin() || segment.rst() || state.isDrained()) {
+    if (segment.fin() || segment.rst()) {
+      state.markFinished();
+    }
+    if (state.shouldRetire()) {
       state.close();
       flows.remove(key);
     }
@@ -83,6 +86,7 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
     private final NavigableMap<Long, Chunk> buffer = new TreeMap<>();
 
     private long nextExpected = Long.MIN_VALUE;
+    private boolean finished;
 
     DirectionState(MetricsPort metrics, String metricsPrefix, boolean fromClient) {
       this.metrics = metrics;
@@ -211,8 +215,12 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
       return Optional.of(new EmittedSlice(out.toByteArray(), lastTimestamp));
     }
 
-    boolean isDrained() {
-      return buffer.isEmpty();
+    void markFinished() {
+      finished = true;
+    }
+
+    boolean shouldRetire() {
+      return finished && buffer.isEmpty();
     }
 
     void close() {

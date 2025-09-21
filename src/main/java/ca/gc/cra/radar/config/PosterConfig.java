@@ -182,8 +182,8 @@ public final class PosterConfig {
     if (inRaw.isPresent()) {
       String value = inRaw.get();
       if (value.startsWith("kafka:")) {
-        kafkaInputTopic = Optional.of(value.substring("kafka:".length()).trim());
-        if (kafkaInputTopic.get().isBlank()) {
+        kafkaInputTopic = Optional.of(value);
+        if (value.substring("kafka:".length()).trim().isEmpty()) {
           throw new IllegalArgumentException("Kafka input topic must not be blank");
         }
       } else {
@@ -199,8 +199,8 @@ public final class PosterConfig {
     if (outRaw.isPresent()) {
       String value = outRaw.get();
       if (value.startsWith("kafka:")) {
-        kafkaOutputTopic = Optional.of(value.substring("kafka:".length()).trim());
-        if (kafkaOutputTopic.get().isBlank()) {
+        kafkaOutputTopic = Optional.of(value);
+        if (value.substring("kafka:".length()).trim().isEmpty()) {
           throw new IllegalArgumentException("Kafka output topic must not be blank");
         }
       } else {
@@ -234,15 +234,17 @@ public final class PosterConfig {
     if (raw.isEmpty()) {
       return Optional.empty();
     }
-    String value = raw.get();
+    String value = raw.get().trim();
+    if (value.isEmpty()) {
+      throw new IllegalArgumentException("Kafka topic must not be blank");
+    }
     if (value.startsWith("kafka:")) {
-      String topic = value.substring("kafka:".length()).trim();
-      if (topic.isEmpty()) {
+      value = value.substring("kafka:".length()).trim();
+      if (value.isEmpty()) {
         throw new IllegalArgumentException("Kafka topic must not be blank");
       }
-      return Optional.of(topic);
     }
-    return Optional.empty();
+    return Optional.of(value);
   }
 
   private static Optional<String> optionalString(String value) {

@@ -11,7 +11,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>25</maven.compiler.release>
+    <maven.compiler.release>17</maven.compiler.release>
     <junit.jupiter.version>5.9.3</junit.jupiter.version>
     <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
     <maven.javadoc.plugin.version>3.6.3</maven.javadoc.plugin.version>
@@ -70,7 +70,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>${maven.javadoc.plugin.version}</version>
         <configuration>
-          <source>25</source>
+          <source>17</source>
           <linksource>true</linksource>
           <failOnError>true</failOnError>
           <additionalOptions>

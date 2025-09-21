@@ -17,7 +17,6 @@ ca\gc\cra\radar\infrastructure\poster\SegmentPosterProcessor$Kind.class
 ca\gc\cra\radar\domain\msg\MessageType.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpSignature.class
 ca\gc\cra\radar\application\pipeline\FlowProcessingEngine$Endpoint.class
-ca\gc\cra\radar\infrastructure\persistence\segment\SegmentSinkAdapter.class
 ca\gc\cra\radar\config\IoMode.class
 ca\gc\cra\radar\application\util\AbstractMessageSession.class
 ca\gc\cra\radar\infrastructure\persistence\segment\SegmentBinIO$Writer.class

@@ -1,5 +1,6 @@
 package ca.gc.cra.radar.adapter.kafka;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ca.gc.cra.radar.application.port.poster.PosterOutputPort;
@@ -9,6 +10,7 @@ import ca.gc.cra.radar.infrastructure.poster.FilePosterOutputAdapter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,8 +29,8 @@ class Tn3270KafkaPosterPipelineTest {
 
     String topic = "radar.tn3270.pairs";
     TopicPartition partition = new TopicPartition(topic, 0);
-    consumer.subscribe(java.util.List.of(topic));
-    consumer.rebalance(java.util.List.of(partition));
+    consumer.subscribe(List.of(topic));
+    consumer.rebalance(List.of(partition));
     consumer.updateBeginningOffsets(Map.of(partition, 0L));
 
     String json = "{" +
@@ -52,14 +54,11 @@ class Tn3270KafkaPosterPipelineTest {
 
     pipeline.process(cfg, PosterConfig.DecodeMode.NONE, output);
 
-    Files.list(outputDir).findFirst().ifPresent(path -> {
-      try {
-        String content = Files.readString(path, StandardCharsets.UTF_8);
-        assertTrue(content.contains("TN3270 REQUEST"));
-        assertTrue(content.contains("ff"));
-      } catch (Exception ex) {
-        throw new AssertionError(ex);
-      }
-    });
+    List<Path> outputs = Files.list(outputDir).filter(Files::isRegularFile).toList();
+    assertFalse(outputs.isEmpty(), "expected poster output file");
+    String content = Files.readString(outputs.get(0), StandardCharsets.UTF_8);
+    assertTrue(content.contains("TN3270 REQUEST"));
+    assertTrue(content.contains("7f"), () -> "expected hex dump to include request payload: " + content);
+    assertTrue(content.contains("f1 f2"), () -> "expected hex dump to include response payload: " + content);
   }
 }

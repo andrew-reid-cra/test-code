@@ -75,8 +75,8 @@ class Tn3270SegmentSinkPersistenceAdapterTest {
     assertEquals("203.0.113.5:23", extractString(rspLine, "src"));
     assertEquals("198.51.100.1:992", extractString(rspLine, "dst"));
 
-    assertEquals("0", extractString(reqLine, "headers_len"));
-    assertEquals("0", extractString(rspLine, "headers_len"));
+    assertEquals(0L, extractLong(reqLine, "headers_len"));
+    assertEquals(0L, extractLong(rspLine, "headers_len"));
 
     long reqBodyOff = extractLong(reqLine, "body_off");
     long reqBodyLen = extractLong(reqLine, "body_len");

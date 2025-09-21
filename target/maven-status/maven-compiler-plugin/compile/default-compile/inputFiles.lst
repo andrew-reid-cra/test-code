@@ -2,8 +2,8 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\util\Bytes.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\cstruct\PcapPkthdr.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\tools\SegbinGrepCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\JnrPcapAdapter.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\ConfigLoader.java
-D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\segment\SegmentSinkAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentReader.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\util\MessagePairer.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssembler.java
@@ -64,6 +64,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\PosterUseC
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipeline.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CapturePropertiesLoader.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\ContextualFlowAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\TransactionId.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPersistenceAdapter.java
@@ -74,6 +75,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CaptureConfig.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\net\FiveTuple.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentRecordReaderAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\PosterConfig.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\capture\SegmentRecord.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\Main.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270FlowAssemblerAdapter.java
@@ -98,5 +100,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\PersistencePor
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpSessionExtractor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\MetricsPort.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\NoOpFlowAssembler.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\package-info.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\SegmentSinkAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\poster\FilePosterOutputAdapter.java
