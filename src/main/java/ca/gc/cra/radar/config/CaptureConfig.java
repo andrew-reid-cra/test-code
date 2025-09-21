@@ -5,6 +5,26 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Configuration for the capture CLI, covering NIC selection, IO modes, and file rotation.
+ *
+ * @param iface network interface name to capture from
+ * @param filter optional BPF filter expression
+ * @param snaplen libpcap snap length in bytes
+ * @param bufferBytes capture buffer size in bytes
+ * @param timeoutMillis polling timeout in milliseconds
+ * @param promiscuous whether to enable promiscuous mode
+ * @param immediate whether to request immediate mode from libpcap
+ * @param outputDirectory directory for persisted segment files in file mode
+ * @param fileBase filename prefix for rotated segment files
+ * @param rollMiB maximum file size before rotation (mebibytes)
+ * @param httpOutputDirectory directory for HTTP poster artifacts
+ * @param tn3270OutputDirectory directory for TN3270 poster artifacts
+ * @param ioMode capture persistence mode ({@link IoMode#FILE} or {@link IoMode#KAFKA})
+ * @param kafkaBootstrap Kafka bootstrap servers (required for Kafka mode)
+ * @param kafkaTopicSegments Kafka topic for segments in Kafka mode
+ * @since RADAR 0.1-doc
+ */
 public record CaptureConfig(
     String iface,
     String filter,
@@ -22,6 +42,11 @@ public record CaptureConfig(
     String kafkaBootstrap,
     String kafkaTopicSegments) {
 
+  /**
+   * Validates capture configuration values.
+   *
+   * @since RADAR 0.1-doc
+   */
   public CaptureConfig {
     if (iface == null || iface.isBlank()) {
       throw new IllegalArgumentException("iface must be provided");
@@ -52,6 +77,12 @@ public record CaptureConfig(
     }
   }
 
+  /**
+   * Provides default capture settings that assume local file output.
+   *
+   * @return default configuration
+   * @since RADAR 0.1-doc
+   */
   public static CaptureConfig defaults() {
     return new CaptureConfig(
         "eth0",
@@ -71,6 +102,14 @@ public record CaptureConfig(
         "radar.segments");
   }
 
+  /**
+   * Parses CLI-style {@code key=value} arguments into a configuration.
+   *
+   * @param args CLI arguments; may be {@code null}
+   * @return parsed configuration
+   * @throws IllegalArgumentException when required values are missing or invalid
+   * @since RADAR 0.1-doc
+   */
   public static CaptureConfig fromArgs(String[] args) {
     Map<String, String> kv = new HashMap<>();
     if (args != null) {
@@ -85,6 +124,14 @@ public record CaptureConfig(
     return fromMap(kv);
   }
 
+  /**
+   * Creates a configuration from a map of settings.
+   *
+   * @param args configuration map, typically derived from CLI input
+   * @return parsed configuration
+   * @throws IllegalArgumentException if validation fails
+   * @since RADAR 0.1-doc
+   */
   public static CaptureConfig fromMap(Map<String, String> args) {
     Map<String, String> kv = args == null ? Map.of() : new HashMap<>(args);
     CaptureConfig defaults = defaults();

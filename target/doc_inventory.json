@@ -1,0 +1,783 @@
+{
+  "ca.gc.cra.radar.adapter.kafka": {
+    "HttpKafkaPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/HttpKafkaPersistenceAdapter.java",
+      "line": 27,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpKafkaPosterPipeline": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/HttpKafkaPosterPipeline.java",
+      "line": 34,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "KafkaPosterOutputAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/KafkaPosterOutputAdapter.java",
+      "line": 15,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "KafkaSegmentReader": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/KafkaSegmentReader.java",
+      "line": 21,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "KafkaSegmentRecordReaderAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/KafkaSegmentRecordReaderAdapter.java",
+      "line": 9,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentKafkaSinkAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/SegmentKafkaSinkAdapter.java",
+      "line": 18,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Tn3270KafkaPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/Tn3270KafkaPersistenceAdapter.java",
+      "line": 26,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Tn3270KafkaPosterPipeline": {
+      "file": "src/main/java/ca/gc/cra/radar/adapter/kafka/Tn3270KafkaPosterPipeline.java",
+      "line": 26,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.api": {
+    "AssembleCli": {
+      "file": "src/main/java/ca/gc/cra/radar/api/AssembleCli.java",
+      "line": 15,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "CaptureCli": {
+      "file": "src/main/java/ca/gc/cra/radar/api/CaptureCli.java",
+      "line": 15,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "CliArgsParser": {
+      "file": "src/main/java/ca/gc/cra/radar/api/CliArgsParser.java",
+      "line": 12,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "LiveCli": {
+      "file": "src/main/java/ca/gc/cra/radar/api/LiveCli.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Main": {
+      "file": "src/main/java/ca/gc/cra/radar/api/Main.java",
+      "line": 9,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PosterCli": {
+      "file": "src/main/java/ca/gc/cra/radar/api/PosterCli.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.api.tools": {
+    "SegbinGrepCli": {
+      "file": "src/main/java/ca/gc/cra/radar/api/tools/SegbinGrepCli.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.application.pipeline": {
+    "AssembleUseCase": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/AssembleUseCase.java",
+      "line": 32,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentRecordReader": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/AssembleUseCase.java",
+      "line": 141,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentReaderFactory": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/AssembleUseCase.java",
+      "line": 158,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "LiveProcessingUseCase": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/LiveProcessingUseCase.java",
+      "line": 28,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PosterUseCase": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/PosterUseCase.java",
+      "line": 35,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentCaptureUseCase": {
+      "file": "src/main/java/ca/gc/cra/radar/application/pipeline/SegmentCaptureUseCase.java",
+      "line": 25,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.application.port": {
+    "ClockPort": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/ClockPort.java",
+      "line": 8,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "FlowAssembler": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/FlowAssembler.java",
+      "line": 14,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "FrameDecoder": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/FrameDecoder.java",
+      "line": 12,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "MessageReconstructor": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/MessageReconstructor.java",
+      "line": 13,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "MetricsPort": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/MetricsPort.java",
+      "line": 8,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "PacketSource": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/PacketSource.java",
+      "line": 12,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "PairingEngine": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/PairingEngine.java",
+      "line": 13,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "PersistencePort": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/PersistencePort.java",
+      "line": 10,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "ProtocolDetector": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/ProtocolDetector.java",
+      "line": 11,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "ProtocolModule": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/ProtocolModule.java",
+      "line": 12,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentPersistencePort": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/SegmentPersistencePort.java",
+      "line": 10,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.application.port.context": {
+    "FlowContext": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/context/FlowContext.java",
+      "line": 13,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.application.port.poster": {
+    "PosterOutputPort": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/poster/PosterOutputPort.java",
+      "line": 10,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "PosterPipeline": {
+      "file": "src/main/java/ca/gc/cra/radar/application/port/poster/PosterPipeline.java",
+      "line": 11,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.application.util": {
+    "AbstractMessageSession": {
+      "file": "src/main/java/ca/gc/cra/radar/application/util/AbstractMessageSession.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "MessagePairer": {
+      "file": "src/main/java/ca/gc/cra/radar/application/util/MessagePairer.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.config": {
+    "AssembleConfig": {
+      "file": "src/main/java/ca/gc/cra/radar/config/AssembleConfig.java",
+      "line": 25,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "CaptureConfig": {
+      "file": "src/main/java/ca/gc/cra/radar/config/CaptureConfig.java",
+      "line": 28,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "CapturePropertiesLoader": {
+      "file": "src/main/java/ca/gc/cra/radar/config/CapturePropertiesLoader.java",
+      "line": 15,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "CompositionRoot": {
+      "file": "src/main/java/ca/gc/cra/radar/config/CompositionRoot.java",
+      "line": 49,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Config": {
+      "file": "src/main/java/ca/gc/cra/radar/config/Config.java",
+      "line": 15,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "ConfigLoader": {
+      "file": "src/main/java/ca/gc/cra/radar/config/ConfigLoader.java",
+      "line": 17,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "IoMode": {
+      "file": "src/main/java/ca/gc/cra/radar/config/IoMode.java",
+      "line": 8,
+      "kind": "enum",
+      "type_doc": true,
+      "members": []
+    },
+    "PosterConfig": {
+      "file": "src/main/java/ca/gc/cra/radar/config/PosterConfig.java",
+      "line": 17,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "ProtocolConfig": {
+      "file": "src/main/java/ca/gc/cra/radar/config/PosterConfig.java",
+      "line": 274,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "ProtocolConfig.DecodeMode": {
+      "file": "src/main/java/ca/gc/cra/radar/config/PosterConfig.java",
+      "line": 384,
+      "kind": "enum",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.capture": {
+    "SegmentRecord": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/capture/SegmentRecord.java",
+      "line": 17,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.flow": {
+    "FlowDirectionService": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/flow/FlowDirectionService.java",
+      "line": 12,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.msg": {
+    "MessageEvent": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/msg/MessageEvent.java",
+      "line": 15,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "MessageMetadata": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/msg/MessageMetadata.java",
+      "line": 12,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "MessagePair": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/msg/MessagePair.java",
+      "line": 10,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "MessageType": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/msg/MessageType.java",
+      "line": 8,
+      "kind": "enum",
+      "type_doc": true,
+      "members": []
+    },
+    "TransactionId": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/msg/TransactionId.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.net": {
+    "ByteStream": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/net/ByteStream.java",
+      "line": 13,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "FiveTuple": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/net/FiveTuple.java",
+      "line": 10,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "RawFrame": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/net/RawFrame.java",
+      "line": 10,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    },
+    "TcpSegment": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/net/TcpSegment.java",
+      "line": 18,
+      "kind": "record",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.protocol": {
+    "ProtocolId": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/protocol/ProtocolId.java",
+      "line": 8,
+      "kind": "enum",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.domain.util": {
+    "Bytes": {
+      "file": "src/main/java/ca/gc/cra/radar/domain/util/Bytes.java",
+      "line": 8,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.capture": {
+    "DisabledPacketSource": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/DisabledPacketSource.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PcapPacketSource": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/PcapPacketSource.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.capture.libpcap": {
+    "JnrLibpcap": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/JnrLibpcap.java",
+      "line": 12,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "JnrPcapAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/JnrPcapAdapter.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Pcap": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/Pcap.java",
+      "line": 9,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "PcapException": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/PcapException.java",
+      "line": 8,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PcapHandle": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/PcapHandle.java",
+      "line": 8,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct": {
+    "BpfProgramStruct": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/cstruct/BpfProgramStruct.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PcapPkthdr": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/cstruct/PcapPkthdr.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "TimeVal": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/capture/libpcap/cstruct/TimeVal.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.detect": {
+    "DefaultProtocolDetector": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/detect/DefaultProtocolDetector.java",
+      "line": 17,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.metrics": {
+    "NoOpMetricsAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/metrics/NoOpMetricsAdapter.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.net": {
+    "ContextualFlowAssembler": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/net/ContextualFlowAssembler.java",
+      "line": 14,
+      "kind": "interface",
+      "type_doc": true,
+      "members": []
+    },
+    "FrameDecoderLibpcap": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/net/FrameDecoderLibpcap.java",
+      "line": 19,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "NoOpFlowAssembler": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/net/NoOpFlowAssembler.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "PayloadFlowAssemblerAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/net/PayloadFlowAssemblerAdapter.java",
+      "line": 11,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "ReorderingFlowAssembler": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/net/ReorderingFlowAssembler.java",
+      "line": 19,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.persistence": {
+    "LegacySegmentPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/LegacySegmentPersistenceAdapter.java",
+      "line": 21,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "NoOpPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/NoOpPersistenceAdapter.java",
+      "line": 7,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentIoAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/SegmentIoAdapter.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Writer": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/SegmentIoAdapter.java",
+      "line": 21,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Reader": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/SegmentIoAdapter.java",
+      "line": 75,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentSinkAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/SegmentSinkAdapter.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.persistence.http": {
+    "HttpSegmentSinkPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/http/HttpSegmentSinkPersistenceAdapter.java",
+      "line": 25,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.persistence.segment": {
+    "SegmentBinIO": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/segment/SegmentBinIO.java",
+      "line": 32,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Writer": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/segment/SegmentBinIO.java",
+      "line": 43,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Reader": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/segment/SegmentBinIO.java",
+      "line": 156,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentFileSinkAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/segment/SegmentFileSinkAdapter.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "SegmentSinkAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/segment/SegmentSinkAdapter.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.persistence.tn3270": {
+    "Tn3270SegmentSinkPersistenceAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/persistence/tn3270/Tn3270SegmentSinkPersistenceAdapter.java",
+      "line": 23,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.poster": {
+    "FilePosterOutputAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/poster/FilePosterOutputAdapter.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpPosterPipeline": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/poster/HttpPosterPipeline.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Tn3270PosterPipeline": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/poster/Tn3270PosterPipeline.java",
+      "line": 15,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.protocol.http": {
+    "HttpFlowAssemblerAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/HttpFlowAssemblerAdapter.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpMessageReconstructor": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/HttpMessageReconstructor.java",
+      "line": 26,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpPairingEngineAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/HttpPairingEngineAdapter.java",
+      "line": 12,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpProtocolModule": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/HttpProtocolModule.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "HttpSessionExtractor": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/HttpSessionExtractor.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.protocol.http.legacy": {
+    "LegacyHttpAssembler": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/http/legacy/LegacyHttpAssembler.java",
+      "line": 9,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.protocol.tn3270": {
+    "Tn3270FlowAssemblerAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/tn3270/Tn3270FlowAssemblerAdapter.java",
+      "line": 14,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Tn3270PairingEngineAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/tn3270/Tn3270PairingEngineAdapter.java",
+      "line": 13,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    },
+    "Tn3270ProtocolModule": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/protocol/tn3270/Tn3270ProtocolModule.java",
+      "line": 16,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  },
+  "ca.gc.cra.radar.infrastructure.time": {
+    "SystemClockAdapter": {
+      "file": "src/main/java/ca/gc/cra/radar/infrastructure/time/SystemClockAdapter.java",
+      "line": 10,
+      "kind": "class",
+      "type_doc": true,
+      "members": []
+    }
+  }
+}

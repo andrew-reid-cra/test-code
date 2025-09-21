@@ -7,11 +7,22 @@ import ca.gc.cra.radar.config.IoMode;
 import java.util.Map;
 
 /**
- * Capture CLI backed by the new port-based pipeline.
+ * Entry point for packet capture using the RADAR port-based pipeline.
+ * <p>Provides CLI argument parsing and bootstraps the {@link SegmentCaptureUseCase}.</p>
+ *
+ * @since RADAR 0.1-doc
  */
 public final class CaptureCli {
   private CaptureCli() {}
 
+  /**
+   * Parses capture CLI arguments and runs the capture pipeline.
+   *
+   * @param args CLI arguments in {@code key=value} form; {@code iface} is required unless an alternate
+   *     {@code PacketSource} is selected via configuration
+   * @throws Exception if configuration validation or capture processing fails
+   * @since RADAR 0.1-doc
+   */
   public static void main(String[] args) throws Exception {
     Map<String, String> kv = CliArgsParser.toMap(args);
     if (!kv.containsKey("iface") || kv.get("iface").isBlank()) {

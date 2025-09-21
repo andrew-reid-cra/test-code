@@ -19,6 +19,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
+/**
+ * Executes live packet capture and protocol reconstruction, persisting message pairs in real time.
+ * <p>Runs on a single thread and is not thread-safe; call {@link #run()} once per process.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class LiveProcessingUseCase {
   private final PacketSource packetSource;
   private final FrameDecoder frameDecoder;
@@ -27,6 +33,20 @@ public final class LiveProcessingUseCase {
   private final MetricsPort metrics;
   private final Set<ProtocolId> enabledProtocols;
 
+  /**
+   * Creates the live processing pipeline by wiring capture, flow assembly, and persistence ports.
+   *
+   * @param packetSource source of raw frames; must support {@link PacketSource#start()} and {@link PacketSource#poll()}
+   * @param frameDecoder converts frames to TCP segments when possible
+   * @param flowAssembler orders TCP bytes per flow
+   * @param protocolDetector detects protocols for new flows
+   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
+   * @param pairingFactories factories that convert message events to {@link MessagePair}s
+   * @param persistence sink for emitting message pairs immediately
+   * @param metrics metrics sink updated for capture, decode, and pairing events
+   * @param enabledProtocols subset of protocols to process; others are ignored
+   * @since RADAR 0.1-doc
+   */
   public LiveProcessingUseCase(
       PacketSource packetSource,
       FrameDecoder frameDecoder,
@@ -53,6 +73,12 @@ public final class LiveProcessingUseCase {
             this.enabledProtocols);
   }
 
+  /**
+   * Runs the live loop until interrupted, persisting each reconstructed message pair.
+   *
+   * @throws Exception if any port fails during capture, decode, or persistence
+   * @since RADAR 0.1-doc
+   */
   public void run() throws Exception {
     boolean started = false;
     try {

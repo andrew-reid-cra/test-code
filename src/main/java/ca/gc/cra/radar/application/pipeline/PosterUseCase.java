@@ -25,18 +25,44 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+/**
+ * Coordinates protocol-specific poster pipelines that render reconstructed traffic for reporting.
+ * <p>Each configured protocol runs in its own task; not thread-safe for concurrent {@link #run(PosterConfig)}
+ * invocations.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class PosterUseCase {
   private final Map<ProtocolId, PosterPipeline> pipelines;
 
+  /**
+   * Creates a poster use case with the default protocol pipelines (HTTP, TN3270).
+   *
+   * @since RADAR 0.1-doc
+   */
   public PosterUseCase() {
     this(defaultPipelines());
   }
 
+  /**
+   * Creates a poster use case with custom protocol pipeline implementations.
+   *
+   * @param pipelines mapping from protocol ids to executable poster pipelines
+   * @since RADAR 0.1-doc
+   */
   public PosterUseCase(Map<ProtocolId, PosterPipeline> pipelines) {
     Objects.requireNonNull(pipelines, "pipelines");
     this.pipelines = Map.copyOf(pipelines);
   }
 
+  /**
+   * Runs the configured poster pipelines based on CLI configuration.
+   *
+   * @param config poster configuration describing protocol inputs and outputs
+   * @throws Exception if a pipeline fails or required configuration is missing
+   * @implNote Launches worker threads when multiple protocols are enabled simultaneously.
+   * @since RADAR 0.1-doc
+   */
   public void run(PosterConfig config) throws Exception {
     Objects.requireNonNull(config, "config");
     List<Callable<Void>> tasks = new ArrayList<>();

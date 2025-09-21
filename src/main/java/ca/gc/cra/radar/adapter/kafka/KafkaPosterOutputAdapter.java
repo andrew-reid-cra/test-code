@@ -11,11 +11,30 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-/** Publishes formatted poster reports to Kafka. */
+/**
+ * Kafka poster adapter that publishes formatted {@link PosterReport} payloads to a Kafka topic.
+ * <p>Acts as the infrastructure adapter for {@link ca.gc.cra.radar.application.port.poster.PosterOutputPort}
+ * and delegates publishing to an underlying {@link Producer}. Instances are thread-safe when the
+ * supplied producer is thread-safe (the default {@link KafkaProducer} is).
+ *
+ * @implNote Records are enqueued asynchronously; invoke {@link #close()} to flush buffers before
+ * shutting down the pipeline.
+ * @see ca.gc.cra.radar.application.port.poster.PosterOutputPort
+ * @since RADAR 0.1-doc
+ */
 public final class KafkaPosterOutputAdapter implements PosterOutputPort {
   private final Producer<String, String> producer;
   private final String topic;
 
+  /**
+   * Creates a poster output adapter backed by a new {@link KafkaProducer}.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic Kafka topic that receives poster reports
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public KafkaPosterOutputAdapter(String bootstrapServers, String topic) {
     this(createProducer(bootstrapServers), sanitizeTopic(topic));
   }
@@ -25,12 +44,27 @@ public final class KafkaPosterOutputAdapter implements PosterOutputPort {
     this.topic = sanitizeTopic(topic);
   }
 
+  /**
+   * Enqueues a {@link PosterReport} for asynchronous publication to Kafka.
+   *
+   * @param report poster report to publish; must not be {@code null}
+   * @throws NullPointerException if {@code report} is {@code null}
+   * @implNote Uses {@link PosterReport#txId()} as the record key and {@link PosterReport#content()}
+   *     as the payload without additional mutation.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void write(PosterReport report) {
     Objects.requireNonNull(report, "report");
     producer.send(new ProducerRecord<>(topic, report.txId(), report.content()));
   }
 
+  /**
+   * Flushes pending Kafka records and closes the producer.
+   *
+   * @implNote Waits up to five seconds for in-flight send operations to complete.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {
     producer.flush();

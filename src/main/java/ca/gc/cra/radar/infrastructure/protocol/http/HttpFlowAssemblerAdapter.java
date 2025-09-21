@@ -13,10 +13,25 @@ import java.util.Optional;
 public final class HttpFlowAssemblerAdapter implements FlowAssembler {
   private final MetricsPort metrics;
 
+  /**
+   * Creates an HTTP flow assembler adapter.
+   *
+   * @param metrics metrics sink for assembler statistics
+   * @throws NullPointerException if {@code metrics} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public HttpFlowAssemblerAdapter(MetricsPort metrics) {
     this.metrics = metrics;
   }
 
+  /**
+   * Emits a {@link ByteStream} for each non-empty HTTP payload while recording metrics.
+   *
+   * @param segment HTTP segment to evaluate; may be {@code null}
+   * @return stream slice when payload is non-empty; otherwise empty
+   * @implNote Emits one {@link ByteStream} per segment; higher-layer reassembly occurs elsewhere.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public Optional<ByteStream> accept(TcpSegment segment) {
     if (segment == null) {
@@ -41,3 +56,4 @@ public final class HttpFlowAssemblerAdapter implements FlowAssembler {
     return Optional.of(slice);
   }
 }
+

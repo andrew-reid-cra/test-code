@@ -3,12 +3,23 @@ package ca.gc.cra.radar.domain.msg;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** ULID-style identifier used for correlating protocol messages. */
+/**
+ * Generates ULID-style opaque identifiers for correlating protocol messages.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class TransactionId {
   private static final char[] ENC = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
 
   private TransactionId() {}
 
+  /**
+   * Generates a lexicographically sortable identifier composed of timestamp and random bits.
+   *
+   * @return 26-character ULID-style identifier
+   * @implNote Uses {@link ThreadLocalRandom}; not suitable for cryptographic purposes.
+   * @since RADAR 0.1-doc
+   */
   public static String newId() {
     long time = Instant.now().toEpochMilli();
     long r1 = ThreadLocalRandom.current().nextLong();
@@ -41,5 +52,3 @@ public final class TransactionId {
     }
   }
 }
-
-

@@ -14,6 +14,13 @@ public final class HttpSessionExtractor {
   private final Set<String> cookieKeys;
   private final List<Pattern> headerPatterns;
 
+  /**
+   * Creates a session extractor using the provided cookie keys and header patterns.
+   *
+   * @param cookieKeys cookie names inspected for session identifiers
+   * @param headerRegexes header regexes used to extract session identifiers
+   * @since RADAR 0.1-doc
+   */
   public HttpSessionExtractor(Collection<String> cookieKeys, Collection<String> headerRegexes) {
     this.cookieKeys = cookieKeys.stream()
         .map(k -> k.toLowerCase(Locale.ROOT))
@@ -23,6 +30,13 @@ public final class HttpSessionExtractor {
         .toList();
   }
 
+  /**
+   * Extracts a session identifier from HTTP request headers.
+   *
+   * @param headers normalized header map
+   * @return session identifier or {@code null} when not found
+   * @since RADAR 0.1-doc
+   */
   public String fromRequestHeaders(Map<String, String> headers) {
     for (Map.Entry<String, String> e : headers.entrySet()) {
       String line = e.getKey() + ": " + e.getValue();
@@ -48,6 +62,13 @@ public final class HttpSessionExtractor {
     return null;
   }
 
+  /**
+   * Extracts a session identifier from {@code Set-Cookie} response headers.
+   *
+   * @param setCookies list of {@code Set-Cookie} header values
+   * @return session identifier or {@code null} when not found
+   * @since RADAR 0.1-doc
+   */
   public String fromSetCookie(List<String> setCookies) {
     for (String sc : setCookies) {
       int eq = sc.indexOf('=');
@@ -63,5 +84,6 @@ public final class HttpSessionExtractor {
     return null;
   }
 }
+
 
 

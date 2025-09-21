@@ -19,7 +19,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-/** Writes TN3270 message events into blob/index files compatible with the HTTP sink. */
+/**
+ * Writes TN3270 message events into blob/index files compatible with the HTTP sink.
+ * <p>Synchronized to maintain blob/index consistency and optionally delegates non-TN3270 pairs to
+ * another {@link PersistencePort}.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePort {
   private static final DateTimeFormatter STAMP =
       DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss").withZone(ZoneId.systemDefault());
@@ -30,10 +36,25 @@ public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePor
   private final String indexName;
   private final PersistencePort fallback;
 
+  /**
+   * Creates a TN3270 segment sink without a fallback.
+   *
+   * @param directory output directory for blob/index files
+   * @throws NullPointerException if {@code directory} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public Tn3270SegmentSinkPersistenceAdapter(Path directory) {
     this(directory, null);
   }
 
+  /**
+   * Creates a TN3270 segment sink with an optional fallback.
+   *
+   * @param directory output directory for blob/index files
+   * @param fallback optional persistence fallback for other protocols
+   * @throws NullPointerException if {@code directory} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public Tn3270SegmentSinkPersistenceAdapter(Path directory, PersistencePort fallback) {
     try {
       Files.createDirectories(directory);
@@ -56,6 +77,14 @@ public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePor
     }
   }
 
+  /**
+   * Writes TN3270 payloads to disk, delegating other protocols to the fallback.
+   *
+   * @param pair message pair to persist; {@code null} is ignored
+   * @throws Exception if writing fails or the fallback throws
+   * @implNote Flushes blob/index metadata each call to mirror historical sink semantics.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void persist(MessagePair pair) throws Exception {
     if (pair == null) {
@@ -165,6 +194,13 @@ public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePor
     return b.toString();
   }
 
+  /**
+   * Flushes and closes blob/index streams and the fallback sink.
+   *
+   * @throws Exception if closing the fallback fails
+   * @implNote Forces blob metadata to disk before invoking the fallback close.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void close() throws Exception {
     try {
@@ -182,3 +218,4 @@ public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePor
     }
   }
 }
+

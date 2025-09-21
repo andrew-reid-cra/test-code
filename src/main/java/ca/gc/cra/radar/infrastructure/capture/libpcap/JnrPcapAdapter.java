@@ -15,6 +15,26 @@ public final class JnrPcapAdapter implements Pcap {
   private final JnrLibpcap p = JnrLibpcap.INSTANCE;
   private final Runtime rt = Runtime.getSystemRuntime();
 
+  /**
+   * Creates a libpcap adapter using the default JNR bindings.
+   *
+   * @since RADAR 0.1-doc
+   */
+  public JnrPcapAdapter() {}
+
+  /**
+   * Opens a live capture handle using libpcap.
+   *
+   * @param iface network interface name
+   * @param snap snap length in bytes
+   * @param promisc whether to enable promiscuous mode
+   * @param timeoutMs poll timeout in milliseconds
+   * @param bufferBytes capture buffer size in bytes
+   * @param immediate whether to enable immediate mode
+   * @return activated {@link PcapHandle}
+   * @throws PcapException if any libpcap call fails
+   * @since RADAR 0.1-doc
+   */
   @Override
   public PcapHandle openLive(
       String iface,
@@ -43,9 +63,20 @@ public final class JnrPcapAdapter implements Pcap {
     return new HandleImpl(ph, rt, p, snap);
   }
 
+  /**
+   * No-op for compatibility; live handles must be closed individually.
+   *
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {}
 
+  /**
+   * Returns the libpcap version string reported by the native library.
+   *
+   * @return libpcap version string
+   * @since RADAR 0.1-doc
+   */
   @Override
   public String libVersion() {
     return p.pcap_lib_version();
@@ -84,6 +115,13 @@ public final class JnrPcapAdapter implements Pcap {
       this.data_pp = Memory.allocateDirect(rt, rt.addressSize());
     }
 
+    /**
+     * Applies a BPF filter to the active capture handle.
+     *
+     * @param bpf filter expression; {@code null} or blank removes filtering
+     * @throws PcapException if compilation or installation fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void setFilter(String bpf) throws PcapException {
       if (bpf == null || bpf.isEmpty()) {
@@ -104,6 +142,14 @@ public final class JnrPcapAdapter implements Pcap {
       }
     }
 
+    /**
+     * Polls libpcap for the next packet and routes it to the callback.
+     *
+     * @param cb callback receiving timestamp (microseconds) and packet bytes
+     * @return {@code true} to continue polling; {@code false} when EOF is reached
+     * @throws PcapException if libpcap signals an error
+     * @since RADAR 0.1-doc
+     */
     @Override
     public boolean next(Pcap.PacketCallback cb) throws PcapException {
       int n = p.pcap_next_ex(ph, hdr_pp, data_pp);
@@ -157,9 +203,15 @@ public final class JnrPcapAdapter implements Pcap {
       }
     }
 
+    /**
+     * Releases the underlying {@code pcap_t} handle.
+     *
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void close() {
       p.pcap_close(ph);
     }
   }
 }
+

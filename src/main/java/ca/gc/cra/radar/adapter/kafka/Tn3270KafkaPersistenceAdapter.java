@@ -22,16 +22,46 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-/** Persists TN3270 message pairs to Kafka topics. */
+/**
+ * Kafka persistence adapter that serializes TN3270 {@link MessagePair} instances into JSON and
+ * publishes them to Kafka.
+ * <p>Implements the infrastructure side of {@link PersistencePort} for TN3270 data. Non-TN3270
+ * pairs can be delegated to an optional fallback adapter. Thread-safety follows the supplied
+ * {@link Producer} implementation (the default {@link KafkaProducer} is thread-safe).
+ *
+ * @implNote TN3270 payloads remain base64-encoded EBCDIC byte streams alongside captured
+ * metadata for host/client endpoints.
+ * @see PersistencePort
+ * @since RADAR 0.1-doc
+ */
 public final class Tn3270KafkaPersistenceAdapter implements PersistencePort {
   private final Producer<String, byte[]> producer;
   private final String topic;
   private final PersistencePort fallback;
 
+  /**
+   * Creates a persistence adapter that publishes TN3270 pairs to Kafka.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic topic receiving TN3270 pair payloads
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public Tn3270KafkaPersistenceAdapter(String bootstrapServers, String topic) {
     this(bootstrapServers, topic, null);
   }
 
+  /**
+   * Creates an adapter with an optional fallback for non-TN3270 pairs.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic topic receiving TN3270 pair payloads
+   * @param fallback optional persistence fallback for other protocols; may be {@code null}
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public Tn3270KafkaPersistenceAdapter(
       String bootstrapServers, String topic, PersistencePort fallback) {
     this(createProducer(bootstrapServers), sanitizeTopic(topic), fallback);
@@ -43,6 +73,15 @@ public final class Tn3270KafkaPersistenceAdapter implements PersistencePort {
     this.fallback = fallback;
   }
 
+  /**
+   * Persists the TN3270-specific components of the supplied pair to Kafka, delegating other
+   * protocols to the configured fallback.
+   *
+   * @param pair message pair to persist; {@code null} inputs are ignored
+   * @throws Exception if Kafka publishing fails or the fallback raises an exception
+   * @implNote Preserves host/client directionality and TN3270 attributes such as screen orders.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void persist(MessagePair pair) throws Exception {
     if (pair == null) {
@@ -79,6 +118,13 @@ public final class Tn3270KafkaPersistenceAdapter implements PersistencePort {
     producer.send(new ProducerRecord<>(topic, txId, json.getBytes(StandardCharsets.UTF_8)));
   }
 
+  /**
+   * Flushes Kafka buffers and closes both this adapter and the optional fallback.
+   *
+   * @throws Exception if the fallback fails to close
+   * @implNote Attempts a bounded five-second flush before closing the producer.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() throws Exception {
     try {
@@ -256,3 +302,4 @@ public final class Tn3270KafkaPersistenceAdapter implements PersistencePort {
 
   private record Endpoints(String clientIp, int clientPort, String serverIp, int serverPort) {}
 }
+

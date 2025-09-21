@@ -14,13 +14,21 @@ import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.TcpSegment;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.persistence.SegmentIoAdapter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
+/**
+ * Replays captured segment records to reconstruct higher-level protocol message pairs.
+ * <p>Coordinates the {@link FlowProcessingEngine} with persistence and metrics. Not thread-safe;
+ * intended for single-threaded batch execution.</p>
+ *
+ * @implNote Tracks flow orientation using {@link FlowDirectionService} to determine client/server side
+ * for synthesized {@link TcpSegment} instances.
+ * @since RADAR 0.1-doc
+ */
 public final class AssembleUseCase {
   private final AssembleConfig config;
   private final FlowProcessingEngine flowEngine;
@@ -30,6 +38,20 @@ public final class AssembleUseCase {
   private final SegmentReaderFactory readerFactory;
   private final FlowDirectionService orientations = new FlowDirectionService();
 
+  /**
+   * Creates an assemble use case with the supplied ports and factories.
+   *
+   * @param config assemble configuration describing inputs and protocol toggles
+   * @param flowAssembler assembler that supplies ordered byte streams per TCP flow
+   * @param protocolDetector detects protocols for new flows
+   * @param reconstructorFactories factories for protocol-specific message reconstructors
+   * @param pairingFactories factories for protocol-specific pairing engines
+   * @param persistence sink that stores materialized {@link MessagePair} instances
+   * @param metrics metrics sink for per-stage counters
+   * @param enabledProtocols protocols that should be processed; others are skipped
+   * @param readerFactory supplier of {@link SegmentRecordReader} instances bound to {@link AssembleConfig}
+   * @since RADAR 0.1-doc
+   */
   public AssembleUseCase(
       AssembleConfig config,
       FlowAssembler flowAssembler,
@@ -56,6 +78,12 @@ public final class AssembleUseCase {
             this.enabledProtocols);
   }
 
+  /**
+   * Streams segment records through the flow engine and persists resulting message pairs.
+   *
+   * @throws Exception if reading records, processing flows, or persisting results fails
+   * @since RADAR 0.1-doc
+   */
   public void run() throws Exception {
     try (PersistencePort sink = this.persistence;
          SegmentRecordReader reader = readerFactory.open(config)) {
@@ -105,15 +133,46 @@ public final class AssembleUseCase {
     return (flags & mask) != 0;
   }
 
+  /**
+   * Reader abstraction over a source of serialized {@link SegmentRecord}s.
+   *
+   * @since RADAR 0.1-doc
+   */
   public interface SegmentRecordReader extends AutoCloseable {
+    /**
+     * Returns the next segment record or {@code null} when the stream is exhausted.
+     *
+     * @return next record or {@code null} at end of input
+     * @throws Exception if reading fails
+     * @since RADAR 0.1-doc
+     */
     SegmentRecord next() throws Exception;
   }
 
+  /**
+   * Factory for {@link SegmentRecordReader} instances tied to an {@link AssembleConfig} input.
+   *
+   * @since RADAR 0.1-doc
+   */
   @FunctionalInterface
   public interface SegmentReaderFactory {
+    /**
+     * Opens a reader over the configured segment source.
+     *
+     * @param config assemble configuration providing the segment input location
+     * @return reader that must be closed by the caller
+     * @throws Exception if the reader cannot be created
+     * @since RADAR 0.1-doc
+     */
     SegmentRecordReader open(AssembleConfig config) throws Exception;
   }
 
+  /**
+   * Creates a {@link SegmentReaderFactory} that streams serialized segments via {@link SegmentIoAdapter}.
+   *
+   * @return factory producing file-based segment readers
+   * @since RADAR 0.1-doc
+   */
   public static SegmentReaderFactory segmentIoReaderFactory() {
     return config -> new SegmentIoAdapterRecordReader(new SegmentIoAdapter.Reader(config.inputDirectory()));
   }
@@ -136,5 +195,3 @@ public final class AssembleUseCase {
     }
   }
 }
-
-

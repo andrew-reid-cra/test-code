@@ -33,11 +33,25 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
   private DirectionState server;
   private final Deque<String> pendingTransactionIds = new ArrayDeque<>();
 
+  /**
+   * Creates a reconstructor bound to the supplied clock and metrics sink.
+   *
+   * @param clock clock used for timestamping generated events
+   * @param metrics metrics sink for HTTP-specific counters
+   * @throws NullPointerException if {@code clock} or {@code metrics} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public HttpMessageReconstructor(ClockPort clock, MetricsPort metrics) {
     this.clock = clock;
     this.metrics = new HttpMetrics(metrics);
   }
 
+  /**
+   * Resets parser state at the beginning of a session.
+   *
+   * @implNote Clears buffers for both directions and pending transaction ids.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void onStart() {
     client = new DirectionState(true);
@@ -45,6 +59,15 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     pendingTransactionIds.clear();
   }
 
+  /**
+   * Parses HTTP bytes and emits zero or more message events.
+   *
+   * @param slice contiguous byte stream slice with flow metadata; must not be {@code null}
+   * @return list of message events extracted from the slice; may be empty
+   * @throws NullPointerException if {@code slice} is {@code null}
+   * @implNote Associates responses with the oldest unmatched request id; chunked bodies emit buffered bytes once detected.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public List<MessageEvent> onBytes(ByteStream slice) {
     metrics.onBytes(slice.data().length);
@@ -71,6 +94,12 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     return events;
   }
 
+  /**
+   * Clears buffers at the end of the session.
+   *
+   * @implNote Pending transaction ids are dropped to avoid leaking across sessions.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void onClose() {
     pendingTransactionIds.clear();
@@ -235,3 +264,4 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     }
   }
 }
+

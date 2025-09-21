@@ -9,18 +9,39 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Writes poster reports to the filesystem using the legacy naming convention. */
+/**
+ * Writes poster reports to the filesystem using the legacy naming convention.
+ * <p>Synchronized to avoid clashing writes when multiple reports arrive concurrently.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class FilePosterOutputAdapter implements PosterOutputPort {
   private final Path outputDirectory;
   private final ProtocolId protocol;
   private final String extension;
 
+  /**
+   * Creates a file-backed poster output adapter.
+   *
+   * @param outputDirectory directory for rendered poster files
+   * @param protocol protocol associated with the rendered reports
+   * @throws NullPointerException if {@code outputDirectory} or {@code protocol} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public FilePosterOutputAdapter(Path outputDirectory, ProtocolId protocol) {
     this.outputDirectory = Objects.requireNonNull(outputDirectory, "outputDirectory");
     this.protocol = Objects.requireNonNull(protocol, "protocol");
     this.extension = protocol == ProtocolId.HTTP ? ".http" : ".tn3270.txt";
   }
 
+  /**
+   * Writes the poster report contents to a file named after the transaction id.
+   *
+   * @param report poster report to write; must not be {@code null}
+   * @throws Exception if the file cannot be created or written
+   * @implNote Names files as {@code <timestamp>_<txId>.<ext>} matching legacy tooling.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void write(PosterReport report) throws Exception {
     Objects.requireNonNull(report, "report");
@@ -53,4 +74,5 @@ public final class FilePosterOutputAdapter implements PosterOutputPort {
     return sb.toString();
   }
 }
+
 

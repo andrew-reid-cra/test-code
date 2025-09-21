@@ -7,6 +7,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Configuration for poster pipelines that render reconstructed protocol traffic.
+ * <p>Aggregates per-protocol sources and sinks along with Kafka wiring and decode behavior. Immutable
+ * and thread-safe.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class PosterConfig {
   private final IoMode ioMode;
   private final IoMode posterOutMode;
@@ -42,6 +49,14 @@ public final class PosterConfig {
     }
   }
 
+  /**
+   * Builds a poster configuration from CLI-style key/value pairs.
+   *
+   * @param args argument map; must not be {@code null}
+   * @return populated poster configuration
+   * @throws IllegalArgumentException if required inputs or outputs are missing or invalid
+   * @since RADAR 0.1-doc
+   */
   public static PosterConfig fromMap(Map<String, String> args) {
     Objects.requireNonNull(args, "args");
     IoMode ioMode = IoMode.fromString(args.get("ioMode"));
@@ -102,55 +117,105 @@ public final class PosterConfig {
     }
   }
 
+  /**
+   * Returns the IO mode determining input strategy for poster pipelines.
+   *
+   * @return IO mode determining input strategy for poster pipelines
+   * @since RADAR 0.1-doc
+   */
   public IoMode ioMode() {
     return ioMode;
   }
 
+  /**
+   * @return IO mode describing where rendered posters should be written
+   * @since RADAR 0.1-doc
+   */
   public IoMode posterOutMode() {
     return posterOutMode;
   }
 
+  /**
+   * @return Kafka bootstrap servers if Kafka IO is in use
+   * @since RADAR 0.1-doc
+   */
   public Optional<String> kafkaBootstrap() {
     return kafkaBootstrap;
   }
 
+  /**
+   * @return HTTP protocol configuration when enabled
+   * @since RADAR 0.1-doc
+   */
   public Optional<ProtocolConfig> http() {
     return http;
   }
 
+  /**
+   * @return TN3270 protocol configuration when enabled
+   * @since RADAR 0.1-doc
+   */
   public Optional<ProtocolConfig> tn3270() {
     return tn3270;
   }
 
+  /**
+   * @return decode mode instructing poster pipelines how aggressively to decode bodies
+   * @since RADAR 0.1-doc
+   */
   public DecodeMode decodeMode() {
     return decodeMode;
   }
 
   private static ProtocolConfig buildProtocolConfig(
       Map<String, String> args,
-      String[] inputKeys,
-      String[] outputKeys,
-      Optional<String> kafkaInputOverride,
-      Optional<String> kafkaOutputOverride) {
+      String[] inKeys,
+      String[] outKeys,
+      Optional<String> kafkaPairsTopic,
+      Optional<String> kafkaReportsTopic) {
+    Optional<String> inRaw = firstNonBlank(args, inKeys);
+    Optional<String> outRaw = firstNonBlank(args, outKeys);
 
-    Optional<String> inputValue = firstNonBlank(args, inputKeys);
-    Optional<String> outputValue = firstNonBlank(args, outputKeys);
+    Optional<Path> inputDir = Optional.empty();
+    Optional<String> kafkaInputTopic = Optional.empty();
 
-    Optional<String> kafkaInputTopic = kafkaTopic(inputValue).or(() -> kafkaInputOverride);
-    Optional<Path> inputDir = kafkaInputTopic.isPresent() ? Optional.empty() : inputValue.map(PosterConfig::resolvePath);
-
-    Optional<String> kafkaOutputTopic = kafkaTopic(outputValue).or(() -> kafkaOutputOverride);
-    Optional<Path> outputDir;
-    if (kafkaOutputTopic.isPresent()) {
-      outputDir = Optional.empty();
-    } else {
-      outputDir = outputValue.map(PosterConfig::resolvePath);
+    if (inRaw.isPresent()) {
+      String value = inRaw.get();
+      if (value.startsWith("kafka:")) {
+        kafkaInputTopic = Optional.of(value.substring("kafka:".length()).trim());
+        if (kafkaInputTopic.get().isBlank()) {
+          throw new IllegalArgumentException("Kafka input topic must not be blank");
+        }
+      } else {
+        inputDir = Optional.of(resolvePath(value));
+      }
+    } else if (kafkaPairsTopic.isPresent()) {
+      kafkaInputTopic = Optional.of(kafkaPairsTopic.get());
     }
 
-    boolean hasInput = inputDir.isPresent() || kafkaInputTopic.isPresent();
-    if (!hasInput) {
+    Optional<Path> outputDir = Optional.empty();
+    Optional<String> kafkaOutputTopic = Optional.empty();
+
+    if (outRaw.isPresent()) {
+      String value = outRaw.get();
+      if (value.startsWith("kafka:")) {
+        kafkaOutputTopic = Optional.of(value.substring("kafka:".length()).trim());
+        if (kafkaOutputTopic.get().isBlank()) {
+          throw new IllegalArgumentException("Kafka output topic must not be blank");
+        }
+      } else {
+        outputDir = Optional.of(resolvePath(value));
+      }
+    } else if (kafkaReportsTopic.isPresent()) {
+      kafkaOutputTopic = Optional.of(kafkaReportsTopic.get());
+    }
+
+    if (inputDir.isEmpty() && kafkaInputTopic.isEmpty()) {
       return null;
     }
+
+    kafkaInputTopic = kafkaTopic(kafkaInputTopic);
+    kafkaOutputTopic = kafkaTopic(kafkaOutputTopic);
 
     return new ProtocolConfig(inputDir, kafkaInputTopic, outputDir, kafkaOutputTopic);
   }
@@ -199,11 +264,25 @@ public final class PosterConfig {
     }
   }
 
+  /**
+   * Per-protocol poster configuration covering file and Kafka targets.
+   *
+   * @param inputDirectory directory supplying message pairs when using file IO
+   * @param kafkaInputTopic Kafka topic supplying message pairs when using Kafka IO
+   * @param outputDirectory directory for poster outputs when writing to the file system
+   * @param kafkaOutputTopic Kafka topic for rendered posters when using Kafka outputs
+   * @since RADAR 0.1-doc
+   */
   public record ProtocolConfig(
       Optional<Path> inputDirectory,
       Optional<String> kafkaInputTopic,
       Optional<Path> outputDirectory,
       Optional<String> kafkaOutputTopic) {
+    /**
+     * Normalizes protocol-specific configuration values.
+     *
+     * @since RADAR 0.1-doc
+     */
     public ProtocolConfig {
       inputDirectory = Objects.requireNonNullElseGet(inputDirectory, Optional::empty);
       kafkaInputTopic = Objects.requireNonNullElseGet(kafkaInputTopic, Optional::empty);
@@ -211,52 +290,126 @@ public final class PosterConfig {
       kafkaOutputTopic = Objects.requireNonNullElseGet(kafkaOutputTopic, Optional::empty);
     }
 
+    /**
+     * @return {@code true} when Kafka should be used as the input source
+     * @since RADAR 0.1-doc
+     */
     public boolean hasKafkaInput() {
       return kafkaInputTopic.isPresent();
     }
 
+    /**
+     * @return {@code true} when Kafka should be used as the output sink
+     * @since RADAR 0.1-doc
+     */
     public boolean hasKafkaOutput() {
       return kafkaOutputTopic.isPresent();
     }
 
+    /**
+     * @return file-system input directory if configured
+     * @since RADAR 0.1-doc
+     */
     public Optional<Path> inputDirectory() {
       return inputDirectory;
     }
 
+    /**
+     * Returns the Kafka input topic if configured.
+     *
+     * @return Kafka input topic if configured
+     * @since RADAR 0.1-doc
+     */
     public Optional<String> kafkaInputTopic() {
       return kafkaInputTopic;
     }
 
+    /**
+     * Returns the file-system output directory if configured.
+     *
+     * @return file-system output directory if configured
+     * @since RADAR 0.1-doc
+     */
     public Optional<Path> outputDirectory() {
       return outputDirectory;
     }
 
+    /**
+     * Returns the Kafka output topic if configured.
+     *
+     * @return Kafka output topic if configured
+     * @since RADAR 0.1-doc
+     */
     public Optional<String> kafkaOutputTopic() {
       return kafkaOutputTopic;
     }
 
+    /**
+     * Returns the configured file input directory or throws when absent.
+     *
+     * @return input directory
+     * @throws IllegalStateException if file IO is not configured
+     * @since RADAR 0.1-doc
+     */
     public Path requireInputDirectory() {
       return inputDirectory.orElseThrow(() -> new IllegalStateException("file input not configured"));
     }
 
+    /**
+     * Returns the configured Kafka input topic or throws when absent.
+     *
+     * @return Kafka topic
+     * @throws IllegalStateException if Kafka input is not configured
+     * @since RADAR 0.1-doc
+     */
     public String requireKafkaInputTopic() {
       return kafkaInputTopic.orElseThrow(() -> new IllegalStateException("kafka input not configured"));
     }
 
+    /**
+     * Returns the configured file output directory or throws when absent.
+     *
+     * @return output directory
+     * @throws IllegalStateException if file output is not configured
+     * @since RADAR 0.1-doc
+     */
     public Path requireOutputDirectory() {
       return outputDirectory.orElseThrow(() -> new IllegalStateException("file output not configured"));
     }
 
+    /**
+     * Returns the configured Kafka output topic or throws when absent.
+     *
+     * @return Kafka topic
+     * @throws IllegalStateException if Kafka output is not configured
+     * @since RADAR 0.1-doc
+     */
     public String requireKafkaOutputTopic() {
       return kafkaOutputTopic.orElseThrow(() -> new IllegalStateException("kafka output not configured"));
     }
   }
 
+  /**
+   * Controls how aggressively poster pipelines decode transfer/content encodings.
+   *
+   * @since RADAR 0.1-doc
+   */
   public enum DecodeMode {
+    /** Skip all decoding; emit raw payloads. */
     NONE,
+    /** Decode transfer encodings (chunked, etc.) but preserve content encodings. */
     TRANSFER,
+    /** Decode both transfer and content encodings. */
     ALL;
 
+    /**
+     * Parses textual CLI input into a decode mode.
+     *
+     * @param value string such as {@code "none"}, {@code "transfer"}, or {@code "all"}
+     * @return decode mode
+     * @throws IllegalArgumentException if value is unknown
+     * @since RADAR 0.1-doc
+     */
     public static DecodeMode fromString(String value) {
       if (value == null) {
         return NONE;
@@ -275,10 +428,18 @@ public final class PosterConfig {
       }
     }
 
+    /**
+     * @return {@code true} if transfer encodings (e.g., chunked) should be decoded
+     * @since RADAR 0.1-doc
+     */
     public boolean decodeTransferEncoding() {
       return this == TRANSFER || this == ALL;
     }
 
+    /**
+     * @return {@code true} if content encodings (e.g., gzip) should be decoded
+     * @since RADAR 0.1-doc
+     */
     public boolean decodeContentEncoding() {
       return this == ALL;
     }

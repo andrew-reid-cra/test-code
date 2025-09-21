@@ -11,10 +11,24 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Persists reconstructed message pairs using the legacy segment binary format.
+ * <p>Synthesizes TCP metadata to remain compatible with the historical pair viewer. Thread-safe via
+ * synchronized methods.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class LegacySegmentPersistenceAdapter implements PersistencePort {
   private final SegmentBinIO.Writer writer;
   private final Map<String, Long> nextSequence = new HashMap<>();
 
+  /**
+   * Creates a persistence adapter targeting the given directory.
+   *
+   * @param directory output directory for legacy segment binaries
+   * @throws IllegalStateException if the underlying writer cannot be created
+   * @since RADAR 0.1-doc
+   */
   public LegacySegmentPersistenceAdapter(Path directory) {
     try {
       this.writer = new SegmentBinIO.Writer(directory, "pairs", 1024);
@@ -23,6 +37,14 @@ public final class LegacySegmentPersistenceAdapter implements PersistencePort {
     }
   }
 
+  /**
+   * Persists the request and response payloads for the provided pair, if present.
+   *
+   * @param pair message pair to persist; {@code null} is ignored
+   * @throws Exception if writing to disk fails
+   * @implNote Generates synthetic sequence numbers per flow direction to keep payload ordering.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void persist(MessagePair pair) throws Exception {
     if (pair == null) return;
@@ -74,10 +96,15 @@ public final class LegacySegmentPersistenceAdapter implements PersistencePort {
     return seq;
   }
 
+  /**
+   * Flushes pending records and closes the underlying writer.
+   *
+   * @throws Exception if flushing or closing fails
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void close() throws Exception {
     writer.flush();
     writer.close();
   }
 }
-

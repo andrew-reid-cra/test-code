@@ -7,11 +7,25 @@ import ca.gc.cra.radar.domain.net.TcpSegment;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Generic payload assembler that forwards non-empty TCP payloads as byte streams. */
+/**
+ * Generic payload assembler that treats each TCP segment payload as an independent byte stream.
+ * <p>Infrastructure adapter for {@link FlowAssembler}. Thread-safe if the supplied
+ * {@link MetricsPort} is thread-safe.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class PayloadFlowAssemblerAdapter implements FlowAssembler {
   private final MetricsPort metrics;
   private final String metricsPrefix;
 
+  /**
+   * Creates a payload assembler adapter.
+   *
+   * @param metrics metrics sink for recording assembler statistics
+   * @param metricsPrefix prefix applied to metric keys; defaults to {@code "flowAssembler"}
+   * @throws NullPointerException if {@code metrics} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public PayloadFlowAssemblerAdapter(MetricsPort metrics, String metricsPrefix) {
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.metricsPrefix = (metricsPrefix == null || metricsPrefix.isBlank())
@@ -19,6 +33,14 @@ public final class PayloadFlowAssemblerAdapter implements FlowAssembler {
         : metricsPrefix;
   }
 
+  /**
+   * Emits a {@link ByteStream} for each non-empty payload while recording metrics.
+   *
+   * @param segment segment to evaluate; may be {@code null}
+   * @return stream slice when payload is non-empty; otherwise empty
+   * @implNote Emits one {@link ByteStream} per segment; callers perform higher-level reassembly.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public Optional<ByteStream> accept(TcpSegment segment) {
     if (segment == null) {
@@ -43,3 +65,4 @@ public final class PayloadFlowAssemblerAdapter implements FlowAssembler {
     return Optional.of(slice);
   }
 }
+

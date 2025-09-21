@@ -1,13 +1,22 @@
 package ca.gc.cra.radar.domain.net;
 
 /**
- * Represents an ordered slice of bytes delivered by the flow assembler for a particular direction
- * of a TCP connection.
+ * Ordered slice of TCP bytes emitted by a flow assembler for a single direction.
+ *
+ * @param flow flow identifier for the segment
+ * @param fromClient {@code true} when the bytes originated from the client
+ * @param data contiguous payload bytes; defensively copied
+ * @param timestampMicros timestamp associated with the latest contributing segment (microseconds)
+ * @implNote The payload array is cloned during construction to preserve immutability.
+ * @since RADAR 0.1-doc
  */
 public record ByteStream(FiveTuple flow, boolean fromClient, byte[] data, long timestampMicros) {
+  /**
+   * Creates a byte stream record while defensively copying payload data.
+   *
+   * @since RADAR 0.1-doc
+   */
   public ByteStream {
     data = data != null ? data.clone() : new byte[0];
   }
 }
-
-

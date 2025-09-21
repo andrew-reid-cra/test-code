@@ -9,11 +9,32 @@ import java.util.Deque;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Host-first pairing for TN3270 where the host response typically precedes the terminal request. */
+/**
+ * Host-first pairing for TN3270 where the host response typically precedes the terminal request.
+ * <p>Synchronizes access because pairing state uses shared queues.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class Tn3270PairingEngineAdapter implements PairingEngine, AutoCloseable {
   private final Deque<MessageEvent> pendingRequests = new ArrayDeque<>();
   private final Deque<MessageEvent> pendingResponses = new ArrayDeque<>();
 
+  /**
+   * Creates a TN3270 pairing engine adapter with host-first semantics.
+   *
+   * @since RADAR 0.1-doc
+   */
+  public Tn3270PairingEngineAdapter() {}
+
+  /**
+   * Pairs TN3270 events into request/response tuples.
+   *
+   * @param event message event to pair; {@code null} is ignored
+   * @return completed pair when available; otherwise empty
+   * @throws NullPointerException if {@code event.type()} is {@code null}
+   * @implNote Responses arriving before requests are queued until the matching request arrives.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized Optional<MessagePair> accept(MessageEvent event) {
     if (event == null) {
@@ -45,9 +66,15 @@ public final class Tn3270PairingEngineAdapter implements PairingEngine, AutoClos
     return Optional.empty();
   }
 
+  /**
+   * Releases pairing resources by clearing queued requests and responses.
+   *
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void close() {
     pendingRequests.clear();
     pendingResponses.clear();
   }
 }
+

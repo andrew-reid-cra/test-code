@@ -482,6 +482,12 @@ final class SegmentPosterProcessor {
   }
 
   private interface TemporalPart {
+    /**
+     * Timestamp associated with this part, expressed in capture microseconds.
+     *
+     * @return capture timestamp in microseconds
+     * @since RADAR 0.1-doc
+     */
     long timestamp();
   }
 
@@ -539,6 +545,18 @@ final class SegmentPosterProcessor {
       headers.add(new Header(name, value));
     }
 
+    /**
+     * Returns the first-capture timestamp for this HTTP part.
+     *
+     * @return capture timestamp in microseconds
+     * @since RADAR 0.1-doc
+     */
+    /**
+     * Returns the capture timestamp for this binary part.
+     *
+     * @return capture timestamp in microseconds
+     * @since RADAR 0.1-doc
+     */
     @Override
     public long timestamp() {
       return entry.tsFirst();

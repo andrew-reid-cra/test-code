@@ -22,11 +22,25 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-/** Consumes TN3270 message pairs from Kafka and renders poster reports. */
+/**
+ * Kafka-backed poster pipeline that consumes TN3270 message pairs and renders poster reports.
+ * <p>Implements the infrastructure side of {@link PosterPipeline} for TN3270. Instances are not
+ * thread-safe; run one pipeline per CLI execution.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
   private final String bootstrapServers;
   private final Supplier<Consumer<String, String>> consumerSupplier;
 
+  /**
+   * Creates a poster pipeline that consumes TN3270 pair records from Kafka.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank
+   * @since RADAR 0.1-doc
+   */
   public Tn3270KafkaPosterPipeline(String bootstrapServers) {
     this(bootstrapServers, null);
   }
@@ -39,11 +53,28 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
     this.consumerSupplier = consumerSupplier != null ? consumerSupplier : this::createConsumer;
   }
 
+  /**
+   * Identifies the protocol handled by this pipeline.
+   *
+   * @return {@link ProtocolId#TN3270}
+   * @since RADAR 0.1-doc
+   */
   @Override
   public ProtocolId protocol() {
     return ProtocolId.TN3270;
   }
 
+  /**
+   * Streams Kafka records and emits formatted TN3270 poster reports via the supplied output port.
+   *
+   * @param config per-protocol configuration; must provide the Kafka input topic
+   * @param decodeMode decode mode controlling payload processing
+   * @param outputPort destination for rendered poster reports
+   * @throws NullPointerException if {@code config} or {@code outputPort} is {@code null}
+   * @throws Exception if Kafka consumption or report rendering fails
+   * @implNote Polls Kafka in 500 ms intervals and stops after several idle polls or interrupt.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void process(
       PosterConfig.ProtocolConfig config,
@@ -359,6 +390,7 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       BinaryMessage request,
       BinaryMessage response) {}
 }
+
 
 
 

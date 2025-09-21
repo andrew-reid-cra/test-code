@@ -15,12 +15,24 @@ import java.util.TreeMap;
 
 /**
  * Flow assembler that buffers TCP segments per direction and emits in-order byte streams.
+ * <p>Synchronized to support concurrent ingestion per flow; buffering size depends on out-of-order
+ * data retained until gaps close.
+ *
+ * @since RADAR 0.1-doc
  */
 public final class ReorderingFlowAssembler implements FlowAssembler {
   private final MetricsPort metrics;
   private final String metricsPrefix;
   private final Map<DirectionKey, DirectionState> flows = new HashMap<>();
 
+  /**
+   * Creates a reordering assembler.
+   *
+   * @param metrics metrics sink for assembler statistics
+   * @param metricsPrefix prefix used for metric keys; defaults to {@code "flowAssembler"}
+   * @throws NullPointerException if {@code metrics} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public ReorderingFlowAssembler(MetricsPort metrics, String metricsPrefix) {
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.metricsPrefix = (metricsPrefix == null || metricsPrefix.isBlank())
@@ -28,6 +40,14 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         : metricsPrefix;
   }
 
+  /**
+   * Accepts a TCP segment, buffering as needed until contiguous bytes become available.
+   *
+   * @param segment segment to assemble; may be {@code null}
+   * @return byte stream slice when contiguous bytes are ready; otherwise empty
+   * @implNote Maintains per-direction buffers and trims duplicates to honour TCP semantics.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized Optional<ByteStream> accept(TcpSegment segment) {
     if (segment == null) {
@@ -216,3 +236,4 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
     }
   }
 }
+

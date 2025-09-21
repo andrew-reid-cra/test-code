@@ -30,11 +30,27 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-/** Consumes HTTP message pairs from Kafka topics and renders poster reports. */
+/**
+ * Kafka-backed poster pipeline that consumes serialized HTTP message pairs and renders poster
+ * reports.
+ * <p>Implements the infrastructure side of {@link PosterPipeline} for HTTP, building reports from
+ * JSON records produced by {@link HttpKafkaPersistenceAdapter}. Instances are not thread-safe;
+ * create one pipeline per running CLI.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class HttpKafkaPosterPipeline implements PosterPipeline {
   private final String bootstrapServers;
   private final Supplier<Consumer<String, String>> consumerSupplier;
 
+  /**
+   * Creates a poster pipeline that consumes HTTP pair records from Kafka.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank
+   * @since RADAR 0.1-doc
+   */
   public HttpKafkaPosterPipeline(String bootstrapServers) {
     this(bootstrapServers, null);
   }
@@ -47,11 +63,28 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     this.consumerSupplier = consumerSupplier != null ? consumerSupplier : this::createConsumer;
   }
 
+  /**
+   * Identifies the protocol handled by this pipeline.
+   *
+   * @return {@link ProtocolId#HTTP}
+   * @since RADAR 0.1-doc
+   */
   @Override
   public ProtocolId protocol() {
     return ProtocolId.HTTP;
   }
 
+  /**
+   * Streams Kafka records and emits formatted poster reports through the supplied output port.
+   *
+   * @param config per-protocol configuration; must provide the Kafka input topic
+   * @param decodeMode requested decode behavior for HTTP payloads
+   * @param outputPort destination for rendered poster reports
+   * @throws NullPointerException if {@code config} or {@code outputPort} is {@code null}
+   * @throws Exception if Kafka consumption or report rendering fails
+   * @implNote Polls Kafka in 500 ms intervals and stops after several idle polls or interrupt.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void process(
       PosterConfig.ProtocolConfig config,
@@ -546,6 +579,7 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       HttpMessage request,
       HttpMessage response) {}
 }
+
 
 
 

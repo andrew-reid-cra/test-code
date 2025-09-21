@@ -7,10 +7,23 @@ package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
  */
 @Deprecated
 public final class LegacyHttpAssembler {
-  public LegacyHttpAssembler(Object... ignored) {
-    throw new UnsupportedOperationException("Legacy assembler is not supported; use the new pipeline");
-  }
-
+  /**
+   * Legacy hook invoked for each TCP segment; always throws {@link UnsupportedOperationException}.
+   *
+   * @param timestampMicros capture timestamp in microseconds
+   * @param src source IP address
+   * @param srcPort source TCP port
+   * @param dst destination IP address
+   * @param dstPort destination TCP port
+   * @param sequence TCP sequence number
+   * @param fromClient {@code true} when the segment originated from the client
+   * @param payload TCP payload bytes
+   * @param offset payload offset within the array
+   * @param length number of bytes provided in {@code payload}
+   * @param fin whether the FIN flag was set
+   * @throws UnsupportedOperationException always thrown to signal unsupported usage
+   * @since RADAR 0.1-doc
+   */
   public void onTcpSegment(
       long timestampMicros,
       String src,
@@ -26,3 +39,5 @@ public final class LegacyHttpAssembler {
     throw new UnsupportedOperationException("Legacy assembler is not supported; use the new pipeline");
   }
 }
+
+

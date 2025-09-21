@@ -10,10 +10,30 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Optional;
 
+/**
+ * Decodes Ethernet frames captured via libpcap into simplified {@link TcpSegment} instances.
+ * <p>Supports IEEE 802.1Q VLAN tags, IPv4, and IPv6. Stateless and thread-safe.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class FrameDecoderLibpcap implements FrameDecoder {
 
-  @Override
-  public Optional<TcpSegment> decode(RawFrame frame) {
+  /**
+   * Creates a frame decoder for libpcap-captured Ethernet frames.
+   *
+   * @since RADAR 0.1-doc
+   */
+  public FrameDecoderLibpcap() {}
+
+  /**
+   * Decodes a raw Ethernet frame into a TCP segment when possible.
+   *
+   * @param frame captured Ethernet frame; may be {@code null}
+   * @return TCP segment when the frame contains IPv4/IPv6 TCP payload; otherwise empty
+   * @implNote Validates VLAN tags and IPv4/IPv6 headers; other ether types are dropped.
+   * @since RADAR 0.1-doc
+   */
+  @Override public Optional<TcpSegment> decode(RawFrame frame) {
     if (frame == null) return Optional.empty();
     byte[] pkt = frame.data();
     int caplen = pkt.length;
@@ -126,3 +146,4 @@ public final class FrameDecoderLibpcap implements FrameDecoder {
     }
   }
 }
+

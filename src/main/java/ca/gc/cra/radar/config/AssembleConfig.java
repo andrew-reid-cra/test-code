@@ -6,6 +6,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Configuration for the assemble CLI pipeline.
+ *
+ * @param ioMode input mode ({@link IoMode#FILE} or {@link IoMode#KAFKA})
+ * @param kafkaBootstrap Kafka bootstrap servers when Kafka is used
+ * @param kafkaSegmentsTopic topic supplying captured segments in Kafka mode
+ * @param kafkaHttpPairsTopic topic receiving HTTP pairs in Kafka mode
+ * @param kafkaTnPairsTopic topic receiving TN3270 pairs in Kafka mode
+ * @param inputDirectory directory containing serialized segment files when in file mode
+ * @param outputDirectory root directory for assembled outputs
+ * @param httpEnabled whether HTTP reconstruction is enabled
+ * @param tnEnabled whether TN3270 reconstruction is enabled
+ * @param httpOutputDirectory optional override for HTTP output directory
+ * @param tnOutputDirectory optional override for TN3270 output directory
+ * @since RADAR 0.1-doc
+ */
 public record AssembleConfig(
     IoMode ioMode,
     Optional<String> kafkaBootstrap,
@@ -19,6 +35,11 @@ public record AssembleConfig(
     Optional<Path> httpOutputDirectory,
     Optional<Path> tnOutputDirectory) {
 
+  /**
+   * Normalizes assemble configuration values.
+   *
+   * @since RADAR 0.1-doc
+   */
   public AssembleConfig {
     ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
     Optional<String> bootstrap = kafkaBootstrap == null ? Optional.empty() : kafkaBootstrap;
@@ -38,6 +59,12 @@ public record AssembleConfig(
     }
   }
 
+  /**
+   * Returns a baseline configuration pointing at local directories.
+   *
+   * @return default assemble configuration
+   * @since RADAR 0.1-doc
+   */
   public static AssembleConfig defaults() {
     return new AssembleConfig(
         IoMode.FILE,
@@ -53,6 +80,14 @@ public record AssembleConfig(
         Optional.empty());
   }
 
+  /**
+   * Creates a configuration instance from CLI-style key/value pairs.
+   *
+   * @param options key/value pairs such as {@code in}, {@code out}, {@code kafkaBootstrap}
+   * @return populated configuration
+   * @throws IllegalArgumentException when values are invalid or required settings are missing
+   * @since RADAR 0.1-doc
+   */
   public static AssembleConfig fromMap(Map<String, String> options) {
     AssembleConfig defaults = defaults();
     IoMode ioMode = parseIoMode(options.get("ioMode"), defaults.ioMode());
@@ -108,10 +143,22 @@ public record AssembleConfig(
         tnOut);
   }
 
+  /**
+   * Resolves the effective HTTP output directory, defaulting under {@link #outputDirectory}.
+   *
+   * @return directory for HTTP output
+   * @since RADAR 0.1-doc
+   */
   public Path effectiveHttpOut() {
     return httpOutputDirectory.orElseGet(() -> outputDirectory.resolve("http"));
   }
 
+  /**
+   * Resolves the effective TN3270 output directory, defaulting under {@link #outputDirectory}.
+   *
+   * @return directory for TN3270 output
+   * @since RADAR 0.1-doc
+   */
   public Path effectiveTnOut() {
     return tnOutputDirectory.orElseGet(() -> outputDirectory.resolve("tn3270"));
   }

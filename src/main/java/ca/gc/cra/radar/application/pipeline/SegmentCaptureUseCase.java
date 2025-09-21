@@ -12,7 +12,15 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Capture pipeline that writes TCP segments to persistent storage using the new port abstractions.
+ * Coordinates packet capture by polling a {@link PacketSource}, decoding frames, and persisting
+ * TCP segments.
+ * <p>Not thread-safe; expected to run once per process. Filters pure ACKs to reduce storage
+ * volume.</p>
+ *
+ * @implNote Uses {@link SegmentPersistencePort#persist(SegmentRecord)} for each accepted segment
+ * and increments metrics counters for observability.
+ * @see ca.gc.cra.radar.application.port.SegmentPersistencePort
+ * @since RADAR 0.1-doc
  */
 public final class SegmentCaptureUseCase {
   private final PacketSource packetSource;
@@ -20,6 +28,15 @@ public final class SegmentCaptureUseCase {
   private final SegmentPersistencePort persistence;
   private final MetricsPort metrics;
 
+  /**
+   * Creates a capture use case wiring the required ports.
+   *
+   * @param packetSource stream of raw frames; must be non-null and provide cooperative shutdown
+   * @param frameDecoder decoder that maps frames to TCP segments, optionally empty when not TCP
+   * @param persistence sink for accepted segments
+   * @param metrics metrics sink updated for decode skips and persisted segments
+   * @since RADAR 0.1-doc
+   */
   public SegmentCaptureUseCase(
       PacketSource packetSource,
       FrameDecoder frameDecoder,
@@ -31,6 +48,13 @@ public final class SegmentCaptureUseCase {
     this.metrics = Objects.requireNonNull(metrics, "metrics");
   }
 
+  /**
+   * Runs the capture loop until interrupted, persisting each non-empty TCP segment.
+   *
+   * @throws Exception if any port fails during capture, persistence, or cleanup
+   * @implNote Interrupts the current thread when {@link InterruptedException} is observed during poll.
+   * @since RADAR 0.1-doc
+   */
   public void run() throws Exception {
     boolean started = false;
     try {

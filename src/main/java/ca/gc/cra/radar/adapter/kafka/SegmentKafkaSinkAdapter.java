@@ -14,11 +14,26 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-/** Kafka-backed {@link SegmentPersistencePort} that publishes TCP segments. */
+/**
+ * Kafka-backed {@link SegmentPersistencePort} that streams serialized TCP segments to a topic.
+ * <p>Acts as an infrastructure adapter for the assemble pipeline. Thread-safety follows the
+ * supplied {@link Producer} implementation (the default {@link KafkaProducer} is thread-safe).
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
   private final Producer<String, byte[]> producer;
   private final String topic;
 
+  /**
+   * Creates a Kafka sink for segment records.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic topic that receives serialized segments
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public SegmentKafkaSinkAdapter(String bootstrapServers, String topic) {
     this(createProducer(bootstrapServers), sanitizeTopic(topic));
   }
@@ -28,6 +43,13 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
     this.topic = sanitizeTopic(topic);
   }
 
+  /**
+   * Publishes the segment to Kafka.
+   *
+   * @param record segment record to persist; {@code null} inputs are ignored
+   * @implNote Uses a flow-based key to preserve per-connection ordering.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void persist(SegmentRecord record) {
     if (record == null) {
@@ -38,11 +60,22 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
     producer.send(message);
   }
 
+  /**
+   * Flushes outstanding Kafka sends.
+   *
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void flush() {
     producer.flush();
   }
 
+  /**
+   * Flushes pending messages and closes the producer.
+   *
+   * @implNote Waits up to five seconds for in-flight sends to complete.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {
     producer.flush();
@@ -115,3 +148,4 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
     return new KafkaProducer<>(props);
   }
 }
+

@@ -121,6 +121,11 @@ final class FlowProcessingEngine implements AutoCloseable {
     directions.forget(key.client().ip(), key.client().port(), key.server().ip(), key.server().port());
   }
 
+  /**
+   * Releases protocol-specific resources for all tracked flows.
+   *
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {
     flows.values().forEach(FlowState::close);

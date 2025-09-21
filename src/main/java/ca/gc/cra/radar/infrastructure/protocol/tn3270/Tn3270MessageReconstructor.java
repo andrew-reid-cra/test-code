@@ -16,6 +16,12 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Reconstructs TN3270 Telnet records into high-level message events.
+ * <p>Handles host-first message ordering and Telnet negotiations. Not thread-safe.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class Tn3270MessageReconstructor implements MessageReconstructor {
   private final ClockPort clock;
   private final Tn3270Metrics metrics;
@@ -24,11 +30,25 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
   private DirectionState server;
   private final Deque<String> pendingTransactionIds = new ArrayDeque<>();
 
+  /**
+   * Creates a reconstructor bound to the supplied clock and metrics sink.
+   *
+   * @param clock clock used for timestamping generated events
+   * @param metrics metrics sink used to record TN3270 reconstruction statistics
+   * @throws NullPointerException if {@code clock} or {@code metrics} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public Tn3270MessageReconstructor(ClockPort clock, MetricsPort metrics) {
     this.clock = clock;
     this.metrics = new Tn3270Metrics(metrics);
   }
 
+  /**
+   * Initializes per-direction decoders and clears pending transactions.
+   *
+   * @implNote Resets Telnet decoders for client and server directions.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void onStart() {
     client = new DirectionState(true);
@@ -36,6 +56,15 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
     pendingTransactionIds.clear();
   }
 
+  /**
+   * Decodes incoming bytes into Telnet records and produces TN3270 message events.
+   *
+   * @param slice contiguous TCP bytes with orientation metadata; must not be {@code null}
+   * @return ordered list of reconstructed TN3270 messages; may be empty
+   * @throws NullPointerException if {@code slice} is {@code null}
+   * @implNote Splits Telnet records on IAC EOR boundaries and manages host-first transaction ids.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public List<MessageEvent> onBytes(ByteStream slice) {
     metrics.onBytes(slice.data().length);
@@ -62,6 +91,12 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
     return events;
   }
 
+  /**
+   * Releases buffered state and clears pending transaction ids.
+   *
+   * @implNote Flushes Telnet decoder buffers to avoid cross-session leakage.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void onClose() {
     pendingTransactionIds.clear();
@@ -185,3 +220,7 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
     }
   }
 }
+
+
+
+

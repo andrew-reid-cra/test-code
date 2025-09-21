@@ -17,10 +17,25 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-/** Kafka consumer that streams {@link SegmentRecord} instances from a topic. */
+/**
+ * Kafka consumer wrapper that streams {@link SegmentRecord} instances from a topic.
+ * <p>Belongs to the infrastructure layer for Assemble pipelines. Not thread-safe; each instance
+ * owns a dedicated {@link Consumer}.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class KafkaSegmentReader implements AutoCloseable {
   private final Consumer<String, byte[]> consumer;
 
+  /**
+   * Creates a segment reader bound to the specified Kafka topic.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic topic containing serialized segment records
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public KafkaSegmentReader(String bootstrapServers, String topic) {
     this(createConsumer(bootstrapServers), topic);
   }
@@ -31,6 +46,15 @@ public final class KafkaSegmentReader implements AutoCloseable {
     this.consumer.subscribe(java.util.List.of(sanitizedTopic));
   }
 
+  /**
+   * Polls Kafka for the next segment record.
+   *
+   * @param timeout maximum time to wait for a record
+   * @return next segment record when available; otherwise empty
+   * @throws NullPointerException if {@code timeout} is {@code null}
+   * @implNote Skips malformed records quietly to keep the stream progressing.
+   * @since RADAR 0.1-doc
+   */
   public Optional<SegmentRecord> poll(Duration timeout) {
     ConsumerRecords<String, byte[]> records = consumer.poll(timeout);
     Iterator<ConsumerRecord<String, byte[]>> iterator = records.iterator();
@@ -45,6 +69,12 @@ public final class KafkaSegmentReader implements AutoCloseable {
     return Optional.empty();
   }
 
+  /**
+   * Closes the underlying Kafka consumer after flushing outstanding commits.
+   *
+   * @implNote Waits up to five seconds for the consumer to close cleanly.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {
     consumer.close(Duration.ofSeconds(5));
@@ -143,5 +173,6 @@ public final class KafkaSegmentReader implements AutoCloseable {
     return trimmed;
   }
 }
+
 
 

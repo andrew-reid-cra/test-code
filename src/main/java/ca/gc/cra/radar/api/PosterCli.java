@@ -5,9 +5,22 @@ import ca.gc.cra.radar.config.IoMode;
 import ca.gc.cra.radar.config.PosterConfig;
 import java.util.Map;
 
+/**
+ * Entry point for rendering reconstructed protocol traffic into poster outputs.
+ * <p>Supports file and Kafka IO modes for both inputs and outputs.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class PosterCli {
   private PosterCli() {}
 
+  /**
+   * Parses poster CLI arguments and triggers the {@link PosterUseCase} pipeline.
+   *
+   * @param args CLI arguments in {@code key=value} form
+   * @throws Exception if configuration validation or poster processing fails
+   * @since RADAR 0.1-doc
+   */
   public static void main(String[] args) throws Exception {
     Map<String, String> kv = CliArgsParser.toMap(args);
     PosterConfig config;

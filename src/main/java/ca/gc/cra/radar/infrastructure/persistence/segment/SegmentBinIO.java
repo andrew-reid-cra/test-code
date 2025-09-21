@@ -25,6 +25,9 @@ import java.util.stream.Stream;
 
 /**
  * Minimal segment file format compatible with legacy segbin (SGB1) files.
+ * <p>Provides sequential append and iteration utilities; not thread-safe.</p>
+ *
+ * @since RADAR 0.1-doc
  */
 public final class SegmentBinIO {
   private static final byte[] MAGIC = {'S', 'G', 'B', '1'};
@@ -32,6 +35,11 @@ public final class SegmentBinIO {
 
   private SegmentBinIO() {}
 
+  /**
+   * Writer for SGB1 segment files with optional rolling support.
+   *
+   * @since RADAR 0.1-doc
+   */
   public static final class Writer implements Closeable, Flushable {
     private static final DateTimeFormatter TS =
         DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss").withZone(ZoneId.systemDefault());
@@ -44,6 +52,15 @@ public final class SegmentBinIO {
     private DataOutputStream dataOut;
     private int partIndex = 0;
 
+    /**
+     * Creates a writer that emits files into {@code directory} and rolls after {@code rollMiB}.
+     *
+     * @param directory target directory; created if absent
+     * @param baseName base file name without extension
+     * @param rollMiB roll size in mebibytes; {@code <=0} disables rolling
+     * @throws IOException if the directory cannot be prepared or the first file cannot be opened
+     * @since RADAR 0.1-doc
+     */
     public Writer(Path directory, String baseName, int rollMiB) throws IOException {
       this.directory = directory;
       this.baseName = baseName;
@@ -52,6 +69,13 @@ public final class SegmentBinIO {
       openNewFile();
     }
 
+    /**
+     * Appends a segment record to the current file.
+     *
+     * @param record segment record to serialize; {@code null} is ignored
+     * @throws IOException if writing fails
+     * @since RADAR 0.1-doc
+     */
     public void append(SegmentRecord record) throws IOException {
       if (record == null) {
         return;
@@ -91,6 +115,12 @@ public final class SegmentBinIO {
       dataOut.flush();
     }
 
+    /**
+     * Flushes buffered bytes to disk.
+     *
+     * @throws IOException if flushing fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void flush() throws IOException {
       if (dataOut != null) {
@@ -98,6 +128,12 @@ public final class SegmentBinIO {
       }
     }
 
+    /**
+     * Closes the current file, flushing pending data first.
+     *
+     * @throws IOException if closing fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void close() throws IOException {
       if (dataOut != null) {
@@ -112,11 +148,23 @@ public final class SegmentBinIO {
     }
   }
 
+  /**
+   * Reader for SGB1 segment files ordered lexicographically by file name.
+   *
+   * @since RADAR 0.1-doc
+   */
   public static final class Reader implements Closeable {
     private final List<Path> files;
     private int index = 0;
     private DataInputStream in;
 
+    /**
+     * Creates a reader scanning all {@code *.segbin} files in a directory.
+     *
+     * @param directory directory containing segment binaries
+     * @throws IOException if the directory is invalid or files cannot be opened
+     * @since RADAR 0.1-doc
+     */
     public Reader(Path directory) throws IOException {
       if (!Files.isDirectory(directory)) {
         throw new IOException("Not a directory: " + directory);
@@ -130,6 +178,13 @@ public final class SegmentBinIO {
       openNext();
     }
 
+    /**
+     * Returns the next {@link SegmentRecord} or {@code null} when all files have been consumed.
+     *
+     * @return next segment record or {@code null} at EOF
+     * @throws IOException if reading or file switching fails
+     * @since RADAR 0.1-doc
+     */
     public SegmentRecord next() throws IOException {
       while (true) {
         if (in == null) {
@@ -177,6 +232,12 @@ public final class SegmentBinIO {
       }
     }
 
+    /**
+     * Closes the active input stream.
+     *
+     * @throws IOException if closing fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void close() throws IOException {
       closeStream();
@@ -190,16 +251,38 @@ public final class SegmentBinIO {
       super(out);
     }
 
+    /**
+     * Returns the number of bytes written through this stream.
+     *
+     * @return cumulative byte count
+     * @since RADAR 0.1-doc
+     */
     long getCount() {
       return count;
     }
 
+    /**
+     * Writes a single byte while tracking the byte count.
+     *
+     * @param b byte to write
+     * @throws IOException if the underlying stream fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void write(int b) throws IOException {
       out.write(b);
       count++;
     }
 
+    /**
+     * Writes a byte array region while tracking the byte count.
+     *
+     * @param b source buffer
+     * @param off offset within {@code b}
+     * @param len number of bytes to write
+     * @throws IOException if the underlying stream fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
       out.write(b, off, len);
@@ -207,5 +290,3 @@ public final class SegmentBinIO {
     }
   }
 }
-
-

@@ -26,6 +26,17 @@ public final class PcapPacketSource implements PacketSource {
   private Pcap pcap;
   private PcapHandle handle;
 
+  /**
+   * Creates a packet source without a capture filter.
+   *
+   * @param iface network interface name
+   * @param snaplen snap length in bytes
+   * @param promiscuous whether to enable promiscuous mode
+   * @param timeoutMillis poll timeout in milliseconds
+   * @param bufferBytes capture buffer size in bytes
+   * @param immediate whether to enable immediate mode
+   * @since RADAR 0.1-doc
+   */
   public PcapPacketSource(
       String iface,
       int snaplen,
@@ -36,6 +47,18 @@ public final class PcapPacketSource implements PacketSource {
     this(iface, snaplen, promiscuous, timeoutMillis, bufferBytes, immediate, null);
   }
 
+  /**
+   * Creates a packet source with an optional BPF filter expression.
+   *
+   * @param iface network interface name
+   * @param snaplen snap length in bytes
+   * @param promiscuous whether to enable promiscuous mode
+   * @param timeoutMillis poll timeout in milliseconds
+   * @param bufferBytes capture buffer size in bytes
+   * @param immediate whether to enable immediate mode
+   * @param filter optional BPF filter expression; {@code null} or blank disables filtering
+   * @since RADAR 0.1-doc
+   */
   public PcapPacketSource(
       String iface,
       int snaplen,
@@ -66,6 +89,12 @@ public final class PcapPacketSource implements PacketSource {
     this.pcapSupplier = Objects.requireNonNull(pcapSupplier, "pcapSupplier");
   }
 
+  /**
+   * Opens the libpcap handle for the configured interface.
+   *
+   * @throws Exception if libpcap initialization fails
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void start() throws Exception {
     if (handle != null) {
@@ -79,6 +108,13 @@ public final class PcapPacketSource implements PacketSource {
     }
   }
 
+  /**
+   * Polls for the next frame.
+   *
+   * @return captured frame when available; otherwise empty (including EOF)
+   * @throws Exception if libpcap reports an error
+   * @since RADAR 0.1-doc
+   */
   @Override
   public Optional<RawFrame> poll() throws Exception {
     if (handle == null) return Optional.empty();
@@ -102,6 +138,12 @@ public final class PcapPacketSource implements PacketSource {
     return Optional.ofNullable(captured[0]);
   }
 
+  /**
+   * Closes the capture handle and associated resources.
+   *
+   * @throws Exception if closing fails
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() throws Exception {
     if (handle != null) {
@@ -114,4 +156,5 @@ public final class PcapPacketSource implements PacketSource {
     }
   }
 }
+
 

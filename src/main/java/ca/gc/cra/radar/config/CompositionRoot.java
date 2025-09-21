@@ -50,23 +50,54 @@ public final class CompositionRoot {
   private final Config config;
   private final CaptureConfig captureConfig;
 
+  /**
+   * Creates a composition root with default capture configuration.
+   *
+   * @param config base configuration for enabled protocols and defaults
+   * @since RADAR 0.1-doc
+   */
   public CompositionRoot(Config config) {
     this(config, CaptureConfig.defaults());
   }
 
+  /**
+   * Creates a composition root with explicit capture configuration overrides.
+   *
+   * @param config base configuration for enabled protocols and defaults
+   * @param captureConfig capture-specific overrides
+   * @since RADAR 0.1-doc
+   */
   public CompositionRoot(Config config, CaptureConfig captureConfig) {
     this.config = Objects.requireNonNull(config, "config");
     this.captureConfig = Objects.requireNonNull(captureConfig, "captureConfig");
   }
 
+  /**
+   * Provides available protocol modules (HTTP and TN3270).
+   *
+   * @return available protocol modules (HTTP and TN3270)
+   * @since RADAR 0.1-doc
+   */
   public List<ProtocolModule> protocolModules() {
     return List.of(new HttpProtocolModule(), new Tn3270ProtocolModule());
   }
 
+  /**
+   * Builds the protocol detector wired with the enabled modules.
+   *
+   * @return protocol detector wired with the enabled modules
+   * @since RADAR 0.1-doc
+   */
   public ProtocolDetector protocolDetector() {
     return new DefaultProtocolDetector(protocolModules(), config.enabledProtocols());
   }
 
+  /**
+   * Builds the segment capture use case using the configured ports.
+   *
+   * @return capture use case
+   * @since RADAR 0.1-doc
+   */
   public SegmentCaptureUseCase segmentCaptureUseCase() {
     MetricsPort metricsPort = metrics();
     return new SegmentCaptureUseCase(
@@ -76,6 +107,12 @@ public final class CompositionRoot {
         metricsPort);
   }
 
+  /**
+   * Builds the live processing use case using the configured ports.
+   *
+   * @return live processing use case
+   * @since RADAR 0.1-doc
+   */
   public LiveProcessingUseCase liveProcessingUseCase() {
     MetricsPort metricsPort = metrics();
     ClockPort clockPort = clock();
@@ -91,6 +128,13 @@ public final class CompositionRoot {
         config.enabledProtocols());
   }
 
+  /**
+   * Builds the assemble use case for the provided configuration.
+   *
+   * @param assembleConfig assemble configuration
+   * @return assemble use case
+   * @since RADAR 0.1-doc
+   */
   public AssembleUseCase assembleUseCase(AssembleConfig assembleConfig) {
     Objects.requireNonNull(assembleConfig, "assembleConfig");
     MetricsPort metricsPort = metrics();
@@ -108,10 +152,22 @@ public final class CompositionRoot {
         buildSegmentReaderFactory());
   }
 
+  /**
+   * Supplies the metrics implementation used across use cases.
+   *
+   * @return metrics implementation used across use cases
+   * @since RADAR 0.1-doc
+   */
   public MetricsPort metrics() {
     return new NoOpMetricsAdapter();
   }
 
+  /**
+   * Supplies the clock implementation used for timestamping.
+   *
+   * @return clock implementation used for timestamping
+   * @since RADAR 0.1-doc
+   */
   public ClockPort clock() {
     return new SystemClockAdapter();
   }
@@ -233,11 +289,24 @@ public final class CompositionRoot {
         ProtocolId.TN3270, Tn3270PairingEngineAdapter::new);
   }
 
+  /**
+   * Exposes the base configuration reference.
+   *
+   * @return base configuration reference
+   * @since RADAR 0.1-doc
+   */
   public Config config() {
     return config;
   }
 
+  /**
+   * Exposes the capture configuration reference.
+   *
+   * @return capture configuration reference
+   * @since RADAR 0.1-doc
+   */
   public CaptureConfig captureConfig() {
     return captureConfig;
   }
 }
+

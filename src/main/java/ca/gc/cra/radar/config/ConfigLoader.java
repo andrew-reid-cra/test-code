@@ -8,9 +8,23 @@ import java.util.EnumSet;
 import java.util.Properties;
 import java.util.Set;
 
+/**
+ * Loads {@link Config} instances from configuration files.
+ * <p>Thread-safe; performs a best-effort parse with sensible defaults.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class ConfigLoader {
   private ConfigLoader() {}
 
+  /**
+   * Reads optional configuration properties from the given path and builds a {@link Config}.
+   *
+   * @param path properties file path; may be {@code null} or non-existent to use defaults
+   * @return configuration populated with file values overriding defaults
+   * @throws IOException if the file exists but cannot be read
+   * @since RADAR 0.1-doc
+   */
   public static Config fromProperties(Path path) throws IOException {
     Properties props = new Properties();
     if (path != null && Files.exists(path)) {
@@ -32,5 +46,3 @@ public final class ConfigLoader {
     return new Config(iface, bpf, snap, enabled);
   }
 }
-
-

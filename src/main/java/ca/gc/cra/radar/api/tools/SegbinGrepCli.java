@@ -18,7 +18,13 @@ public final class SegbinGrepCli {
       DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS").withZone(ZoneId.systemDefault());
 
   private SegbinGrepCli() {}
-
+  /**
+   * Scans segment binaries for a literal byte pattern and prints matches with ASCII context.
+   *
+   * @param args CLI arguments such as {@code needle} and {@code in}; {@code needle} must be non-empty
+   * @throws Exception if segment files cannot be read
+   * @since RADAR 0.1-doc
+   */
   public static void main(String[] args) throws Exception {
     Map<String, String> kv = CliArgsParser.toMap(args);
     String inputDir = kv.getOrDefault("in", "./cap-out");
@@ -116,3 +122,5 @@ public final class SegbinGrepCli {
     return Instant.ofEpochSecond(seconds, micros * 1_000L);
   }
 }
+
+

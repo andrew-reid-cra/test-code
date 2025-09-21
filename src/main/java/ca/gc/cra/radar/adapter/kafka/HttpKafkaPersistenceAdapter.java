@@ -23,16 +23,46 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-/** Persists HTTP message pairs to Kafka as structured JSON payloads. */
+/**
+ * Kafka persistence adapter that serializes HTTP {@link MessagePair} instances into JSON and
+ * publishes them to Kafka.
+ * <p>Implements the infrastructure side of {@link PersistencePort} for HTTP data. Non-HTTP pairs
+ * can be delegated to an optional fallback adapter. Thread-safety follows the supplied
+ * {@link Producer} implementation (the default {@link KafkaProducer} is thread-safe).
+ *
+ * @implNote HTTP bodies are base64 encoded and headers preserved verbatim using ISO-8859-1 to
+ * avoid charset loss.
+ * @see PersistencePort
+ * @since RADAR 0.1-doc
+ */
 public final class HttpKafkaPersistenceAdapter implements PersistencePort {
   private final Producer<String, byte[]> producer;
   private final String topic;
   private final PersistencePort fallback;
 
+  /**
+   * Builds an HTTP persistence adapter backed by a new {@link KafkaProducer}.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic Kafka topic that receives serialized HTTP exchanges
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public HttpKafkaPersistenceAdapter(String bootstrapServers, String topic) {
     this(bootstrapServers, topic, null);
   }
 
+  /**
+   * Builds an adapter that can delegate non-HTTP traffic to the supplied fallback.
+   *
+   * @param bootstrapServers comma-separated Kafka bootstrap servers
+   * @param topic Kafka topic that receives serialized HTTP exchanges
+   * @param fallback persistence adapter that receives non-HTTP message pairs; may be {@code null}
+   * @throws NullPointerException if {@code bootstrapServers} is {@code null}
+   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
+   * @since RADAR 0.1-doc
+   */
   public HttpKafkaPersistenceAdapter(
       String bootstrapServers, String topic, PersistencePort fallback) {
     this(createProducer(bootstrapServers), sanitizeTopic(topic), fallback);
@@ -44,6 +74,15 @@ public final class HttpKafkaPersistenceAdapter implements PersistencePort {
     this.fallback = fallback;
   }
 
+  /**
+   * Persists the HTTP-specific components of the supplied pair to Kafka, delegating non-HTTP pairs
+   * to the configured fallback.
+   *
+   * @param pair message pair to persist; {@code null} inputs are ignored
+   * @throws Exception if publishing fails or the fallback raises an exception
+   * @implNote Uses {@link TransactionId} metadata when available; otherwise generates a new id.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void persist(MessagePair pair) throws Exception {
     if (pair == null) {
@@ -80,6 +119,13 @@ public final class HttpKafkaPersistenceAdapter implements PersistencePort {
     producer.send(new ProducerRecord<>(topic, txId, json.getBytes(StandardCharsets.UTF_8)));
   }
 
+  /**
+   * Flushes Kafka buffers and closes both this adapter and the optional fallback.
+   *
+   * @throws Exception if the fallback fails while closing
+   * @implNote Attempts a bounded flush (five seconds) before closing the producer.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() throws Exception {
     try {

@@ -6,9 +6,22 @@ import ca.gc.cra.radar.config.CompositionRoot;
 import ca.gc.cra.radar.config.IoMode;
 import java.util.Map;
 
+/**
+ * Entry point for running the assemble pipeline over captured segments.
+ * <p>Utility holder for {@link #main(String[])}; not intended for concurrent use.</p>
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class AssembleCli {
   private AssembleCli() {}
 
+  /**
+   * Parses assemble CLI arguments and executes the configured pipeline.
+   *
+   * @param args CLI arguments in {@code key=value} form; requires {@code in} and {@code out} targets
+   * @throws Exception if configuration validation or assemble processing fails
+   * @since RADAR 0.1-doc
+   */
   public static void main(String[] args) throws Exception {
     Map<String, String> kv = CliArgsParser.toMap(args);
     AssembleConfig config;

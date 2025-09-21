@@ -21,7 +21,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
-/** Writes HTTP message pairs in the legacy SegmentSink blob/index format. */
+/**
+ * Writes HTTP message pairs in the legacy SegmentSink blob/index format.
+ * <p>Synchronizes writes to append request/response payloads to a shared blob and emits matching
+ * index entries. Optionally delegates non-HTTP pairs to another {@link PersistencePort}.
+ *
+ * @since RADAR 0.1-doc
+ */
 public final class HttpSegmentSinkPersistenceAdapter implements PersistencePort {
   private static final DateTimeFormatter STAMP =
       DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss").withZone(ZoneId.systemDefault());
@@ -32,10 +38,25 @@ public final class HttpSegmentSinkPersistenceAdapter implements PersistencePort 
   private final String indexName;
   private final PersistencePort fallback;
 
+  /**
+   * Creates an HTTP segment sink without a fallback.
+   *
+   * @param directory output directory for blob/index files
+   * @throws NullPointerException if {@code directory} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public HttpSegmentSinkPersistenceAdapter(Path directory) {
     this(directory, null);
   }
 
+  /**
+   * Creates an HTTP segment sink with an optional fallback for non-HTTP pairs.
+   *
+   * @param directory output directory for blob/index files
+   * @param fallback optional persistence fallback for other protocols
+   * @throws NullPointerException if {@code directory} is {@code null}
+   * @since RADAR 0.1-doc
+   */
   public HttpSegmentSinkPersistenceAdapter(Path directory, PersistencePort fallback) {
     try {
       Files.createDirectories(directory);
@@ -58,6 +79,14 @@ public final class HttpSegmentSinkPersistenceAdapter implements PersistencePort 
     }
   }
 
+  /**
+   * Writes HTTP request/response payloads to disk, delegating other protocols to the fallback.
+   *
+   * @param pair message pair to persist; {@code null} is ignored
+   * @throws Exception if writing fails or the fallback throws
+   * @implNote Flushes headers/body metadata to disk on each call to preserve crash consistency.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void persist(MessagePair pair) throws Exception {
     if (pair == null) return;
@@ -189,6 +218,13 @@ public final class HttpSegmentSinkPersistenceAdapter implements PersistencePort 
     return b.toString();
   }
 
+  /**
+   * Flushes and closes blob/index streams and the fallback sink.
+   *
+   * @throws Exception if closing the fallback fails
+   * @implNote Forces blob metadata to disk before chaining to the fallback.
+   * @since RADAR 0.1-doc
+   */
   @Override
   public synchronized void close() throws Exception {
     try {
@@ -206,4 +242,5 @@ public final class HttpSegmentSinkPersistenceAdapter implements PersistencePort 
     }
   }
 }
+
 

@@ -124,7 +124,11 @@ reports-tn/             # poster output (.tn3270.txt)
 ```
 
 ## Building & Testing
-RADAR targets Java 17+ and Maven. Run `mvn verify` for a full build; `mvn -q -DskipTests package` is sufficient for the CLI smoke sequence above. Unit tests cover flow reassembly, protocol adapters, persistence sinks, and poster pipelines.
+RADAR targets Java 17+ and Maven. Run `mvn verify` for a full build; `mvn -q -DskipTests package` is sufficient for the CLI smoke sequence above. Unit tests cover flow reassembly, protocol adapters, persistence sinks, and poster pipelines.
+
+## Developer Docs
+- Generated API reference: `target/site/apidocs/index.html` (run `mvn -DskipTests javadoc:javadoc`).
+- Architecture and extension guide: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
 
 ## Next Steps
 - Extend `ReorderingFlowAssembler` or add adapters for new protocols by wiring a reconstructor and pairing engine into `CompositionRoot`.
