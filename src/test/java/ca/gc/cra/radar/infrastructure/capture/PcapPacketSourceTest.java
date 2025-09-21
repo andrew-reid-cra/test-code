@@ -1,32 +1,59 @@
 package ca.gc.cra.radar.infrastructure.capture;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import ca.gc.cra.radar.domain.net.RawFrame;
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
-import org.junit.jupiter.api.Test;
 import ca.gc.cra.radar.infrastructure.capture.libpcap.Pcap;
 import ca.gc.cra.radar.infrastructure.capture.libpcap.PcapException;
 import ca.gc.cra.radar.infrastructure.capture.libpcap.PcapHandle;
+import java.util.ArrayDeque;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.Test;
 
 class PcapPacketSourceTest {
+
+  @Test
+  void pollBeforeStartReturnsEmpty() throws Exception {
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 65535, true, 1_000, 65_536, true, null, FakePcap::unused);
+
+    assertTrue(source.poll().isEmpty());
+  }
+
+  @Test
+  void startIsIdempotentAndReusesHandle() throws Exception {
+    FakeHandle handle = new FakeHandle();
+    FakePcap pcap = new FakePcap(handle);
+    AtomicInteger supplierCalls = new AtomicInteger();
+    Supplier<Pcap> supplier = () -> {
+      supplierCalls.incrementAndGet();
+      return pcap;
+    };
+
+    PcapPacketSource source =
+        new PcapPacketSource("eth0", 128, true, 1_000, 65_536, false, "tcp", supplier);
+
+    source.start();
+    source.start();
+
+    assertEquals(1, supplierCalls.get());
+    assertEquals(1, pcap.openCount());
+    assertEquals("tcp", handle.filter());
+
+    source.close();
+  }
+
   @Test
   void pollCopiesFrameBytesAndHonoursTimestamps() throws Exception {
     FakeHandle handle = new FakeHandle();
-    handle.enqueueFrame(10L, new byte[] {1, 2, 3});
+    FakePcap pcap = new FakePcap(handle);
+    handle.enqueueFrame(10L, new byte[] {1, 2, 3}, 3);
 
-    Supplier<Pcap> supplier = () -> new FakePcap(handle);
-    PcapPacketSource source =
-        new PcapPacketSource("eth0", 65535, true, 1_000, 65_536, true, null, supplier);
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 65535, true, 1_000, 65_536, true, null, () -> pcap);
 
     source.start();
 
@@ -36,21 +63,22 @@ class PcapPacketSourceTest {
     assertEquals(10L, raw.timestampMicros());
     assertArrayEquals(new byte[] {1, 2, 3}, raw.data());
 
-    // mutate original array to ensure copy occurred
-    Arrays.fill(handle.lastReturned(), (byte) 9);
+    byte[] original = handle.lastDeliveredBuffer();
+    assertNotNull(original);
+    original[0] = 42;
     assertArrayEquals(new byte[] {1, 2, 3}, raw.data());
 
     source.close();
   }
 
   @Test
-  void pollReturnsEmptyOnTimeout() throws Exception {
+  void pollReturnsEmptyWhenNoPacketDelivered() throws Exception {
     FakeHandle handle = new FakeHandle();
-    handle.enqueueTimeout();
+    FakePcap pcap = new FakePcap(handle);
+    handle.enqueueNoPacket();
 
-    PcapPacketSource source =
-        new PcapPacketSource(
-            "eth0", 65535, true, 1_000, 65_536, true, null, () -> new FakePcap(handle));
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 64, true, 1_000, 65_536, true, null, () -> pcap);
     source.start();
 
     assertTrue(source.poll().isEmpty());
@@ -59,22 +87,111 @@ class PcapPacketSourceTest {
   }
 
   @Test
-  void appliesFilterWhenProvided() throws Exception {
+  void appliesFilterWhenProvidedAndIgnoresBlankStrings() throws Exception {
+    FakeHandle handle1 = new FakeHandle();
+    FakePcap pcap1 = new FakePcap(handle1);
+
+    PcapPacketSource filtered = new PcapPacketSource(
+        "eth0", 128, true, 1_000, 65_536, false, "port 80", () -> pcap1);
+    filtered.start();
+    assertEquals("port 80", handle1.filter());
+    filtered.close();
+
+    FakeHandle handle2 = new FakeHandle();
+    FakePcap pcap2 = new FakePcap(handle2);
+
+    PcapPacketSource blankFilter = new PcapPacketSource(
+        "eth0", 128, true, 1_000, 65_536, false, "   ", () -> pcap2);
+    blankFilter.start();
+    assertNull(handle2.filter());
+    assertEquals(0, handle2.setFilterCount());
+    blankFilter.close();
+  }
+
+  @Test
+  void pollClosesResourcesOnEof() throws Exception {
     FakeHandle handle = new FakeHandle();
-    PcapPacketSource source =
-        new PcapPacketSource("eth0", 65535, true, 1_000, 65_536, true, "tcp", () -> new FakePcap(handle));
+    FakePcap pcap = new FakePcap(handle);
+    handle.enqueueFrame(1L, new byte[] {9}, 1);
+    handle.enqueueEof();
+
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 512, true, 500, 65_536, false, null, () -> pcap);
+    source.start();
+
+    assertTrue(source.poll().isPresent());
+    assertTrue(source.poll().isEmpty());
+    assertTrue(handle.isClosed());
+    assertEquals(1, handle.closeCount());
+    assertTrue(pcap.isClosed());
+    assertEquals(1, pcap.closeCount());
+  }
+
+  @Test
+  void pollHandlesZeroAndNegativeCapLen() throws Exception {
+    FakeHandle handle = new FakeHandle();
+    FakePcap pcap = new FakePcap(handle);
+    handle.enqueueFrame(1L, new byte[] {1, 2, 3}, 0);
+    handle.enqueueFrame(2L, new byte[] {4, 5, 6}, -5);
+
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 128, true, 1_000, 65_536, true, null, () -> pcap);
+    source.start();
+
+    Optional<RawFrame> first = source.poll();
+    assertTrue(first.isPresent());
+    assertArrayEquals(new byte[0], first.get().data());
+
+    Optional<RawFrame> second = source.poll();
+    assertTrue(second.isPresent());
+    assertArrayEquals(new byte[0], second.get().data());
+
+    source.close();
+  }
+
+  @Test
+  void pollPropagatesExceptions() throws Exception {
+    FakeHandle handle = new FakeHandle();
+    FakePcap pcap = new FakePcap(handle);
+    handle.enqueueException(new PcapException("boom"));
+
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 128, true, 1_000, 65_536, true, null, () -> pcap);
+    source.start();
+
+    PcapException ex = assertThrows(PcapException.class, source::poll);
+    assertEquals("boom", ex.getMessage());
+  }
+
+  @Test
+  void closeReleasesHandleAndPcapIdempotently() throws Exception {
+    FakeHandle handle = new FakeHandle();
+    FakePcap pcap = new FakePcap(handle);
+    PcapPacketSource source = new PcapPacketSource(
+        "eth0", 128, true, 1_000, 65_536, true, null, () -> pcap);
 
     source.start();
-    assertEquals("tcp", handle.filter());
     source.close();
+    source.close();
+
+    assertEquals(1, handle.closeCount());
+    assertTrue(handle.isClosed());
+    assertEquals(1, pcap.closeCount());
+    assertTrue(pcap.isClosed());
   }
 
   private static final class FakePcap implements Pcap {
     private final FakeHandle handle;
-    private final AtomicBoolean closed = new AtomicBoolean();
+    private int openCount;
+    private int closeCount;
+    private boolean closed;
 
     FakePcap(FakeHandle handle) {
       this.handle = handle;
+    }
+
+    static Pcap unused() {
+      throw new AssertionError("should not request pcap without start");
     }
 
     @Override
@@ -84,8 +201,9 @@ class PcapPacketSourceTest {
         boolean promisc,
         int timeoutMs,
         int bufferBytes,
-        boolean immediate)
-        throws PcapException {
+        boolean immediate) {
+      openCount++;
+      closed = false;
       return handle;
     }
 
@@ -96,55 +214,97 @@ class PcapPacketSourceTest {
 
     @Override
     public void close() {
-      closed.set(true);
+      closed = true;
+      closeCount++;
+    }
+
+    int openCount() {
+      return openCount;
+    }
+
+    int closeCount() {
+      return closeCount;
+    }
+
+    boolean isClosed() {
+      return closed;
     }
   }
 
   private static final class FakeHandle implements PcapHandle {
-    private static final class Step {
-      final boolean timeout;
-      final Frame frame;
+    private enum StepType { FRAME, NO_PACKET, EOF, THROW }
 
-      Step(boolean timeout, Frame frame) {
-        this.timeout = timeout;
+    private static final class Step {
+      final StepType type;
+      final Frame frame;
+      final PcapException exception;
+
+      Step(StepType type, Frame frame, PcapException exception) {
+        this.type = type;
         this.frame = frame;
+        this.exception = exception;
       }
     }
 
     private static final class Frame {
       final long ts;
       final byte[] data;
+      final int capLen;
 
-      Frame(long ts, byte[] data) {
+      Frame(long ts, byte[] data, int capLen) {
         this.ts = ts;
         this.data = data;
+        this.capLen = capLen;
       }
     }
 
     private final Queue<Step> steps = new ArrayDeque<>();
-    private byte[] lastReturned;
+    private byte[] lastDeliveredBuffer;
     private String filter;
+    private int setFilterCount;
     private boolean closed;
+    private int closeCount;
 
-    void enqueueFrame(long tsMicros, byte[] data) {
-      steps.add(new Step(false, new Frame(tsMicros, data)));
+    void enqueueFrame(long tsMicros, byte[] data, int capLen) {
+      steps.add(new Step(StepType.FRAME, new Frame(tsMicros, data, capLen), null));
     }
 
-    void enqueueTimeout() {
-      steps.add(new Step(true, null));
+    void enqueueNoPacket() {
+      steps.add(new Step(StepType.NO_PACKET, null, null));
     }
 
-    byte[] lastReturned() {
-      return lastReturned;
+    void enqueueEof() {
+      steps.add(new Step(StepType.EOF, null, null));
+    }
+
+    void enqueueException(PcapException ex) {
+      steps.add(new Step(StepType.THROW, null, ex));
+    }
+
+    byte[] lastDeliveredBuffer() {
+      return lastDeliveredBuffer;
     }
 
     String filter() {
       return filter;
     }
 
+    int setFilterCount() {
+      return setFilterCount;
+    }
+
+    boolean isClosed() {
+      return closed;
+    }
+
+    int closeCount() {
+      return closeCount;
+    }
+
     @Override
-    public void setFilter(String bpf) throws PcapException {
-      this.filter = bpf;
+    public void setFilter(String bpf) {
+      filter = bpf;
+      setFilterCount++;
     }
 
     @Override
@@ -156,19 +316,23 @@ class PcapPacketSourceTest {
       if (step == null) {
         return false;
       }
-      if (step.timeout) {
-        return true;
-      }
-      Frame frame = Objects.requireNonNull(step.frame);
-      lastReturned = frame.data;
-      cb.onPacket(frame.ts, frame.data, frame.data.length);
-      return true;
+      return switch (step.type) {
+        case FRAME -> {
+          Frame frame = step.frame;
+          lastDeliveredBuffer = frame.data;
+          cb.onPacket(frame.ts, frame.data, frame.capLen);
+          yield true;
+        }
+        case NO_PACKET -> true;
+        case EOF -> false;
+        case THROW -> throw step.exception;
+      };
     }
 
     @Override
     public void close() {
       closed = true;
+      closeCount++;
     }
   }
 }
-
