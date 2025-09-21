@@ -39,12 +39,13 @@
 <span class="source-line-no">026</span><span id="line-26">   * @return always {@link Optional#empty()}</span>
 <span class="source-line-no">027</span><span id="line-27">   * @implNote Does not inspect the segment to avoid additional allocations.</span>
 <span class="source-line-no">028</span><span id="line-28">   * @since RADAR 0.1-doc</span>
-<span class="source-line-no">029</span><span id="line-29">   */  @Override</span>
-<span class="source-line-no">030</span><span id="line-30">  public Optional&lt;ByteStream&gt; accept(TcpSegment segment) {</span>
-<span class="source-line-no">031</span><span id="line-31">    return Optional.empty();</span>
-<span class="source-line-no">032</span><span id="line-32">  }</span>
-<span class="source-line-no">033</span><span id="line-33">}</span>
-<span class="source-line-no">034</span><span id="line-34"></span>
+<span class="source-line-no">029</span><span id="line-29">   */</span>
+<span class="source-line-no">030</span><span id="line-30">  @Override</span>
+<span class="source-line-no">031</span><span id="line-31">  public Optional&lt;ByteStream&gt; accept(TcpSegment segment) {</span>
+<span class="source-line-no">032</span><span id="line-32">    return Optional.empty();</span>
+<span class="source-line-no">033</span><span id="line-33">  }</span>
+<span class="source-line-no">034</span><span id="line-34">}</span>
+<span class="source-line-no">035</span><span id="line-35"></span>
 
 
 

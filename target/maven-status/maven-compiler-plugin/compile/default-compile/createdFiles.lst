@@ -120,7 +120,6 @@ ca\gc\cra\radar\infrastructure\net\FrameDecoderLibpcap.class
 ca\gc\cra\radar\application\port\FlowAssembler.class
 ca\gc\cra\radar\application\pipeline\AssembleUseCase$SegmentIoAdapterRecordReader.class
 ca\gc\cra\radar\application\port\MessageReconstructor.class
-ca\gc\cra\radar\infrastructure\persistence\LegacySegmentPersistenceAdapter.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructor.class
 ca\gc\cra\radar\api\AssembleCli.class
 ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssembler.class

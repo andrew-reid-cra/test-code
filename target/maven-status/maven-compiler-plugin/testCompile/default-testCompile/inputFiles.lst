@@ -10,7 +10,6 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\RecordingMet
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\flow\FlowDirectionServiceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssemblerTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\SegmentSinkAdapterNdjsonTest.java
-D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\LegacySegmentPersistenceAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\net\TcpSegmentTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\KafkaPosterOutputAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\poster\HttpPosterPipelineTest.java

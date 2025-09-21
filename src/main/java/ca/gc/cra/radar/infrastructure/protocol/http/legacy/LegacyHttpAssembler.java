@@ -1,14 +1,23 @@
 package ca.gc.cra.radar.infrastructure.protocol.http.legacy;
 
 /**
- * Placeholder for the historical assembler implementation that referred to legacy sinks.
- * The modern RADAR pipeline no longer depends on this class; attempting to use it will
- * immediately fail.
+ * Legacy entry point for the retired HTTP assembler pipeline.
+ * <p>This stub throws to guard deployments that still reference the pre-0.1 assembler wiring.</p>
+ * <p>Replace invocations with the modern pipeline, for example:</p>
+ * <pre>{@code
+ * PosterUseCase poster = new PosterUseCase();
+ * poster.run(posterConfig);
+ * }</pre>
+ *
+ * @deprecated since RADAR 0.1.0; scheduled for removal in RADAR 0.2.0. Use
+ *     {@link ca.gc.cra.radar.application.pipeline.PosterUseCase} or the protocol-specific
+ *     {@link ca.gc.cra.radar.application.port.poster.PosterPipeline} implementations instead.
  */
-@Deprecated
+@Deprecated(since = "0.1.0", forRemoval = true)
 public final class LegacyHttpAssembler {
   /**
-   * Legacy hook invoked for each TCP segment; always throws {@link UnsupportedOperationException}.
+   * Retained only for binary compatibility; always throws
+   * {@link UnsupportedOperationException}.
    *
    * @param timestampMicros capture timestamp in microseconds
    * @param src source IP address
@@ -22,7 +31,7 @@ public final class LegacyHttpAssembler {
    * @param length number of bytes provided in {@code payload}
    * @param fin whether the FIN flag was set
    * @throws UnsupportedOperationException always thrown to signal unsupported usage
-   * @since RADAR 0.1-doc
+   * @deprecated since RADAR 0.1.0; invoke the current assemble/poster pipeline instead
    */
   public void onTcpSegment(
       long timestampMicros,

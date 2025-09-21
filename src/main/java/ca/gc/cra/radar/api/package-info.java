@@ -1,9 +1,9 @@
 /**
  * Command-line entry points for RADAR capture, live, assemble, and poster workflows.
- * <p>CLI classes convert flat key-value arguments into {@link ca.gc.cra.radar.config.Config}
- * aggregates and delegate to application use cases.</p>
- * <p>Depends on {@code ca.gc.cra.radar.config} and {@code ca.gc.cra.radar.application}.
- * Does not depend on infrastructure adapters directly.</p>
+ * <p>Parses {@code key=value} arguments into strongly typed configuration records, applies
+ * validation (including BPF gating and safe defaults), and delegates to application pipelines.</p>
+ * <p>CLI classes also encode structured exit codes and logging categories so operators can
+ * distinguish configuration, IO, and processing faults quickly.</p>
  *
  * @since RADAR 0.1-doc
  */

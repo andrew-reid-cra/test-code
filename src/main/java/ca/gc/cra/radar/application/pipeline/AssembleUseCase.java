@@ -184,11 +184,24 @@ public final class AssembleUseCase {
       this.delegate = delegate;
     }
 
+    /**
+     * Delegates to the underlying adapter to fetch the next serialized segment.
+     *
+     * @return next segment or {@code null} when the stream is exhausted
+     * @throws Exception if the adapter fails while reading
+     * @since RADAR 0.1-doc
+     */
     @Override
     public SegmentRecord next() throws Exception {
       return delegate.next();
     }
 
+    /**
+     * Closes the underlying adapter stream.
+     *
+     * @throws Exception if closing the adapter fails
+     * @since RADAR 0.1-doc
+     */
     @Override
     public void close() throws Exception {
       delegate.close();

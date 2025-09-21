@@ -1,4 +1,4 @@
-﻿# RADAR Detailed Notes
+# RADAR Detailed Notes
 
 ## Capture Layer
 - PcapPacketSource opens a libpcap handle (via infrastructure.capture.libpcap) and emits RawFrame objects.
@@ -18,7 +18,7 @@
 - HTTP bodies can be chunk- and gzip-decoded; binary payloads fall back to a hex dump. TN3270 output is always hex with ASCII gutters.
 
 ## Legacy Compatibility
-- LegacySegmentPersistenceAdapter still produces the historical segment files for environments that consume the legacy format, but the new pipeline relies entirely on the SegmentBinIO implementation.
+- Legacy segment sinks have been removed; consumers should rely on SegmentBinIO outputs and downstream adapters.
 
 ## Extending RADAR
 1. Implement a ProtocolModule that knows how to recognise and reconstruct your protocol.
@@ -26,3 +26,9 @@
 3. Wire the module into CompositionRoot so capture/assemble/poster can opt-in via configuration.
 
 The tests under src/test/java cover each stage: flow assembler ordering, TN3270 pairing, persistence sinks, and the poster pipeline.
+
+## Further Reading
+- [Operations Runbook](ops/operations.md)
+- [Developer Guide](dev/development.md)
+- [Upgrade Notes](upgrade/UPGRADING.md)
+

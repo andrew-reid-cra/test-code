@@ -8,7 +8,6 @@ ca\gc\cra\radar\application\pipeline\LiveProcessingUseCaseTest$StubFrameDecoder.
 ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapterTest.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest$RecordingMetrics.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest.class
-ca\gc\cra\radar\infrastructure\persistence\LegacySegmentPersistenceAdapterTest.class
 ca\gc\cra\radar\config\ConfigLoaderTest.class
 ca\gc\cra\radar\config\CaptureConfigTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest$RecordingPersistence.class

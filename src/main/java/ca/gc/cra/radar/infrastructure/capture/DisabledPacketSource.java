@@ -37,6 +37,12 @@ public final class DisabledPacketSource implements PacketSource {
     return Optional.empty();
   }
 
+  /**
+   * No-op close hook retained for interface parity; this adapter never allocates resources.
+   * <p>The method is idempotent and safe to invoke multiple times.</p>
+   *
+   * @since RADAR 0.1-doc
+   */
   @Override
   public void close() {}
 }

@@ -197,17 +197,30 @@
 <span class="source-line-no">184</span><span id="line-184">      this.delegate = delegate;</span>
 <span class="source-line-no">185</span><span id="line-185">    }</span>
 <span class="source-line-no">186</span><span id="line-186"></span>
-<span class="source-line-no">187</span><span id="line-187">    @Override</span>
-<span class="source-line-no">188</span><span id="line-188">    public SegmentRecord next() throws Exception {</span>
-<span class="source-line-no">189</span><span id="line-189">      return delegate.next();</span>
-<span class="source-line-no">190</span><span id="line-190">    }</span>
-<span class="source-line-no">191</span><span id="line-191"></span>
-<span class="source-line-no">192</span><span id="line-192">    @Override</span>
-<span class="source-line-no">193</span><span id="line-193">    public void close() throws Exception {</span>
-<span class="source-line-no">194</span><span id="line-194">      delegate.close();</span>
-<span class="source-line-no">195</span><span id="line-195">    }</span>
-<span class="source-line-no">196</span><span id="line-196">  }</span>
-<span class="source-line-no">197</span><span id="line-197">}</span>
+<span class="source-line-no">187</span><span id="line-187">    /**</span>
+<span class="source-line-no">188</span><span id="line-188">     * Delegates to the underlying adapter to fetch the next serialized segment.</span>
+<span class="source-line-no">189</span><span id="line-189">     *</span>
+<span class="source-line-no">190</span><span id="line-190">     * @return next segment or {@code null} when the stream is exhausted</span>
+<span class="source-line-no">191</span><span id="line-191">     * @throws Exception if the adapter fails while reading</span>
+<span class="source-line-no">192</span><span id="line-192">     * @since RADAR 0.1-doc</span>
+<span class="source-line-no">193</span><span id="line-193">     */</span>
+<span class="source-line-no">194</span><span id="line-194">    @Override</span>
+<span class="source-line-no">195</span><span id="line-195">    public SegmentRecord next() throws Exception {</span>
+<span class="source-line-no">196</span><span id="line-196">      return delegate.next();</span>
+<span class="source-line-no">197</span><span id="line-197">    }</span>
+<span class="source-line-no">198</span><span id="line-198"></span>
+<span class="source-line-no">199</span><span id="line-199">    /**</span>
+<span class="source-line-no">200</span><span id="line-200">     * Closes the underlying adapter stream.</span>
+<span class="source-line-no">201</span><span id="line-201">     *</span>
+<span class="source-line-no">202</span><span id="line-202">     * @throws Exception if closing the adapter fails</span>
+<span class="source-line-no">203</span><span id="line-203">     * @since RADAR 0.1-doc</span>
+<span class="source-line-no">204</span><span id="line-204">     */</span>
+<span class="source-line-no">205</span><span id="line-205">    @Override</span>
+<span class="source-line-no">206</span><span id="line-206">    public void close() throws Exception {</span>
+<span class="source-line-no">207</span><span id="line-207">      delegate.close();</span>
+<span class="source-line-no">208</span><span id="line-208">    }</span>
+<span class="source-line-no">209</span><span id="line-209">  }</span>
+<span class="source-line-no">210</span><span id="line-210">}</span>
 
 
 

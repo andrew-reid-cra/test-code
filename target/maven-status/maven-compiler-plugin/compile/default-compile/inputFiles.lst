@@ -23,6 +23,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\Config.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\MessageMetadata.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaPosterOutputAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\ProtocolModule.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\PairingEngine.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\NoOpPersistenceAdapter.java
@@ -33,7 +34,6 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\poster\PosterOutputPort.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\detect\DefaultProtocolDetector.java
-D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\LegacySegmentPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\PosterCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\IoMode.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\Pcap.java
@@ -50,6 +50,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\AssembleCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpSignature.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\net\TcpSegment.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\poster\PosterPipeline.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\PacketSource.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\SegmentIoAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMetrics.java
@@ -62,6 +63,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\Ht
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\util\AbstractMessageSession.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\PosterUseCase.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapter.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipeline.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CapturePropertiesLoader.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\package-info.java
@@ -74,6 +76,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\net\ByteStream.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CaptureConfig.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\net\FiveTuple.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentRecordReaderAdapter.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\PosterConfig.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\capture\SegmentRecord.java
@@ -86,11 +89,13 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\AssembleUseCase.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\MessageReconstructor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\poster\Tn3270PosterPipeline.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270MessageReconstructor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\segment\SegmentFileSinkAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\LiveProcessingUseCase.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\DisabledPacketSource.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\tools\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\ProtocolDetector.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\MessageEvent.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpPairingEngineAdapter.java

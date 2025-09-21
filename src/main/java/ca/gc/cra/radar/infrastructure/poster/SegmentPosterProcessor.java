@@ -546,13 +546,7 @@ final class SegmentPosterProcessor {
     }
 
     /**
-     * Returns the first-capture timestamp for this HTTP part.
-     *
-     * @return capture timestamp in microseconds
-     * @since RADAR 0.1-doc
-     */
-    /**
-     * Returns the capture timestamp for this binary part.
+     * Returns the earliest capture timestamp associated with this HTTP part.
      *
      * @return capture timestamp in microseconds
      * @since RADAR 0.1-doc
@@ -580,6 +574,12 @@ final class SegmentPosterProcessor {
       return payload;
     }
 
+    /**
+     * Returns the earliest capture timestamp for this binary segment.
+     *
+     * @return capture timestamp in microseconds
+     * @since RADAR 0.1-doc
+     */
     @Override
     public long timestamp() {
       return entry.tsFirst();

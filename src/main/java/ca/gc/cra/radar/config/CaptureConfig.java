@@ -102,6 +102,7 @@ public record CaptureConfig(
         "radar.segments");
   }
 
+
   /**
    * Parses CLI-style {@code key=value} arguments into a configuration.
    *
@@ -114,7 +115,9 @@ public record CaptureConfig(
     Map<String, String> kv = new HashMap<>();
     if (args != null) {
       for (String arg : args) {
-        if (arg == null || arg.isBlank()) continue;
+        if (arg == null || arg.isBlank()) {
+          continue;
+        }
         String[] parts = arg.split("=", 2);
         String key = parts[0];
         String value = parts.length > 1 ? parts[1] : "";
