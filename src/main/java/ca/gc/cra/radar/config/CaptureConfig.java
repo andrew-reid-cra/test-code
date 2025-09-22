@@ -14,6 +14,7 @@ import java.util.Objects;
  * Configuration for the capture CLI, covering NIC selection, IO modes, and file rotation.
  *
  * @param iface network interface name to capture from
+ * @param pcapFile offline capture file when provided
  * @param filter active BPF filter expression (sanitized)
  * @param customBpfEnabled {@code true} when a custom BPF expression was explicitly enabled
  * @param snaplen libpcap snap length in bytes
@@ -36,6 +37,7 @@ import java.util.Objects;
  */
 public record CaptureConfig(
     String iface,
+    Path pcapFile,
     String filter,
     boolean customBpfEnabled,
     int snaplen,
@@ -79,7 +81,17 @@ public record CaptureConfig(
    * @since RADAR 0.1-doc
    */
   public CaptureConfig {
-    iface = Strings.requireNonBlank("iface", iface);
+    boolean offline = pcapFile != null;
+    if (offline) {
+      pcapFile = normalizePath("pcapFile", pcapFile);
+    }
+    if (!offline) {
+      iface = Strings.requireNonBlank("iface", iface);
+    } else if (iface == null || iface.isBlank()) {
+      iface = "pcap:" + pcapFile.getFileName();
+    } else {
+      iface = Strings.requireNonBlank("iface", iface);
+    }
     filter = Strings.requirePrintableAscii("bpf", filter, MAX_BPF_LENGTH);
     outputDirectory = normalizePath("outputDirectory", outputDirectory);
     httpOutputDirectory = normalizePath("httpOutputDirectory", httpOutputDirectory);
@@ -132,6 +144,7 @@ public record CaptureConfig(
     int defaultQueueCapacity = defaultWorkers * 64;
     return new CaptureConfig(
         "eth0",
+        null,
         DEFAULT_SAFE_BPF,
         false,
         DEFAULT_SNAPLEN,
@@ -164,7 +177,18 @@ public record CaptureConfig(
     Map<String, String> kv = args == null ? Map.of() : new HashMap<>(args);
     CaptureConfig defaults = defaults();
 
-    String iface = Strings.requireNonBlank("iface", kv.getOrDefault("iface", defaults.iface()));
+    Path pcapFile = parseOptionalPath("pcapFile", kv.get("pcapFile")).orElse(null);
+
+    String ifaceRaw = kv.get("iface");
+    String iface;
+    if (pcapFile == null) {
+      String fallbackIface = (ifaceRaw == null || ifaceRaw.isBlank()) ? defaults.iface() : ifaceRaw;
+      iface = Strings.requireNonBlank("iface", fallbackIface);
+    } else if (ifaceRaw != null && !ifaceRaw.isBlank()) {
+      iface = Strings.requireNonBlank("iface", ifaceRaw);
+    } else {
+      iface = null;
+    }
 
     boolean bpfAcknowledged = parseBoolean(kv.get("enableBpf"), false);
     String filter = DEFAULT_SAFE_BPF;
@@ -179,7 +203,12 @@ public record CaptureConfig(
       customBpf = true;
     }
 
-    int snap = parseBoundedInt(kv, "snap", defaults.snaplen(), MIN_SNAPLEN, MAX_SNAPLEN);
+    int snap;
+    if (kv.get("snaplen") != null && !kv.get("snaplen").isBlank()) {
+      snap = parseBoundedInt(kv, "snaplen", defaults.snaplen(), MIN_SNAPLEN, MAX_SNAPLEN);
+    } else {
+      snap = parseBoundedInt(kv, "snap", defaults.snaplen(), MIN_SNAPLEN, MAX_SNAPLEN);
+    }
     int bufMib = parseBoundedInt(kv, "bufmb", defaults.bufferBytes() / (1_024 * 1_024), MIN_BUFFER_MIB, MAX_BUFFER_MIB);
     int bufferBytes = Math.toIntExact(bufMib * 1_024L * 1_024L);
     int timeout = parseBoundedInt(kv, "timeout", defaults.timeoutMillis(), MIN_TIMEOUT_MILLIS, MAX_TIMEOUT_MILLIS);
@@ -233,6 +262,7 @@ public record CaptureConfig(
 
     return new CaptureConfig(
         iface,
+        pcapFile,
         filter,
         customBpf,
         snap,

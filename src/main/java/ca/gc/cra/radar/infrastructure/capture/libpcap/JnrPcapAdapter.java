@@ -2,7 +2,9 @@ package ca.gc.cra.radar.infrastructure.capture.libpcap;
 
 import ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct.BpfProgramStruct;
 import ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct.PcapPkthdr;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Objects;
 import jnr.ffi.Memory;
 import jnr.ffi.Pointer;
 import jnr.ffi.Runtime;
@@ -60,6 +62,30 @@ public final class JnrPcapAdapter implements Pcap {
       throw new PcapException("pcap_activate: " + p.pcap_geterr(ph));
     }
 
+    return new HandleImpl(ph, rt, p, snap);
+  }
+
+  /**
+   * Opens an offline capture handle using libpcap.
+   *
+   * @param file pcap or pcapng file path
+   * @param snap snap length in bytes used when copying frames
+   * @return activated {@link PcapHandle}
+   * @throws PcapException if the file cannot be opened
+   * @since RADAR 0.1-doc
+   */
+  @Override
+  public PcapHandle openOffline(Path file, int snap) throws PcapException {
+    Objects.requireNonNull(file, "file");
+    Pointer err = Memory.allocateDirect(rt, 256);
+    Pointer ph = p.pcap_open_offline(file.toString(), err);
+    if (ph == null || ph.address() == 0) {
+      String message = err.getString(0);
+      if (message == null || message.isBlank()) {
+        message = "unknown error";
+      }
+      throw new PcapException("pcap_open_offline: " + message.strip());
+    }
     return new HandleImpl(ph, rt, p, snap);
   }
 
@@ -201,6 +227,15 @@ public final class JnrPcapAdapter implements Pcap {
       } else {
         return false;
       }
+    }
+
+    @Override
+    public int dataLink() throws PcapException {
+      int type = p.pcap_datalink(ph);
+      if (type < 0) {
+        throw new PcapException("pcap_datalink: " + p.pcap_geterr(ph));
+      }
+      return type;
     }
 
     /**

@@ -26,6 +26,15 @@ public interface PcapHandle extends AutoCloseable {
   boolean next(Pcap.PacketCallback cb) throws PcapException;
 
   /**
+   * Returns the link-layer type reported by libpcap (DLT_* constant).
+   *
+   * @return data link type identifier
+   * @throws PcapException if the value cannot be retrieved
+   * @since RADAR 0.1-doc
+   */
+  int dataLink() throws PcapException;
+
+  /**
    * Closes the underlying capture handle.
    *
    * @since RADAR 0.1-doc

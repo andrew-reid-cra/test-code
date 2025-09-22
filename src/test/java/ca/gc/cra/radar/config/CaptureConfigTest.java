@@ -2,9 +2,12 @@ package ca.gc.cra.radar.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -54,6 +57,7 @@ class CaptureConfigTest {
     CaptureConfig cfg = CaptureConfig.fromMap(inputs);
 
     assertEquals("en0", cfg.iface());
+    assertNull(cfg.pcapFile());
     assertEquals("tcp port 80", cfg.filter());
     assertTrue(cfg.customBpfEnabled());
     assertEquals(4096, cfg.snaplen());
@@ -76,6 +80,7 @@ class CaptureConfigTest {
     CaptureConfig cfg = CaptureConfig.fromMap(Map.of("iface", "en1"));
 
     assertEquals("en1", cfg.iface());
+    assertNull(cfg.pcapFile());
     assertEquals("tcp", cfg.filter());
     assertFalse(cfg.customBpfEnabled());
     CaptureConfig defaults = CaptureConfig.defaults();
@@ -84,6 +89,30 @@ class CaptureConfigTest {
     assertEquals(defaults.tn3270OutputDirectory(), cfg.tn3270OutputDirectory());
     assertEquals(defaults.snaplen(), cfg.snaplen());
     assertEquals(defaults.bufferBytes(), cfg.bufferBytes());
+  }
+
+  @Test
+  void acceptsOfflinePcapFileWithoutInterface() throws IOException {
+    Path pcap = tempDir.resolve("trace.pcap");
+    Files.createFile(pcap);
+
+    CaptureConfig cfg = CaptureConfig.fromMap(Map.of("pcapFile", pcap.toString()));
+
+    assertEquals(pcap.toAbsolutePath().normalize(), cfg.pcapFile());
+    assertTrue(cfg.iface().startsWith("pcap:"));
+    assertEquals("tcp", cfg.filter());
+  }
+
+  @Test
+  void snaplenOverridesSnapWhenBothProvided() {
+    Map<String, String> inputs = Map.of(
+        "iface", "en0",
+        "snap", "1024",
+        "snaplen", "2048");
+
+    CaptureConfig cfg = CaptureConfig.fromMap(inputs);
+
+    assertEquals(2048, cfg.snaplen());
   }
 
   @Test

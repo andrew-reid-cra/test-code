@@ -2,13 +2,13 @@ ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest$StubFrameDecoder.
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest$StubPacketSource.class
 ca\gc\cra\radar\domain\msg\TransactionIdTest.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest$RecordingMetrics.class
+ca\gc\cra\radar\infrastructure\net\FrameDecoderLibpcapTest.class
+ca\gc\cra\radar\adapter\kafka\KafkaSegmentReaderTest.class
+ca\gc\cra\radar\domain\flow\FlowDirectionServiceTest.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest.class
 ca\gc\cra\radar\config\CaptureConfigTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest$RecordingPersistence.class
-ca\gc\cra\radar\infrastructure\net\FrameDecoderLibpcapTest.class
-ca\gc\cra\radar\adapter\kafka\KafkaSegmentReaderTest.class
 ca\gc\cra\radar\api\CliArgsParserTest.class
 ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapterTest.class
-ca\gc\cra\radar\domain\flow\FlowDirectionServiceTest.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpSessionExtractorTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest.class

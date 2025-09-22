@@ -24,6 +24,17 @@ public interface Pcap extends AutoCloseable {
                       int timeoutMs, int bufferBytes, boolean immediate) throws PcapException;
 
   /**
+   * Opens an offline capture handle backed by a pcap/pcapng file.
+   *
+   * @param file pcap or pcapng file path
+   * @param snapLen snapshot length in bytes used to clamp returned payloads
+   * @return activated capture handle
+   * @throws PcapException if libpcap fails to open or validate the file
+   * @since RADAR 0.1-doc
+   */
+  PcapHandle openOffline(java.nio.file.Path file, int snapLen) throws PcapException;
+
+  /**
    * Returns the libpcap version string.
    *
    * @return libpcap version string

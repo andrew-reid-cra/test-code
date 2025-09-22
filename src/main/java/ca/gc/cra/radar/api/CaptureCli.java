@@ -21,24 +21,25 @@ import org.slf4j.LoggerFactory;
 public final class CaptureCli {
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
   private static final String SUMMARY_USAGE =
-      "usage: capture iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
-          + "[snap=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
+      "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
+          + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
           + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR capture pipeline
 
       Usage:
-        capture iface=<nic> [options]
+        capture [iface=<nic>|pcapFile=<path>] [options]
 
-      Required:
+      Required (choose one):
         iface=NAME                Network interface to capture from (e.g., en0)
+        pcapFile=PATH             Offline pcap/pcapng trace to replay instead of live capture
 
       Optional (validated):
         out=PATH                  Capture output directory (default ~/.radar/out/capture/segments)
         out=kafka:TOPIC           Write segments to Kafka topic (A-Z, a-z, 0-9, ., _, -)
         ioMode=FILE|KAFKA         FILE keeps writes under ~/.radar/out; KAFKA requires kafkaBootstrap
         kafkaBootstrap=HOST:PORT  Validated host/port (IPv4/IPv6) when ioMode=KAFKA
-        snap=64-262144            Snap length bytes (default 65535)
+        snaplen=64-262144         Snap length bytes (default 65535; alias snap=...)
         bufmb=4-4096              Capture buffer size in MiB (default 256)
         timeout=0-60000           Poll timeout in ms (default 1000)
         rollMiB=8-10240           Segment rotation size in MiB (default 512)
@@ -54,6 +55,7 @@ public final class CaptureCli {
       Notes:
         ? Directories are canonicalized and must be writable; reuse requires --allow-overwrite.
         ? Kafka topics are sanitized to [A-Za-z0-9._-].
+        ? iface is ignored when pcapFile is provided.
         ? Custom BPF expressions emit a SECURITY warning in logs when enabled.
       """;
 
@@ -111,6 +113,16 @@ public final class CaptureCli {
       return ExitCode.INVALID_ARGS;
     }
 
+
+    boolean offline = captureCfg.pcapFile() != null;
+    if (offline) {
+      String ifaceArg = kv.get("iface");
+      if (ifaceArg != null && !ifaceArg.isBlank()) {
+        log.warn("Ignoring iface={} because pcapFile={} was provided",
+            Logs.truncate(ifaceArg, 32), captureCfg.pcapFile());
+      }
+    }
+
     ValidatedPaths validated;
     try {
       validated = validateOutputs(captureCfg, allowOverwrite, !dryRun);
@@ -139,19 +151,35 @@ public final class CaptureCli {
     SegmentCaptureUseCase useCase = root.segmentCaptureUseCase();
 
     try {
-      log.info("Starting capture on interface {}", captureCfg.iface());
+      if (offline) {
+        log.info("Starting offline capture from {}", captureCfg.pcapFile());
+      } else {
+        log.info("Starting capture on interface {}", captureCfg.iface());
+      }
       useCase.run();
-      log.info("Capture completed on interface {}", captureCfg.iface());
+      if (offline) {
+        log.info("Offline capture completed for {}", captureCfg.pcapFile());
+      } else {
+        log.info("Capture completed on interface {}", captureCfg.iface());
+      }
       return ExitCode.SUCCESS;
     } catch (IOException ex) {
-      log.error("Capture I/O failure on interface {}", captureCfg.iface(), ex);
+      if (offline) {
+        log.error("Capture I/O failure reading {}", captureCfg.pcapFile(), ex);
+      } else {
+        log.error("Capture I/O failure on interface {}", captureCfg.iface(), ex);
+      }
       return ExitCode.IO_ERROR;
     } catch (IllegalArgumentException ex) {
       log.error("Capture configuration error: {}", ex.getMessage(), ex);
       return ExitCode.CONFIG_ERROR;
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
-      log.error("Capture interrupted; shutting down interface {}", captureCfg.iface(), ex);
+      if (offline) {
+        log.error("Capture interrupted while replaying {}", captureCfg.pcapFile(), ex);
+      } else {
+        log.error("Capture interrupted; shutting down interface {}", captureCfg.iface(), ex);
+      }
       return ExitCode.INTERRUPTED;
     } catch (RuntimeException ex) {
       log.error("Unexpected runtime failure in capture pipeline", ex);
@@ -178,9 +206,13 @@ public final class CaptureCli {
 
   private static void printDryRunPlan(
       CaptureConfig config, ValidatedPaths paths, boolean allowOverwrite) {
+    boolean offline = config.pcapFile() != null;
+    String source = offline ? config.pcapFile().toString() : config.iface();
     CliPrinter.printLines(
         "Capture dry-run: no packets will be captured.",
-        " Interface        : " + config.iface(),
+        " Mode             : " + (offline ? "OFFLINE" : "LIVE"),
+        " Interface        : " + (offline ? "<ignored>" : config.iface()),
+        " PCAP file        : " + (offline ? source : "<none>"),
         " Snaplen          : " + config.snaplen(),
         " Buffer (bytes)   : " + config.bufferBytes(),
         " Timeout (ms)     : " + config.timeoutMillis(),

@@ -19,6 +19,7 @@ import ca.gc.cra.radar.adapter.kafka.SegmentKafkaSinkAdapter;
 import ca.gc.cra.radar.adapter.kafka.Tn3270KafkaPersistenceAdapter;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.capture.PcapPacketSource;
+import ca.gc.cra.radar.capture.pcap.PcapFilePacketSource;
 import ca.gc.cra.radar.infrastructure.detect.DefaultProtocolDetector;
 import ca.gc.cra.radar.infrastructure.metrics.NoOpMetricsAdapter;
 import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
@@ -179,6 +180,10 @@ public final class CompositionRoot {
   }
 
   private PacketSource newPacketSource() {
+    if (captureConfig.pcapFile() != null) {
+      return new PcapFilePacketSource(
+          captureConfig.pcapFile(), captureConfig.filter(), captureConfig.snaplen());
+    }
     return new PcapPacketSource(
         captureConfig.iface(),
         captureConfig.snaplen(),

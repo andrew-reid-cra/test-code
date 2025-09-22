@@ -25,6 +25,7 @@ public final class PcapPacketSource implements PacketSource {
 
   private Pcap pcap;
   private PcapHandle handle;
+  private volatile boolean exhausted;
 
   /**
    * Creates a packet source without a capture filter.
@@ -103,6 +104,7 @@ public final class PcapPacketSource implements PacketSource {
     this.pcap = pcapSupplier.get();
     this.handle =
         pcap.openLive(iface, snaplen, promiscuous, timeoutMillis, bufferBytes, immediate);
+    this.exhausted = false;
     if (filter != null && !filter.isEmpty()) {
       handle.setFilter(filter);
     }
@@ -131,11 +133,17 @@ public final class PcapPacketSource implements PacketSource {
             });
 
     if (!keepRunning) {
+      exhausted = true;
       close();
       return Optional.empty();
     }
 
     return Optional.ofNullable(captured[0]);
+  }
+
+  @Override
+  public boolean isExhausted() {
+    return exhausted;
   }
 
   /**

@@ -28,6 +28,16 @@ public interface JnrLibpcap {
   Pointer pcap_create(String source, Pointer errbuf);
 
   /**
+   * Opens a capture handle for offline replay of a pcap file.
+   *
+   * @param fname absolute or relative path to the pcap/pcapng file
+   * @param errbuf pointer to an error buffer (at least 256 bytes)
+   * @return pointer to an activated {@code pcap_t} handle or {@code null} on failure
+   * @since RADAR 0.1-doc
+   */
+  Pointer pcap_open_offline(String fname, Pointer errbuf);
+
+  /**
    * Sets the snapshot length prior to activation.
    *
    * @param p handle returned by {@link #pcap_create(String, Pointer)}
@@ -127,6 +137,15 @@ public interface JnrLibpcap {
    * @since RADAR 0.1-doc
    */
   int pcap_next_ex(Pointer p, Pointer hdr_pp, Pointer data_pp);
+
+  /**
+   * Returns the data link type for the capture handle.
+   *
+   * @param p capture handle
+   * @return DLT_* constant or negative value on error
+   * @since RADAR 0.1-doc
+   */
+  int pcap_datalink(Pointer p);
 
   /**
    * Retrieves the last error string for the handle.

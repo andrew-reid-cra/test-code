@@ -28,6 +28,16 @@ public interface PacketSource extends AutoCloseable {
   Optional<RawFrame> poll() throws Exception;
 
   /**
+   * Indicates whether the source has been fully drained and will not deliver more frames.
+   *
+   * @return {@code true} when the source is exhausted and capture can shut down
+   * @since RADAR 0.1-doc
+   */
+  default boolean isExhausted() {
+    return false;
+  }
+
+  /**
    * Closes the underlying capture resources.
    *
    * @throws Exception if shutdown fails

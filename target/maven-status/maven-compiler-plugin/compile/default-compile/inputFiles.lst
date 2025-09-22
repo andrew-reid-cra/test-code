@@ -70,6 +70,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\FrameDecoder.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\legacy\LegacyHttpAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CaptureCli.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\capture\pcap\PcapFilePacketSource.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\poster\HttpPosterPipeline.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\util\AbstractMessageSession.java

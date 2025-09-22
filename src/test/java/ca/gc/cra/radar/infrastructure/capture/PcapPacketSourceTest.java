@@ -208,9 +208,15 @@ class PcapPacketSourceTest {
     }
 
     @Override
+    public PcapHandle openOffline(java.nio.file.Path file, int snap) {
+      return handle;
+    }
+
+    @Override
     public String libVersion() {
       return "fake";
     }
+
 
     @Override
     public void close() {
@@ -327,6 +333,11 @@ class PcapPacketSourceTest {
         case EOF -> false;
         case THROW -> throw step.exception;
       };
+    }
+
+    @Override
+    public int dataLink() {
+      return 1;
     }
 
     @Override

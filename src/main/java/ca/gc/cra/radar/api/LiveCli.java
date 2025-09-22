@@ -21,7 +21,7 @@ public final class LiveCli {
   private static final Logger log = LoggerFactory.getLogger(LiveCli.class);
   private static final String SUMMARY_USAGE =
       "usage: live iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
-          + "[snap=64-262144] [bufmb=4-4096] [timeout=0-60000] [--enable-bpf --bpf='expr'] "
+          + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [--enable-bpf --bpf='expr'] "
           + "[--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR live processing pipeline
@@ -37,7 +37,7 @@ public final class LiveCli {
         out=kafka:TOPIC           Stream segments to Kafka topic (sanitized [A-Za-z0-9._-])
         ioMode=FILE|KAFKA         FILE writes under ~/.radar/out; KAFKA requires kafkaBootstrap
         kafkaBootstrap=HOST:PORT  Validated host/port when ioMode=KAFKA
-        snap=64-262144            Snap length bytes (default 65535)
+        snaplen=64-262144         Snap length bytes (default 65535; alias snap=...)
         bufmb=4-4096              Capture buffer in MiB (default 256)
         timeout=0-60000           Poll timeout in ms (default 1000)
         --enable-bpf              Required gate for custom BPF expressions
@@ -98,6 +98,13 @@ public final class LiveCli {
       captureConfig = CaptureConfig.fromMap(kv);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid live capture configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+
+    if (captureConfig.pcapFile() != null) {
+      log.error("pcapFile is not supported for live processing; use the capture command instead");
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }

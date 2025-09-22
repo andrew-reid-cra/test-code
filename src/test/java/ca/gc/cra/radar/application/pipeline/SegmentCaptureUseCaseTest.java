@@ -65,6 +65,26 @@ final class SegmentCaptureUseCaseTest {
     }
   }
 
+  @Test
+  void stopsWhenPacketSourceExhausted() throws Exception {
+    FiveTuple flow = new FiveTuple("192.0.2.1", 4321, "198.51.100.2", 80, "TCP");
+    TcpSegment segment =
+        new TcpSegment(flow, 7L, true, new byte[] {9}, false, false, false, false, true, 3L);
+
+    ExhaustingPacketSource packetSource =
+        new ExhaustingPacketSource(List.of(new RawFrame(new byte[] {1}, 10L)));
+    StubFrameDecoder frameDecoder = new StubFrameDecoder(List.of(segment));
+    RecordingPersistence persistence = new RecordingPersistence();
+
+    SegmentCaptureUseCase useCase =
+        new SegmentCaptureUseCase(packetSource, frameDecoder, persistence, MetricsPort.NO_OP);
+
+    useCase.run();
+
+    assertEquals(1, persistence.records().size());
+    assertTrue(packetSource.isExhausted());
+  }
+
   private static final class StubPacketSource implements PacketSource {
     private final Queue<RawFrame> frames;
 
@@ -83,6 +103,36 @@ final class SegmentCaptureUseCaseTest {
       }
       Thread.sleep(10);
       return Optional.empty();
+    }
+
+    @Override
+    public void close() {}
+  }
+
+  private static final class ExhaustingPacketSource implements PacketSource {
+    private final Queue<RawFrame> frames;
+    private boolean exhausted;
+
+    ExhaustingPacketSource(List<RawFrame> frames) {
+      this.frames = new ArrayDeque<>(frames);
+    }
+
+    @Override
+    public void start() {}
+
+    @Override
+    public Optional<RawFrame> poll() {
+      RawFrame next = frames.poll();
+      if (next != null) {
+        return Optional.of(next);
+      }
+      exhausted = true;
+      return Optional.empty();
+    }
+
+    @Override
+    public boolean isExhausted() {
+      return exhausted;
     }
 
     @Override

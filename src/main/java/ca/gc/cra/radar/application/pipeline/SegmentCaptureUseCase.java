@@ -72,6 +72,10 @@ public final class SegmentCaptureUseCase {
         try {
           Optional<RawFrame> maybeFrame = packetSource.poll();
           if (maybeFrame.isEmpty()) {
+            if (packetSource.isExhausted()) {
+              log.info("Capture packet source exhausted; stopping capture loop");
+              break;
+            }
             continue;
           }
           frame = maybeFrame.get();
