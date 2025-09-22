@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.AssembleCliTest" time="0.082" tests="3" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.AssembleCliTest" time="0.134" tests="3" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -15,7 +15,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="CA"/>
     <property name="sun.boot.library.path" value="d:\JDKs\java25\bin"/>
-    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire11167135346162863237\surefirebooter-20250922161830352_3.jar C:\Users\andre\AppData\Local\Temp\surefire11167135346162863237 2025-09-22T16-18-30_215-jvmRun1 surefire-20250922161830352_1tmp surefire_0-20250922161830352_2tmp"/>
+    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire13494988086790095477\surefirebooter-20250922191550965_3.jar C:\Users\andre\AppData\Local\Temp\surefire13494988086790095477 2025-09-22T19-15-50_806-jvmRun1 surefire-20250922191550965_1tmp surefire_0-20250922191550965_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="D:\radar\test-code\target\test-classes;D:\radar\test-code\target\classes;C:\Users\andre\.m2\repository\org\slf4j\slf4j-api\2.0.13\slf4j-api-2.0.13.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-classic\1.4.14\logback-classic-1.4.14.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-core\1.4.14\logback-core-1.4.14.jar;C:\Users\andre\.m2\repository\org\apache\kafka\kafka-clients\2.8.2\kafka-clients-2.8.2.jar;C:\Users\andre\.m2\repository\com\github\luben\zstd-jni\1.4.9-1\zstd-jni-1.4.9-1.jar;C:\Users\andre\.m2\repository\org\lz4\lz4-java\1.7.1\lz4-java-1.7.1.jar;C:\Users\andre\.m2\repository\org\xerial\snappy\snappy-java\1.1.8.1\snappy-java-1.1.8.1.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-ffi\2.2.12\jnr-ffi-2.2.12.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9-native.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm\9.2\asm-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-commons\9.2\asm-commons-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-analysis\9.2\asm-analysis-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-tree\9.2\asm-tree-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-util\9.2\asm-util-9.2.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-a64asm\1.0.0\jnr-a64asm-1.0.0.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-x86asm\1.0.2\jnr-x86asm-1.0.2.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter\5.9.3\junit-jupiter-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.9.3\junit-jupiter-api-5.9.3.jar;C:\Users\andre\.m2\repository\org\opentest4j\opentest4j\1.2.0\opentest4j-1.2.0.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-commons\1.9.3\junit-platform-commons-1.9.3.jar;C:\Users\andre\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.9.3\junit-jupiter-params-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.9.3\junit-jupiter-engine-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-engine\1.9.3\junit-platform-engine-1.9.3.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-core\1.36\jmh-core-1.36.jar;C:\Users\andre\.m2\repository\net\sf\jopt-simple\jopt-simple\5.0.4\jopt-simple-5.0.4.jar;C:\Users\andre\.m2\repository\org\apache\commons\commons-math3\3.2\commons-math3-3.2.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-generator-annprocess\1.36\jmh-generator-annprocess-1.36.jar;"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -30,8 +30,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="skipITs" value="true"/>
-    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire11167135346162863237\surefirebooter-20250922161830352_3.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire13494988086790095477\surefirebooter-20250922191550965_3.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="25+36-3489"/>
@@ -60,13 +59,13 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="invalidInputDirectoryReturnsInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.037">
-    <system-out><![CDATA[2025-09-22T16:18:32.197-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble path configuration: Unable to access input directory: C:\Users\andre\AppData\Local\Temp\junit10932456104143181820\missing 
+  <testcase name="invalidInputDirectoryReturnsInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.078">
+    <system-out><![CDATA[2025-09-22T19:15:53.416-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble path configuration: Unable to access input directory: C:\Users\andre\AppData\Local\Temp\junit6977568533840040276\missing 
 ]]></system-out>
   </testcase>
-  <testcase name="invalidKafkaArgsReturnUsageAndInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.004">
-    <system-out><![CDATA[2025-09-22T16:18:32.210-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble arguments: kafkaBootstrap is required for KAFKA ioMode 
+  <testcase name="invalidKafkaArgsReturnUsageAndInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.009">
+    <system-out><![CDATA[2025-09-22T19:15:53.447-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble arguments: kafkaBootstrap is required for KAFKA ioMode 
 ]]></system-out>
   </testcase>
-  <testcase name="dryRunPrintsPlanAndDoesNotCreateOutputs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.029"/>
+  <testcase name="dryRunPrintsPlanAndDoesNotCreateOutputs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.034"/>
 </testsuite>

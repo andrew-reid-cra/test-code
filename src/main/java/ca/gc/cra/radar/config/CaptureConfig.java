@@ -17,6 +17,7 @@ import java.util.Objects;
  * @param pcapFile offline capture file when provided
  * @param filter active BPF filter expression (sanitized)
  * @param customBpfEnabled {@code true} when a custom BPF expression was explicitly enabled
+ * @param protocol capture protocol hint for default filtering
  * @param snaplen libpcap snap length in bytes
  * @param bufferBytes capture buffer size in bytes
  * @param timeoutMillis polling timeout in milliseconds
@@ -40,6 +41,7 @@ public record CaptureConfig(
     Path pcapFile,
     String filter,
     boolean customBpfEnabled,
+    CaptureProtocol protocol,
     int snaplen,
     int bufferBytes,
     int timeoutMillis,
@@ -57,7 +59,7 @@ public record CaptureConfig(
     int persistenceQueueCapacity,
     PersistenceQueueType persistenceQueueType) {
 
-  private static final String DEFAULT_SAFE_BPF = "tcp";
+  private static final String DEFAULT_SAFE_BPF = CaptureProtocol.GENERIC.defaultFilter();
   private static final int DEFAULT_SNAPLEN = 65_535;
   private static final int DEFAULT_BUFFER_MIB = 256;
   private static final int DEFAULT_TIMEOUT_MILLIS = 1_000;
@@ -92,6 +94,7 @@ public record CaptureConfig(
     } else {
       iface = Strings.requireNonBlank("iface", iface);
     }
+    protocol = Objects.requireNonNullElse(protocol, CaptureProtocol.GENERIC);
     filter = Strings.requirePrintableAscii("bpf", filter, MAX_BPF_LENGTH);
     outputDirectory = normalizePath("outputDirectory", outputDirectory);
     httpOutputDirectory = normalizePath("httpOutputDirectory", httpOutputDirectory);
@@ -147,6 +150,7 @@ public record CaptureConfig(
         null,
         DEFAULT_SAFE_BPF,
         false,
+        CaptureProtocol.GENERIC,
         DEFAULT_SNAPLEN,
         DEFAULT_BUFFER_MIB * 1_024 * 1_024,
         DEFAULT_TIMEOUT_MILLIS,
@@ -191,7 +195,8 @@ public record CaptureConfig(
     }
 
     boolean bpfAcknowledged = parseBoolean(kv.get("enableBpf"), false);
-    String filter = DEFAULT_SAFE_BPF;
+    CaptureProtocol protocol = CaptureProtocol.fromString(kv.get("protocol"));
+    String filter = protocol.defaultFilter();
     boolean customBpf = false;
     String rawFilter = kv.get("bpf");
     if (rawFilter != null && !rawFilter.isBlank()) {
@@ -265,6 +270,7 @@ public record CaptureConfig(
         pcapFile,
         filter,
         customBpf,
+        protocol,
         snap,
         bufferBytes,
         timeout,

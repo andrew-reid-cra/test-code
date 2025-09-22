@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapterTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapterTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in ca.gc.cra.radar.infrastructure.persistence.http.HttpSegmentSinkPersistenceAdapterTest

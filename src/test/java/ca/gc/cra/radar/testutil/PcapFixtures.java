@@ -72,7 +72,7 @@ public final class PcapFixtures {
     public boolean next(Pcap.PacketCallback cb) {
       while (index < frames.size()) {
         Frame frame = frames.get(index++);
-        if (!matchesFilter()) {
+        if (!matchesFilter(frame)) {
           continue;
         }
         byte[] data = frame.data();
@@ -84,17 +84,42 @@ public final class PcapFixtures {
       return false;
     }
 
-    private boolean matchesFilter() {
+    private boolean matchesFilter(Frame frame) {
       if (filter == null || filter.isBlank()) {
         return true;
       }
+      boolean anyPortClause = false;
+      int srcPort = frame.srcPort();
+      int dstPort = frame.dstPort();
       if (filter.contains("port 80")) {
-        return true;
+        anyPortClause = true;
+        if (matchesPort(srcPort, dstPort, 80)) {
+          return true;
+        }
       }
       if (filter.contains("port 443")) {
-        return false;
+        anyPortClause = true;
+        if (matchesPort(srcPort, dstPort, 443)) {
+          return true;
+        }
       }
-      return true;
+      if (filter.contains("port 23")) {
+        anyPortClause = true;
+        if (matchesPort(srcPort, dstPort, 23)) {
+          return true;
+        }
+      }
+      if (filter.contains("port 992")) {
+        anyPortClause = true;
+        if (matchesPort(srcPort, dstPort, 992)) {
+          return true;
+        }
+      }
+      return !anyPortClause;
+    }
+
+    private static boolean matchesPort(int srcPort, int dstPort, int target) {
+      return srcPort == target || dstPort == target;
     }
 
     @Override
@@ -124,7 +149,8 @@ public final class PcapFixtures {
           }
           byte[] data = new byte[incl];
           buf.get(data);
-          frames.add(new Frame(tsSec * 1_000_000L + tsUsec, data));
+          Ports ports = extractPorts(data);
+          frames.add(new Frame(tsSec * 1_000_000L + tsUsec, data, ports.srcPort(), ports.dstPort()));
           if (orig > incl && buf.remaining() >= (orig - incl)) {
             buf.position(buf.position() + (orig - incl));
           }
@@ -136,6 +162,41 @@ public final class PcapFixtures {
     }
   }
 
-  private record Frame(long timestampMicros, byte[] data) {}
+  private record Frame(long timestampMicros, byte[] data, int srcPort, int dstPort) {}
+
+  private record Ports(int srcPort, int dstPort) {}
+
+  private static Ports extractPorts(byte[] data) {
+    if (data.length < 14) {
+      return new Ports(-1, -1);
+    }
+    int etherType = ((data[12] & 0xFF) << 8) | (data[13] & 0xFF);
+    int offset = 14;
+    if (etherType == 0x8100 || etherType == 0x88A8) {
+      if (data.length < offset + 4) {
+        return new Ports(-1, -1);
+      }
+      etherType = ((data[offset + 2] & 0xFF) << 8) | (data[offset + 3] & 0xFF);
+      offset += 4;
+    }
+    if (etherType != 0x0800 || data.length < offset + 20) {
+      return new Ports(-1, -1);
+    }
+    int ihl = (data[offset] & 0x0F) * 4;
+    if (ihl < 20 || data.length < offset + ihl + 4) {
+      return new Ports(-1, -1);
+    }
+    int protocol = data[offset + 9] & 0xFF;
+    if (protocol != 6) {
+      return new Ports(-1, -1);
+    }
+    offset += ihl;
+    if (data.length < offset + 4) {
+      return new Ports(-1, -1);
+    }
+    int srcPort = ((data[offset] & 0xFF) << 8) | (data[offset + 1] & 0xFF);
+    int dstPort = ((data[offset + 2] & 0xFF) << 8) | (data[offset + 3] & 0xFF);
+    return new Ports(srcPort, dstPort);
+  }
 }
 

@@ -94,6 +94,26 @@ java -cp $JAR ca.gc.cra.radar.api.Main poster \
   httpIn=./pairs-out/http httpOut=./reports-http decode=all
 ```
 
+#### TN3270 offline capture (default filter)
+
+```bash
+JAR=target/RADAR-0.1.0-SNAPSHOT.jar
+# 1) offline capture from PCAP -> .segbin (TN3270 default filter applied)
+java -cp $JAR ca.gc.cra.radar.api.Main capture \
+  pcapFile=./samples/tn3270-small.pcap protocol=TN3270 \
+  out=./cap-tn fileBase=tn-capture rollMiB=512
+
+# 2) assemble TN3270 conversations
+java -cp $JAR ca.gc.cra.radar.api.Main assemble \
+  in=./cap-tn out=./pairs-tn httpEnabled=false tnEnabled=true
+
+# 3) poster renders TN3270 request/response blobs
+java -cp $JAR ca.gc.cra.radar.api.Main poster \
+  tnIn=./pairs-tn/tn3270 tnOut=./reports-tn decode=none
+```
+
+TN3270 mode automatically applies the safe filter `tcp and (port 23 or port 992)` unless `bpf="..."` is supplied (requires `--enable-bpf`).
+
 ### Kafka pipeline
 ```bash
 # Capture directly to Kafka
@@ -126,6 +146,7 @@ java -cp $JAR ca.gc.cra.radar.api.Main poster \
 
 Notes:
 - `pcapFile=/path/to/trace.pcap` replays packets from disk and ignores `iface=` when provided.
+- `protocol=TN3270` selects the default BPF `tcp and (port 23 or port 992)`; override with `bpf="..."` (requires `--enable-bpf`).
 - `decode=none|transfer|all` controls how the poster handles `Transfer-Encoding` and `Content-Encoding` headers (`transfer` removes chunked framing; `all` also decompresses gzip/deflate bodies).
 - `kafkaBootstrap` is mandatory whenever `ioMode=KAFKA` or `posterOutMode=KAFKA` is used.
 - When running capture in FILE mode you need libpcap and appropriate privileges; assemble/poster can operate purely on files.

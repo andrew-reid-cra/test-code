@@ -2,12 +2,14 @@ package ca.gc.cra.radar.api;
 
 import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
 import ca.gc.cra.radar.config.CaptureConfig;
+import ca.gc.cra.radar.config.CaptureProtocol;
 import ca.gc.cra.radar.config.CompositionRoot;
 import ca.gc.cra.radar.config.IoMode;
 import ca.gc.cra.radar.logging.Logs;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -22,7 +24,7 @@ public final class CaptureCli {
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
   private static final String SUMMARY_USAGE =
       "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
-          + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
+          + "[protocol=GENERIC|TN3270] [snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
           + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR capture pipeline
@@ -38,6 +40,7 @@ public final class CaptureCli {
         out=PATH                  Capture output directory (default ~/.radar/out/capture/segments)
         out=kafka:TOPIC           Write segments to Kafka topic (A-Z, a-z, 0-9, ., _, -)
         ioMode=FILE|KAFKA         FILE keeps writes under ~/.radar/out; KAFKA requires kafkaBootstrap
+        protocol=GENERIC|TN3270   TN3270 applies tcp and (port 23 or port 992) unless bpf= overrides
         kafkaBootstrap=HOST:PORT  Validated host/port (IPv4/IPv6) when ioMode=KAFKA
         snaplen=64-262144         Snap length bytes (default 65535; alias snap=...)
         bufmb=4-4096              Capture buffer size in MiB (default 256)
@@ -46,7 +49,7 @@ public final class CaptureCli {
         promisc=true|false        Promiscuous mode (default false)
         immediate=true|false      Immediate mode (default false)
         --enable-bpf              Required gate for custom BPF expressions
-        --bpf="expr"               Printable ASCII (<=1024 bytes); rejects ';' and '`'
+        --bpf="expr"               Printable ASCII (<=1024 bytes); rejects ';' and ''
         --dry-run                 Validate inputs and print the plan without capturing
         --allow-overwrite         Permit writing into non-empty output directories
         --verbose                 Enable DEBUG logging for troubleshooting
@@ -56,6 +59,7 @@ public final class CaptureCli {
         ? Directories are canonicalized and must be writable; reuse requires --allow-overwrite.
         ? Kafka topics are sanitized to [A-Za-z0-9._-].
         ? iface is ignored when pcapFile is provided.
+        ? protocol=TN3270 automatically applies tcp and (port 23 or port 992); override with bpf="...".
         ? Custom BPF expressions emit a SECURITY warning in logs when enabled.
       """;
 
@@ -116,6 +120,14 @@ public final class CaptureCli {
 
     boolean offline = captureCfg.pcapFile() != null;
     if (offline) {
+      Path pcapPath = captureCfg.pcapFile();
+      if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
+        log.error("pcapFile must reference a readable file: {}", pcapPath);
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      }
+    }
+    if (offline) {
       String ifaceArg = kv.get("iface");
       if (ifaceArg != null && !ifaceArg.isBlank()) {
         log.warn("Ignoring iface={} because pcapFile={} was provided",
@@ -143,7 +155,10 @@ public final class CaptureCli {
           captureCfg.filter().length());
       log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureCfg.filter(), 128));
     } else {
-      log.info("Using default BPF filter '{}'", captureCfg.filter());
+      String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
+          ? "safe default"
+          : captureCfg.protocol().displayName() + " default";
+      log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
     }
 
     CompositionRoot root =
@@ -208,11 +223,21 @@ public final class CaptureCli {
       CaptureConfig config, ValidatedPaths paths, boolean allowOverwrite) {
     boolean offline = config.pcapFile() != null;
     String source = offline ? config.pcapFile().toString() : config.iface();
+    String filterLabel;
+    if (config.customBpfEnabled()) {
+      filterLabel = "custom";
+    } else if (config.protocol() == CaptureProtocol.GENERIC) {
+      filterLabel = "safe default";
+    } else {
+      filterLabel = config.protocol().displayName() + " default";
+    }
+
     CliPrinter.printLines(
         "Capture dry-run: no packets will be captured.",
         " Mode             : " + (offline ? "OFFLINE" : "LIVE"),
         " Interface        : " + (offline ? "<ignored>" : config.iface()),
         " PCAP file        : " + (offline ? source : "<none>"),
+        " Protocol         : " + config.protocol().displayName(),
         " Snaplen          : " + config.snaplen(),
         " Buffer (bytes)   : " + config.bufferBytes(),
         " Timeout (ms)     : " + config.timeoutMillis(),
@@ -225,8 +250,7 @@ public final class CaptureCli {
         " Promiscuous mode : " + config.promiscuous(),
         " Immediate mode   : " + config.immediate(),
         " Allow overwrite  : " + allowOverwrite,
-        " BPF filter       : "
-            + (config.customBpfEnabled() ? "custom" : "safe default")
+        " BPF filter       : " + filterLabel
             + " -> "
             + Logs.truncate(config.filter(), 96),
         " Re-run without --dry-run to start capture.");

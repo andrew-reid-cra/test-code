@@ -59,6 +59,7 @@ class CaptureConfigTest {
     assertEquals("en0", cfg.iface());
     assertNull(cfg.pcapFile());
     assertEquals("tcp port 80", cfg.filter());
+    assertEquals(CaptureProtocol.GENERIC, cfg.protocol());
     assertTrue(cfg.customBpfEnabled());
     assertEquals(4096, cfg.snaplen());
     assertEquals(8 * 1024 * 1024, cfg.bufferBytes());
@@ -82,6 +83,7 @@ class CaptureConfigTest {
     assertEquals("en1", cfg.iface());
     assertNull(cfg.pcapFile());
     assertEquals("tcp", cfg.filter());
+    assertEquals(CaptureProtocol.GENERIC, cfg.protocol());
     assertFalse(cfg.customBpfEnabled());
     CaptureConfig defaults = CaptureConfig.defaults();
     assertEquals(defaults.outputDirectory(), cfg.outputDirectory());
@@ -101,6 +103,7 @@ class CaptureConfigTest {
     assertEquals(pcap.toAbsolutePath().normalize(), cfg.pcapFile());
     assertTrue(cfg.iface().startsWith("pcap:"));
     assertEquals("tcp", cfg.filter());
+    assertEquals(CaptureProtocol.GENERIC, cfg.protocol());
   }
 
   @Test
@@ -114,6 +117,29 @@ class CaptureConfigTest {
 
     assertEquals(2048, cfg.snaplen());
   }
+
+  @Test
+  void tn3270ProtocolUsesDefaultFilter() {
+    CaptureConfig cfg = CaptureConfig.fromMap(Map.of("iface", "en2", "protocol", "TN3270"));
+
+    assertEquals(CaptureProtocol.TN3270.defaultFilter(), cfg.filter());
+    assertEquals(CaptureProtocol.TN3270, cfg.protocol());
+    assertFalse(cfg.customBpfEnabled());
+  }
+
+  @Test
+  void customBpfOverridesProtocolDefaults() {
+    CaptureConfig cfg = CaptureConfig.fromMap(Map.ofEntries(
+        Map.entry("iface", "en3"),
+        Map.entry("protocol", "TN3270"),
+        Map.entry("enableBpf", "true"),
+        Map.entry("bpf", "tcp port 992")));
+
+    assertEquals("tcp port 992", cfg.filter());
+    assertEquals(CaptureProtocol.TN3270, cfg.protocol());
+    assertTrue(cfg.customBpfEnabled());
+  }
+
 
   @Test
   void customBpfRequiresEnableFlag() {

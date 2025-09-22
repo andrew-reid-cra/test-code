@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 public final class PcapFilePacketSource implements PacketSource {
   private static final Logger log = LoggerFactory.getLogger(PcapFilePacketSource.class);
   private static final int DLT_EN10MB = 1;
+  private static final int DLT_LINUX_SLL = 113;
+  private static final int DLT_LINUX_SLL2 = 276;
 
   private final Path pcapPath;
   private final String filter;
@@ -30,8 +32,10 @@ public final class PcapFilePacketSource implements PacketSource {
 
   private Pcap pcap;
   private PcapHandle handle;
+  private Path canonicalPath;
   private long delivered;
   private volatile boolean exhausted;
+  private boolean truncationWarned;
 
   /**
    * Creates an offline packet source using the default JNR libpcap adapter.
@@ -66,24 +70,37 @@ public final class PcapFilePacketSource implements PacketSource {
       throw new IOException("pcapFile is not readable: " + pcapPath);
     }
 
+    this.canonicalPath = pcapPath.toRealPath();
     this.pcap = Objects.requireNonNull(pcapSupplier.get(), "pcap supplier returned null");
-    this.handle = pcap.openOffline(pcapPath, snaplen);
+    this.handle = pcap.openOffline(canonicalPath, snaplen);
     this.exhausted = false;
     this.delivered = 0L;
+    this.truncationWarned = false;
+
     int datalink = handle.dataLink();
-    if (datalink != DLT_EN10MB) {
+    if (!isSupportedLinkType(datalink)) {
+      Path path = effectivePath();
       try {
         close();
       } catch (Exception ex) {
         log.warn("Failed to close pcap handle after datalink rejection", ex);
       }
-      throw new IllegalArgumentException("Unsupported data link type " + datalink + " for " + pcapPath);
+      throw new IllegalArgumentException(
+          "Unsupported data link type " + datalink + " (" + dataLinkName(datalink) + ") for " + path);
     }
+
     if (filter != null) {
       handle.setFilter(filter);
       log.info("Applied BPF filter '{}' to offline capture", filter);
+    } else {
+      log.info("No BPF filter applied to offline capture ({}); replaying all packets", effectivePath());
     }
-    log.info("Offline capture opened for {} (snaplen={}, datalink={})", pcapPath, snaplen, datalink);
+    log.info(
+        "Offline capture opened for {} (snaplen={}, datalink={} {})",
+        effectivePath(),
+        snaplen,
+        datalink,
+        dataLinkName(datalink));
   }
 
   @Override
@@ -100,6 +117,13 @@ public final class PcapFilePacketSource implements PacketSource {
               byte[] copy = new byte[length];
               if (length > 0) {
                 System.arraycopy(data, 0, copy, 0, length);
+              }
+              if (!truncationWarned && snaplen > 0 && length >= snaplen) {
+                log.warn(
+                    "Encountered packet reaching snaplen {} while replaying {}; payload may be truncated",
+                    snaplen,
+                    effectivePath());
+                truncationWarned = true;
               }
               frameHolder[0] = new RawFrame(copy, tsMicros);
               delivered++;
@@ -134,10 +158,28 @@ public final class PcapFilePacketSource implements PacketSource {
         pcap = null;
       }
     }
+    Path path = effectivePath();
     if (delivered > 0) {
-      log.info("Offline capture closed for {} after {} packets", pcapPath, delivered);
+      log.info("Offline capture closed for {} after {} packets", path, delivered);
     } else {
-      log.info("Offline capture closed for {}", pcapPath);
+      log.info("Offline capture closed for {}", path);
     }
+  }
+
+  private Path effectivePath() {
+    return canonicalPath != null ? canonicalPath : pcapPath;
+  }
+
+  private static boolean isSupportedLinkType(int datalink) {
+    return datalink == DLT_EN10MB || datalink == DLT_LINUX_SLL || datalink == DLT_LINUX_SLL2;
+  }
+
+  private static String dataLinkName(int datalink) {
+    return switch (datalink) {
+      case DLT_EN10MB -> "EN10MB";
+      case DLT_LINUX_SLL -> "LINUX_SLL";
+      case DLT_LINUX_SLL2 -> "LINUX_SLL2";
+      default -> "DLT_" + datalink;
+    };
   }
 }
