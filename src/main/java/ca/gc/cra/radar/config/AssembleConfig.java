@@ -116,9 +116,8 @@ public record AssembleConfig(
       kafkaSegmentsTopic = Strings.sanitizeTopic("kafkaSegmentsTopic", kafkaSegmentsOverride);
     }
 
-    Path output = parsePath(
-        "out",
-        firstNonBlank(options, "out", "--out", defaults.outputDirectory().toString()));
+    String outOverride = firstNonBlank(options, "out", "--out");
+    Path output = outOverride == null ? defaults.outputDirectory() : parsePath("out", outOverride);
     boolean httpEnabled = parseBoolean(options.get("httpEnabled"), true);
     boolean tnEnabled = parseBoolean(options.get("tnEnabled"), false);
 
@@ -249,3 +248,4 @@ public record AssembleConfig(
     return Path.of(home, ".radar", "out");
   }
 }
+

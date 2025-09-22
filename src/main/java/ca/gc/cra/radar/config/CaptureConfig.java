@@ -329,13 +329,12 @@ public record CaptureConfig(
     }
   }
 
-  private static java.util.Optional<Path> parseOptionalPath(String value) {
+  private static java.util.Optional<Path> parseOptionalPath(String name, String value) {
     if (value == null || value.isBlank()) {
       return java.util.Optional.empty();
     }
-    return java.util.Optional.of(parsePath("path", value));
+    return java.util.Optional.of(parsePath(name, value));
   }
-
   private static String firstNonBlank(Map<String, String> map, String... keys) {
     for (String key : keys) {
       String val = map.get(key);
@@ -378,3 +377,8 @@ public record CaptureConfig(
     }
   }
 }
+
+
+
+
+

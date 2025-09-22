@@ -1,3 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <checkstyle version="10.12.4">
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\tools\SegbinGrepCli.java">
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\pipeline\LiveProcessingUseCase.java">
+<error line="549" column="5" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="555" column="5" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\buffer\BufferPool.java">
+<error line="77" column="5" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\buffer\GrowableBuffer.java">
+<error line="19" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="23" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\buffer\PooledBufferedOutputStream.java">
+<error line="17" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\io\BlobWriter.java">
+<error line="20" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="34" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="38" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="46" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
+<file name="D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapter.java">
+<error line="37" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+<error line="41" column="3" severity="error" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.MissingJavadocMethodCheck"/>
+</file>
 </checkstyle>

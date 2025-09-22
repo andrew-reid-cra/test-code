@@ -210,11 +210,11 @@ public final class PosterCli {
     }
     StringBuilder sb = new StringBuilder();
     sb.append(" ").append(validation.name()).append(" input    : ");
-    sb.append(validation.fileInput().map(Object::toString).orElse("<Kafka>"));
+    sb.append(validation.fileInput() == null ? "<Kafka>" : validation.fileInput().toString());
     sb.append(" | output: ");
     if (posterOutMode == IoMode.FILE) {
       sb.append(
-          validation.fileOutput().map(Object::toString).orElse("<required output missing>"));
+          validation.fileOutput() == null ? "<required output missing>" : validation.fileOutput().toString());
     } else {
       sb.append(validation.kafkaOutput().orElse("<Kafka>"));
     }
@@ -230,5 +230,6 @@ public final class PosterCli {
 
   private record ValidatedPosterPaths(ProtocolValidation http, ProtocolValidation tn3270) {}
 }
+
 
 

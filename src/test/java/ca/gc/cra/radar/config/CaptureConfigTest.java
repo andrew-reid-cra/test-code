@@ -1,59 +1,123 @@
 package ca.gc.cra.radar.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class CaptureConfigTest {
+  @TempDir Path tempDir;
+  private String originalHome;
+
+  @BeforeEach
+  void setUpUserHome() {
+    originalHome = System.getProperty("user.home");
+    System.setProperty("user.home", tempDir.toString());
+  }
+
+  @AfterEach
+  void restoreUserHome() {
+    if (originalHome == null) {
+      System.clearProperty("user.home");
+    } else {
+      System.setProperty("user.home", originalHome);
+    }
+  }
+
   @Test
-  void fromMapOverridesDefaults() {
+  void fromMapAppliesOverridesWithEnabledBpf() {
+    Path root = tempDir.resolve("capture-root");
     Map<String, String> inputs = Map.ofEntries(
         Map.entry("iface", "en0"),
         Map.entry("snap", "4096"),
-        Map.entry("promisc", "false"),
+        Map.entry("promisc", "true"),
         Map.entry("timeout", "200"),
         Map.entry("bufmb", "8"),
-        Map.entry("immediate", "false"),
+        Map.entry("immediate", "true"),
         Map.entry("bpf", "tcp port 80"),
-        Map.entry("out", "capture/out"),
+        Map.entry("enableBpf", "true"),
+        Map.entry("out", root.resolve("segments").toString()),
         Map.entry("fileBase", "capture"),
         Map.entry("rollMiB", "256"),
-        Map.entry("httpOut", "capture/http"),
-        Map.entry("tnOut", "capture/tn"));
+        Map.entry("httpOut", root.resolve("http").toString()),
+        Map.entry("tnOut", root.resolve("tn").toString()),
+        Map.entry("persistWorkers", "2"),
+        Map.entry("persistQueueCapacity", "256"));
+
     CaptureConfig cfg = CaptureConfig.fromMap(inputs);
 
     assertEquals("en0", cfg.iface());
     assertEquals("tcp port 80", cfg.filter());
+    assertTrue(cfg.customBpfEnabled());
     assertEquals(4096, cfg.snaplen());
     assertEquals(8 * 1024 * 1024, cfg.bufferBytes());
     assertEquals(200, cfg.timeoutMillis());
-    assertEquals(false, cfg.promiscuous());
-    assertEquals(false, cfg.immediate());
-    assertEquals(Path.of("capture/out"), cfg.outputDirectory());
+    assertTrue(cfg.promiscuous());
+    assertTrue(cfg.immediate());
+    assertTrue(cfg.outputDirectory().isAbsolute());
+    assertTrue(cfg.outputDirectory().endsWith(Path.of("capture-root", "segments")));
     assertEquals("capture", cfg.fileBase());
     assertEquals(256, cfg.rollMiB());
-    assertEquals(Path.of("capture/http"), cfg.httpOutputDirectory());
-    assertEquals(Path.of("capture/tn"), cfg.tn3270OutputDirectory());
+    assertTrue(cfg.httpOutputDirectory().endsWith(Path.of("capture-root", "http")));
+    assertTrue(cfg.tn3270OutputDirectory().endsWith(Path.of("capture-root", "tn")));
+    assertEquals(2, cfg.persistenceWorkers());
+    assertEquals(256, cfg.persistenceQueueCapacity());
   }
 
   @Test
-  void usesDefaultsWhenOptionalFieldsMissing() {
+  void defaultsAreSafeWhenOnlyInterfaceProvided() {
     CaptureConfig cfg = CaptureConfig.fromMap(Map.of("iface", "en1"));
 
     assertEquals("en1", cfg.iface());
-    assertNull(cfg.filter());
-    assertEquals(CaptureConfig.defaults().outputDirectory(), cfg.outputDirectory());
-    assertEquals(CaptureConfig.defaults().httpOutputDirectory(), cfg.httpOutputDirectory());
-    assertEquals(CaptureConfig.defaults().tn3270OutputDirectory(), cfg.tn3270OutputDirectory());
+    assertEquals("tcp", cfg.filter());
+    assertFalse(cfg.customBpfEnabled());
+    CaptureConfig defaults = CaptureConfig.defaults();
+    assertEquals(defaults.outputDirectory(), cfg.outputDirectory());
+    assertEquals(defaults.httpOutputDirectory(), cfg.httpOutputDirectory());
+    assertEquals(defaults.tn3270OutputDirectory(), cfg.tn3270OutputDirectory());
+    assertEquals(defaults.snaplen(), cfg.snaplen());
+    assertEquals(defaults.bufferBytes(), cfg.bufferBytes());
   }
 
   @Test
-  void requiresInterface() {
-    assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(Map.of("iface", "")));
+  void customBpfRequiresEnableFlag() {
+    Map<String, String> inputs = Map.of("iface", "en0", "bpf", "tcp port 80");
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(inputs));
+    assertTrue(ex.getMessage().contains("--enable-bpf"));
+  }
+
+  @Test
+  void kafkaModeValidatesBootstrapAndTopic() {
+    Map<String, String> noBootstrap = Map.of("iface", "en0", "out", "kafka:radar.capture");
+    IllegalArgumentException missingBootstrap =
+        assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(noBootstrap));
+    assertTrue(missingBootstrap.getMessage().contains("kafkaBootstrap"));
+
+    Map<String, String> invalidBootstrap = Map.ofEntries(
+        Map.entry("iface", "en0"),
+        Map.entry("out", "kafka:radar.capture"),
+        Map.entry("kafkaBootstrap", "localhost"));
+    IllegalArgumentException malformed =
+        assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(invalidBootstrap));
+    assertTrue(malformed.getMessage().contains("host:port"));
+  }
+
+  @Test
+  void persistenceQueueCapacityHonoursBounds() {
+    Map<String, String> inputs = Map.ofEntries(
+        Map.entry("iface", "en0"),
+        Map.entry("persistWorkers", "4"),
+        Map.entry("persistQueueCapacity", "2"));
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(inputs));
+    assertTrue(ex.getMessage().contains("persistQueueCapacity"));
   }
 }
-

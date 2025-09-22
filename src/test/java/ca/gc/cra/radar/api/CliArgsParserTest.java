@@ -14,11 +14,7 @@ class CliArgsParserTest {
   }
 
   @Test
-  void ignoresInvalidArgs() {
-    Map<String, String> map = CliArgsParser.toMap(new String[] {"invalid", "key=value"});
-    assertFalse(map.containsKey("invalid"));
-    assertEquals("value", map.get("key"));
+  void rejectsInvalidArgs() {
+    assertThrows(IllegalArgumentException.class, () -> CliArgsParser.toMap(new String[] {"invalid"}));
   }
 }
-
-

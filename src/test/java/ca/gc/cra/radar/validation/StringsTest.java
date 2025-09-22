@@ -29,7 +29,7 @@ class StringsTest {
 
   @Test
   void requirePrintableAsciiRejectsNonAscii() {
-    assertThrows(IllegalArgumentException.class, () -> Strings.requirePrintableAscii("bpf", "v?l", 16));
+    assertThrows(IllegalArgumentException.class, () -> Strings.requirePrintableAscii("bpf", "v\u2603l", 16));
   }
 
   @Test
@@ -37,3 +37,4 @@ class StringsTest {
     assertThrows(IllegalArgumentException.class, () -> Strings.requirePrintableAscii("bpf", "abc", 2));
   }
 }
+

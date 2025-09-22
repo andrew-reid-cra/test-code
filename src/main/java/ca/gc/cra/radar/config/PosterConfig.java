@@ -64,11 +64,12 @@ public final class PosterConfig {
     Objects.requireNonNull(args, "args");
     IoMode ioMode = IoMode.fromString(args.get("ioMode"));
     IoMode posterOutMode = IoMode.fromString(args.get("posterOutMode"));
-    Optional<String> kafkaBootstrap = optionalString(args.get("kafkaBootstrap"));
+    Optional<String> kafkaBootstrap = optionalString(args.get("kafkaBootstrap")).map(Net::validateHostPort);
     DecodeMode decodeMode = DecodeMode.fromString(args.getOrDefault("decode", "none"));
 
     ProtocolConfig httpConfig = buildProtocolConfig(
         args,
+        "http",
         new String[] {"httpIn", "--httpIn", "in", "--in"},
         new String[] {"httpOut", "--httpOut", "out", "--out"},
         optionalString(args.get("kafkaHttpPairsTopic")),
@@ -76,6 +77,7 @@ public final class PosterConfig {
 
     ProtocolConfig tnConfig = buildProtocolConfig(
         args,
+        "tn3270",
         new String[] {"tnIn", "--tnIn"},
         new String[] {"tnOut", "--tnOut", "out", "--out"},
         optionalString(args.get("kafkaTnPairsTopic")),
@@ -266,12 +268,12 @@ public final class PosterConfig {
      * @since RADAR 0.1-doc
      */
     public ProtocolConfig {
-      inputDirectory = Objects.requireNonNullElseGet(inputDirectory, Optional::empty)
-          .map(path -> path.toAbsolutePath().normalize());
-      kafkaInputTopic = Objects.requireNonNullElseGet(kafkaInputTopic, Optional::empty);
-      outputDirectory = Objects.requireNonNullElseGet(outputDirectory, Optional::empty)
-          .map(path -> path.toAbsolutePath().normalize());
-      kafkaOutputTopic = Objects.requireNonNullElseGet(kafkaOutputTopic, Optional::empty);
+      inputDirectory = inputDirectory == null ? Optional.empty()
+          : inputDirectory.map(path -> path.toAbsolutePath().normalize());
+      kafkaInputTopic = kafkaInputTopic == null ? Optional.empty() : kafkaInputTopic;
+      outputDirectory = outputDirectory == null ? Optional.empty()
+          : outputDirectory.map(path -> path.toAbsolutePath().normalize());
+      kafkaOutputTopic = kafkaOutputTopic == null ? Optional.empty() : kafkaOutputTopic;
     }
 
     /**
@@ -429,6 +431,9 @@ public final class PosterConfig {
     }
   }
 }
+
+
+
 
 
 

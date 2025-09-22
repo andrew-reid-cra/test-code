@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.Level;
@@ -9,12 +10,17 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 
 class AssembleCliTest {
+  @TempDir Path tempDir;
+
   private ListAppender<ILoggingEvent> appender;
   private Logger logger;
 
@@ -39,14 +45,49 @@ class AssembleCliTest {
     StringWriter buffer = new StringWriter();
     CliPrinter.setWriterForTesting(new PrintWriter(buffer));
 
-    ExitCode code = AssembleCli.run(new String[] {"ioMode=KAFKA"});
+    ExitCode code = AssembleCli.run(new String[] {"ioMode=KAFKA", "--dry-run"});
 
     assertEquals(ExitCode.INVALID_ARGS, code);
-    String usage = buffer.toString();
-    assertTrue(usage.contains("usage: assemble"), "usage text should be printed");
+    assertTrue(buffer.toString().contains("usage: assemble"));
     boolean logged = appender.list.stream()
         .anyMatch(event -> event.getLevel() == Level.ERROR
             && event.getFormattedMessage().contains("kafkaBootstrap is required"));
-    assertTrue(logged, "should log configuration guidance at error level");
+    assertTrue(logged);
+  }
+
+  @Test
+  void invalidInputDirectoryReturnsInvalidArgs() {
+    StringWriter buffer = new StringWriter();
+    CliPrinter.setWriterForTesting(new PrintWriter(buffer));
+
+    ExitCode code = AssembleCli.run(new String[] {
+        "in=" + tempDir.resolve("missing").toString(),
+        "out=" + tempDir.resolve("out").toString()});
+
+    assertEquals(ExitCode.INVALID_ARGS, code);
+    assertTrue(buffer.toString().contains("usage: assemble"));
+  }
+
+  @Test
+  void dryRunPrintsPlanAndDoesNotCreateOutputs() throws java.io.IOException {
+    Path input = Files.createDirectories(tempDir.resolve("segments"));
+    Path output = tempDir.resolve("out");
+    StringWriter buffer = new StringWriter();
+    CliPrinter.setWriterForTesting(new PrintWriter(buffer));
+
+    ExitCode code = AssembleCli.run(new String[] {
+        "in=" + input.toString(),
+        "out=" + output.toString(),
+        "--dry-run"});
+
+    assertEquals(ExitCode.SUCCESS, code);
+    String outputText = buffer.toString();
+    assertTrue(outputText.contains("Assemble dry-run"));
+    assertFalse(Files.exists(output), "dry-run should not create output directory");
   }
 }
+
+
+
+
+

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.AssembleCliTest" time="0.034" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.AssembleCliTest" time="0.074" tests="3" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -15,7 +15,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="CA"/>
     <property name="sun.boot.library.path" value="d:\JDKs\java25\bin"/>
-    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire11244401951424856594\surefirebooter-20250921205040208_3.jar C:\Users\andre\AppData\Local\Temp\surefire11244401951424856594 2025-09-21T20-50-40_044-jvmRun1 surefire-20250921205040208_1tmp surefire_0-20250921205040208_2tmp"/>
+    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire11480823360500029582\surefirebooter-20250922035512228_3.jar C:\Users\andre\AppData\Local\Temp\surefire11480823360500029582 2025-09-22T03-55-12_082-jvmRun1 surefire-20250922035512228_1tmp surefire_0-20250922035512228_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="D:\radar\test-code\target\test-classes;D:\radar\test-code\target\classes;C:\Users\andre\.m2\repository\org\slf4j\slf4j-api\2.0.13\slf4j-api-2.0.13.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-classic\1.4.14\logback-classic-1.4.14.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-core\1.4.14\logback-core-1.4.14.jar;C:\Users\andre\.m2\repository\org\apache\kafka\kafka-clients\2.8.2\kafka-clients-2.8.2.jar;C:\Users\andre\.m2\repository\com\github\luben\zstd-jni\1.4.9-1\zstd-jni-1.4.9-1.jar;C:\Users\andre\.m2\repository\org\lz4\lz4-java\1.7.1\lz4-java-1.7.1.jar;C:\Users\andre\.m2\repository\org\xerial\snappy\snappy-java\1.1.8.1\snappy-java-1.1.8.1.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-ffi\2.2.12\jnr-ffi-2.2.12.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9-native.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm\9.2\asm-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-commons\9.2\asm-commons-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-analysis\9.2\asm-analysis-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-tree\9.2\asm-tree-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-util\9.2\asm-util-9.2.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-a64asm\1.0.0\jnr-a64asm-1.0.0.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-x86asm\1.0.2\jnr-x86asm-1.0.2.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter\5.9.3\junit-jupiter-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.9.3\junit-jupiter-api-5.9.3.jar;C:\Users\andre\.m2\repository\org\opentest4j\opentest4j\1.2.0\opentest4j-1.2.0.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-commons\1.9.3\junit-platform-commons-1.9.3.jar;C:\Users\andre\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.9.3\junit-jupiter-params-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.9.3\junit-jupiter-engine-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-engine\1.9.3\junit-platform-engine-1.9.3.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-core\1.36\jmh-core-1.36.jar;C:\Users\andre\.m2\repository\net\sf\jopt-simple\jopt-simple\5.0.4\jopt-simple-5.0.4.jar;C:\Users\andre\.m2\repository\org\apache\commons\commons-math3\3.2\commons-math3-3.2.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-generator-annprocess\1.36\jmh-generator-annprocess-1.36.jar;"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -30,7 +30,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire11244401951424856594\surefirebooter-20250921205040208_3.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire11480823360500029582\surefirebooter-20250922035512228_3.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="25+36-3489"/>
@@ -51,7 +51,7 @@
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
     <property name="sun.os.patch.level" value=""/>
     <property name="native.encoding" value="Cp1252"/>
-    <property name="java.library.path" value="d:\JDKs\java25\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Users\andre\AppData\Local\Temp\.tmpnmdVlD;C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin;C:\Program Files (x86)\Intel\iCLS Client\;C:\Program Files\Intel\iCLS Client\;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\dotnet\;D:\terraform\;D:\Program Files\Git\;D:\applications\kube\;C:\Program Files\Amazon\AWSCLIV2\;D:\Program Files\Git\mingw64\bin\;C:\Program Files (x86)\HP\Common\HPDestPlgIn\;d:\Program Files\Git\cmd;d:\maven\bin;d:\jdks\java25\bin;C:\Users\andre\AppData\Local\Microsoft\WindowsApps;C:\Program Files (x86)\HP\Common\HPDestPlgIn\;C:\Users\andre\AppData\Local\Programs\Microsoft VS Code\bin;c:\Users\andre\.vscode\extensions\openai.chatgpt-0.5.12-win32-x64\bin\windows-x86_64;."/>
+    <property name="java.library.path" value="d:\JDKs\java25\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Users\andre\AppData\Local\Temp\.tmpbVAqsC;C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin;C:\Program Files (x86)\Intel\iCLS Client\;C:\Program Files\Intel\iCLS Client\;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\dotnet\;D:\terraform\;D:\Program Files\Git\;D:\applications\kube\;C:\Program Files\Amazon\AWSCLIV2\;D:\Program Files\Git\mingw64\bin\;C:\Program Files (x86)\HP\Common\HPDestPlgIn\;d:\Program Files\Git\cmd;d:\maven\bin;d:\jdks\java25\bin;C:\Users\andre\AppData\Local\Microsoft\WindowsApps;C:\Program Files (x86)\HP\Common\HPDestPlgIn\;C:\Users\andre\AppData\Local\Programs\Microsoft VS Code\bin;c:\Users\andre\.vscode\extensions\openai.chatgpt-0.5.12-win32-x64\bin\windows-x86_64;."/>
     <property name="java.vm.info" value="mixed mode, sharing"/>
     <property name="stderr.encoding" value="Cp1252"/>
     <property name="java.vendor" value="Oracle Corporation"/>
@@ -60,8 +60,13 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="invalidKafkaArgsReturnUsageAndInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.03">
-    <system-out><![CDATA[2025-09-21T20:50:41.836-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble arguments: kafkaBootstrap is required for KAFKA ioMode 
+  <testcase name="invalidInputDirectoryReturnsInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.038">
+    <system-out><![CDATA[2025-09-22T03:55:13.801-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble path configuration: Unable to access input directory: C:\Users\andre\AppData\Local\Temp\junit10944973058961231125\missing 
 ]]></system-out>
   </testcase>
+  <testcase name="invalidKafkaArgsReturnUsageAndInvalidArgs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.005">
+    <system-out><![CDATA[2025-09-22T03:55:13.812-03:00 [main] ERROR ca.gc.cra.radar.api.AssembleCli - Invalid assemble arguments: kafkaBootstrap is required for KAFKA ioMode 
+]]></system-out>
+  </testcase>
+  <testcase name="dryRunPrintsPlanAndDoesNotCreateOutputs" classname="ca.gc.cra.radar.api.AssembleCliTest" time="0.022"/>
 </testsuite>

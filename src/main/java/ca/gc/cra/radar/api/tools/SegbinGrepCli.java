@@ -107,7 +107,7 @@ public final class SegbinGrepCli {
     try {
       ctx = Integer.parseInt(ctxRaw.trim());
       Numbers.requireRange("ctx", ctx, 1, 4_096);
-    } catch (NumberFormatException | IllegalArgumentException ex) {
+    } catch (IllegalArgumentException ex) {
       log.error("Invalid ctx value: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
@@ -227,3 +227,5 @@ public final class SegbinGrepCli {
     return Instant.ofEpochSecond(seconds, micros * 1_000L);
   }
 }
+
+

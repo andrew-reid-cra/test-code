@@ -21,7 +21,11 @@ public final class Strings {
    * @return trimmed, validated value
    */
   public static String requireNonBlank(String name, String value) {
-    String trimmed = Objects.requireNonNull(value, name == null ? "value" : name).trim();
+    String raw = Objects.requireNonNull(value, name == null ? "value" : name);
+    if (containsControl(raw)) {
+      throw new IllegalArgumentException(message(name, "must not contain control characters"));
+    }
+    String trimmed = raw.trim();
     if (trimmed.isEmpty()) {
       throw new IllegalArgumentException(message(name, "must not be blank"));
     }
@@ -93,3 +97,4 @@ public final class Strings {
     return label + " " + suffix;
   }
 }
+

@@ -42,5 +42,20 @@ class PathsTest {
     Path validated = Paths.validateWritableDir(dir, null, false, false);
     assertTrue(validated.toString().endsWith("future\\child") || validated.toString().endsWith("future/child"));
   }
-}
 
+  @Test
+  void validateWritableDirHonoursAllowedBase() throws IOException {
+    Path base = Files.createDirectories(tempDir.resolve("sandbox"));
+    Path child = base.resolve("nested");
+    Path validated = Paths.validateWritableDir(child, base, true, false);
+    assertTrue(validated.startsWith(base));
+  }
+
+  @Test
+  void validateWritableDirRejectsPathEscapingAllowedBase() throws IOException {
+    Path base = Files.createDirectories(tempDir.resolve("sandbox"));
+    Path escape = base.resolve(".."), candidate = escape.resolve("outside");
+    assertThrows(IllegalArgumentException.class, () ->
+        Paths.validateWritableDir(candidate, base, false, false));
+  }
+}
