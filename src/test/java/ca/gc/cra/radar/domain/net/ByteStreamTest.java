@@ -9,15 +9,11 @@ class ByteStreamTest {
   private static final FiveTuple FLOW = new FiveTuple("1.1.1.1", 1111, "2.2.2.2", 2222, "TCP");
 
   @Test
-  void constructorDefensivelyCopiesData() {
+  void constructorRetainsProvidedArrayReference() {
     byte[] original = {10, 20};
     ByteStream stream = new ByteStream(FLOW, true, original, 123L);
 
-    original[0] = 99;
-
-    byte[] stored = stream.data();
-    assertArrayEquals(new byte[] {10, 20}, stored);
-    assertNotSame(original, stored);
+    assertSame(original, stream.data());
   }
 
   @Test
@@ -27,3 +23,4 @@ class ByteStreamTest {
     assertEquals(0, stream.data().length);
   }
 }
+

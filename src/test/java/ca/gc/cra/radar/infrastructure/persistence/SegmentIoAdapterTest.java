@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("try")
 class SegmentIoAdapterTest {
   @Test
   void writeAndReadRoundTrip() throws Exception {
@@ -27,5 +28,6 @@ class SegmentIoAdapterTest {
     }
   }
 }
+
 
 

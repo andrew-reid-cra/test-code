@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("try")
 class HttpPosterPipelineTest {
 
   @Test

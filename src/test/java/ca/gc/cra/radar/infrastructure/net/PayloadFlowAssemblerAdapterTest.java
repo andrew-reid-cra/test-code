@@ -43,11 +43,11 @@ class PayloadFlowAssemblerAdapterTest {
     Optional<ByteStream> result = adapter.accept(segment);
     assertTrue(result.isPresent());
     ByteStream stream = result.get();
-    assertArrayEquals(bytes("payload"), stream.data());
+    assertSame(original, stream.data());
     assertTrue(stream.fromClient());
 
     original[0] = 'X';
-    assertEquals('p', stream.data()[0]);
+    assertEquals('X', stream.data()[0]);
 
     assertEquals(1, metrics.count("unit.payload"));
     assertEquals(List.of((long) stream.data().length), metrics.observed("unit.bytes"));
@@ -82,3 +82,4 @@ class PayloadFlowAssemblerAdapterTest {
     return value.getBytes(StandardCharsets.US_ASCII);
   }
 }
+

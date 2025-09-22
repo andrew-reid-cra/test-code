@@ -1,0 +1,3 @@
+JMH S 51 ca.gc.cra.radar.benchmarks.ChunkedTransferBenchmark S 86 ca.gc.cra.radar.benchmarks.jmh_generated.ChunkedTransferBenchmark_parseChunked_jmhTest S 12 parseChunked S 10 Throughput E A 1 1 1 E E E E E E E E E E E E E E U 12 MILLISECONDS E E 
+JMH S 45 ca.gc.cra.radar.benchmarks.HttpParseBenchmark S 80 ca.gc.cra.radar.benchmarks.jmh_generated.HttpParseBenchmark_parseRequest_jmhTest S 12 parseRequest S 10 Throughput E A 1 1 1 E E E E E E E E E E E E E E U 12 MILLISECONDS E E 
+JMH S 46 ca.gc.cra.radar.benchmarks.Tn3270ScanBenchmark S 80 ca.gc.cra.radar.benchmarks.jmh_generated.Tn3270ScanBenchmark_parseRecord_jmhTest S 11 parseRecord S 10 Throughput E A 1 1 1 E E E E E E E E E E E E E E U 12 MILLISECONDS E E 

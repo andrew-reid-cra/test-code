@@ -3,6 +3,7 @@ package ca.gc.cra.radar.infrastructure.protocol.http;
 import ca.gc.cra.radar.application.port.ClockPort;
 import ca.gc.cra.radar.application.port.MessageReconstructor;
 import ca.gc.cra.radar.application.port.MetricsPort;
+import ca.gc.cra.radar.infrastructure.buffer.GrowableBuffer;
 import ca.gc.cra.radar.domain.msg.MessageEvent;
 import ca.gc.cra.radar.domain.msg.MessageMetadata;
 import ca.gc.cra.radar.domain.msg.MessageType;
@@ -15,7 +16,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -25,6 +25,9 @@ import java.util.Map;
  */
 public final class HttpMessageReconstructor implements MessageReconstructor {
   private static final byte[] CRLFCRLF = "\r\n\r\n".getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] CONTENT_LENGTH = "content-length".getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] TRANSFER_ENCODING = "transfer-encoding".getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] CHUNKED = "chunked".getBytes(StandardCharsets.US_ASCII);
 
   private final ClockPort clock;
   private final HttpMetrics metrics;
@@ -32,6 +35,7 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
   private DirectionState client;
   private DirectionState server;
   private final Deque<String> pendingTransactionIds = new ArrayDeque<>();
+  private static final Map<String, String> NO_ATTRIBUTES = Map.of();
 
   /**
    * Creates a reconstructor bound to the supplied clock and metrics sink.
@@ -54,8 +58,16 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
    */
   @Override
   public void onStart() {
-    client = new DirectionState(true);
-    server = new DirectionState(false);
+    if (client == null) {
+      client = new DirectionState(true);
+    } else {
+      client.reset();
+    }
+    if (server == null) {
+      server = new DirectionState(false);
+    } else {
+      server.reset();
+    }
     pendingTransactionIds.clear();
   }
 
@@ -70,6 +82,9 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
    */
   @Override
   public List<MessageEvent> onBytes(ByteStream slice) {
+    if (client == null || server == null) {
+      onStart();
+    }
     metrics.onBytes(slice.data().length);
     DirectionState dir = slice.fromClient() ? client : server;
     dir.append(slice);
@@ -88,7 +103,7 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
             ? TransactionId.newId()
             : pendingTransactionIds.removeFirst();
       }
-      MessageMetadata metadata = new MessageMetadata(transactionId, Map.of());
+      MessageMetadata metadata = new MessageMetadata(transactionId, NO_ATTRIBUTES);
       events.add(new MessageEvent(ProtocolId.HTTP, type, message, metadata));
     }
     return events;
@@ -103,8 +118,12 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
   @Override
   public void onClose() {
     pendingTransactionIds.clear();
-    client.reset();
-    server.reset();
+    if (client != null) {
+      client.reset();
+    }
+    if (server != null) {
+      server.reset();
+    }
   }
 
   private static final class DirectionState {
@@ -129,18 +148,22 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
           break;
         }
         int headersLen = headerEnd + CRLFCRLF.length;
-        byte[] headers = buffer.peek(headersLen);
-        int bodyLen = bodyLength(headers, fromClient);
+        if (buffer.readableBytes() < headersLen) {
+          break;
+        }
+        int bodyLen = bodyLength(buffer, headersLen, fromClient);
         if (bodyLen < 0) {
-          // chunked or unsupported framing: emit everything currently buffered
-          byte[] payload = buffer.pop(buffer.size());
+          int readable = buffer.readableBytes();
+          byte[] payload = buffer.copy(readable);
           messages.add(new ByteStream(flow, fromClient, payload, lastTimestamp));
           break;
         }
-        if (buffer.size() < headersLen + bodyLen) {
-          break; // wait for more bytes
+        int required = headersLen + bodyLen;
+        if (buffer.readableBytes() < required) {
+          buffer.ensureCapacity(required);
+          break;
         }
-        byte[] payload = buffer.pop(headersLen + bodyLen);
+        byte[] payload = buffer.copy(required);
         messages.add(new ByteStream(flow, fromClient, payload, lastTimestamp));
       }
       return messages;
@@ -152,116 +175,161 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     }
   }
 
-  private static int bodyLength(byte[] headers, boolean request) {
-    String head = new String(headers, StandardCharsets.ISO_8859_1);
-    String lower = head.toLowerCase(Locale.ROOT);
+  private static int bodyLength(GrowableBuffer buffer, int headersLen, boolean request) {
+    byte[] array = buffer.array();
+    int start = buffer.readerIndex();
+    int limit = start + headersLen;
+    int lineStart = start;
+    int firstLineEnd = -1;
+    int contentLength = -1;
+    boolean chunked = false;
 
-    if (lower.contains("transfer-encoding:") && lower.contains("chunked")) {
-      return -1;
-    }
-
-    int contentLengthIdx = lower.indexOf("content-length:");
-    if (contentLengthIdx >= 0) {
-      int endLine = lower.indexOf('\n', contentLengthIdx);
-      if (endLine < 0) {
-        endLine = lower.length();
+    while (lineStart < limit) {
+      int newline = lineStart;
+      while (newline < limit && array[newline] != '\n') {
+        newline++;
       }
-      String value = lower.substring(contentLengthIdx + "content-length:".length(), endLine).trim();
-      try {
-        return Math.max(0, Integer.parseInt(value));
-      } catch (NumberFormatException ignore) {
-        return 0;
+      if (newline >= limit) {
+        break;
       }
-    }
-
-    if (!request) {
-      String firstLine = firstLine(head);
-      if (firstLine.length() >= 12) {
-        // HTTP/1.x <status>
-        int codeStart = firstLine.indexOf(' ');
-        if (codeStart > 0 && codeStart + 3 <= firstLine.length()) {
-          try {
-            int code = Integer.parseInt(firstLine.substring(codeStart + 1, codeStart + 4));
-            if ((code >= 100 && code < 200) || code == 204 || code == 304) {
-              return 0;
-            }
-          } catch (NumberFormatException ignore) {
-            return 0;
+      int lineEnd = newline;
+      if (lineEnd > lineStart && array[lineEnd - 1] == '\r') {
+        lineEnd--;
+      }
+      if (firstLineEnd < 0) {
+        firstLineEnd = lineEnd;
+      }
+      int colon = -1;
+      for (int i = lineStart; i < lineEnd; i++) {
+        if (array[i] == ':') {
+          colon = i;
+          break;
+        }
+      }
+      if (colon > lineStart) {
+        int nameStart = lineStart;
+        while (nameStart < colon && isLinearWhitespace(array[nameStart])) {
+          nameStart++;
+        }
+        int nameEnd = colon;
+        while (nameEnd > nameStart && isLinearWhitespace(array[nameEnd - 1])) {
+          nameEnd--;
+        }
+        int valueStart = colon + 1;
+        while (valueStart < lineEnd && isLinearWhitespace(array[valueStart])) {
+          valueStart++;
+        }
+        int valueEnd = lineEnd;
+        while (valueEnd > valueStart && isLinearWhitespace(array[valueEnd - 1])) {
+          valueEnd--;
+        }
+        if (equalsIgnoreCase(array, nameStart, nameEnd, CONTENT_LENGTH)) {
+          int parsed = parseContentLength(array, valueStart, valueEnd);
+          contentLength = parsed >= 0 ? parsed : 0;
+        } else if (equalsIgnoreCase(array, nameStart, nameEnd, TRANSFER_ENCODING)) {
+          if (containsTokenIgnoreCase(array, valueStart, valueEnd, CHUNKED)) {
+            chunked = true;
           }
         }
+      }
+      lineStart = newline + 1;
+    }
+
+    if (chunked) {
+      return -1;
+    }
+    if (contentLength >= 0) {
+      return contentLength;
+    }
+    if (!request && firstLineEnd > start) {
+      int status = parseStatusCode(array, start, firstLineEnd);
+      if ((status >= 100 && status < 200) || status == 204 || status == 304) {
+        return 0;
       }
     }
     return request ? 0 : 0;
   }
 
-  private static String firstLine(String headers) {
-    int idx = headers.indexOf('\n');
-    if (idx < 0) {
-      return headers.trim();
+  private static boolean equalsIgnoreCase(byte[] array, int start, int end, byte[] token) {
+    int length = end - start;
+    if (length != token.length) {
+      return false;
     }
-    return headers.substring(0, idx).trim();
+    for (int i = 0; i < length; i++) {
+      if (toLowerAscii(array[start + i]) != token[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  private static final class GrowableBuffer {
-    private byte[] data = new byte[1024];
-    private int size;
-
-    void write(byte[] bytes) {
-      ensureCapacity(size + bytes.length);
-      System.arraycopy(bytes, 0, data, size, bytes.length);
-      size += bytes.length;
+  private static boolean containsTokenIgnoreCase(byte[] array, int start, int end, byte[] token) {
+    int needed = token.length;
+    if (needed == 0) {
+      return false;
     }
-
-    int size() {
-      return size;
-    }
-
-    byte[] pop(int len) {
-      byte[] out = new byte[len];
-      System.arraycopy(data, 0, out, 0, len);
-      int remaining = size - len;
-      if (remaining > 0) {
-        System.arraycopy(data, len, data, 0, remaining);
-      }
-      size = remaining;
-      return out;
-    }
-
-    byte[] peek(int len) {
-      byte[] out = new byte[len];
-      System.arraycopy(data, 0, out, 0, len);
-      return out;
-    }
-
-    int indexOf(byte[] needle) {
-      outer:
-      for (int i = 0; i <= size - needle.length; i++) {
-        for (int j = 0; j < needle.length; j++) {
-          if (data[i + j] != needle[j]) {
-            continue outer;
-          }
+    for (int i = start; i <= end - needed; i++) {
+      if (equalsIgnoreCase(array, i, i + needed, token)) {
+        boolean leftDelim = i == start || isTokenSeparator(array[i - 1]);
+        int rightIndex = i + needed;
+        boolean rightDelim = rightIndex >= end || isTokenSeparator(array[rightIndex]);
+        if (leftDelim && rightDelim) {
+          return true;
         }
-        return i;
       }
-      return -1;
     }
-
-    void ensureCapacity(int capacity) {
-      if (data.length >= capacity) {
-        return;
-      }
-      int newCapacity = data.length;
-      while (newCapacity < capacity) {
-        newCapacity <<= 1;
-      }
-      byte[] next = new byte[newCapacity];
-      System.arraycopy(data, 0, next, 0, size);
-      data = next;
-    }
-
-    void clear() {
-      size = 0;
-    }
+    return false;
   }
+
+  private static boolean isTokenSeparator(byte b) {
+    return b == ',' || isLinearWhitespace(b);
+  }
+
+  private static int parseContentLength(byte[] array, int start, int end) {
+    long value = 0L;
+    boolean digits = false;
+    for (int i = start; i < end; i++) {
+      byte b = array[i];
+      if (b >= '0' && b <= '9') {
+        digits = true;
+        value = value * 10 + (b - '0');
+        if (value > Integer.MAX_VALUE) {
+          return Integer.MAX_VALUE;
+        }
+      } else if (isLinearWhitespace(b)) {
+        continue;
+      } else {
+        return -1;
+      }
+    }
+    return digits ? (int) value : -1;
+  }
+
+  private static int parseStatusCode(byte[] array, int start, int end) {
+    int idx = start;
+    while (idx < end && array[idx] != ' ') {
+      idx++;
+    }
+    while (idx < end && array[idx] == ' ') {
+      idx++;
+    }
+    int digits = 0;
+    int value = 0;
+    while (idx < end && digits < 3 && array[idx] >= '0' && array[idx] <= '9') {
+      value = (value * 10) + (array[idx] - '0');
+      idx++;
+      digits++;
+    }
+    return digits == 3 ? value : -1;
+  }
+
+  private static boolean isLinearWhitespace(byte b) {
+    return b == ' ' || b == '\t';
+  }
+
+  private static byte toLowerAscii(byte b) {
+    return (byte) (b >= 'A' && b <= 'Z' ? b + 32 : b);
+  }
+
 }
 

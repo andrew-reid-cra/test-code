@@ -116,6 +116,11 @@ public final class CompositionRoot {
   public LiveProcessingUseCase liveProcessingUseCase() {
     MetricsPort metricsPort = metrics();
     ClockPort clockPort = clock();
+    LiveProcessingUseCase.PersistenceSettings persistenceSettings =
+        new LiveProcessingUseCase.PersistenceSettings(
+            captureConfig.persistenceWorkers(),
+            captureConfig.persistenceQueueCapacity(),
+            mapQueueType(captureConfig.persistenceQueueType()));
     return new LiveProcessingUseCase(
         newPacketSource(),
         new FrameDecoderLibpcap(),
@@ -125,7 +130,8 @@ public final class CompositionRoot {
         pairingFactories(),
         messagePersistence(),
         metricsPort,
-        config.enabledProtocols());
+        config.enabledProtocols(),
+        persistenceSettings);
   }
 
   /**
@@ -234,6 +240,13 @@ public final class CompositionRoot {
     };
   }
 
+  private LiveProcessingUseCase.QueueType mapQueueType(CaptureConfig.PersistenceQueueType type) {
+    CaptureConfig.PersistenceQueueType source = Objects.requireNonNullElse(type, CaptureConfig.PersistenceQueueType.ARRAY);
+    return switch (source) {
+      case ARRAY -> LiveProcessingUseCase.QueueType.ARRAY;
+      case LINKED -> LiveProcessingUseCase.QueueType.LINKED;
+    };
+  }
   private Set<ProtocolId> enabledProtocolsForAssemble(AssembleConfig assembleConfig) {
     Set<ProtocolId> enabled = new HashSet<>();
     if (assembleConfig.httpEnabled()) {
@@ -309,4 +322,6 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
+
+
 

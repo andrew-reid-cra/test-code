@@ -1,13 +1,13 @@
 package ca.gc.cra.radar.infrastructure.protocol.http;
 
-import java.nio.charset.StandardCharsets;
+import ca.gc.cra.radar.domain.util.Utf8;
 
 final class HttpSignature {
   private HttpSignature() {}
 
   static boolean looksLikeHttp(byte[] peek) {
     if (peek == null || peek.length == 0) return false;
-    String prefix = new String(peek, 0, Math.min(peek.length, 16), StandardCharsets.US_ASCII);
+    String prefix = Utf8.decode(peek, 0, Math.min(peek.length, 16));
     return prefix.startsWith("GET ")
         || prefix.startsWith("POST ")
         || prefix.startsWith("PUT ")
@@ -19,5 +19,3 @@ final class HttpSignature {
         || prefix.startsWith("HTTP/");
   }
 }
-
-

@@ -3,6 +3,7 @@ package ca.gc.cra.radar.infrastructure.protocol.tn3270;
 import ca.gc.cra.radar.application.port.ClockPort;
 import ca.gc.cra.radar.application.port.MessageReconstructor;
 import ca.gc.cra.radar.application.port.MetricsPort;
+import ca.gc.cra.radar.infrastructure.buffer.GrowableBuffer;
 import ca.gc.cra.radar.domain.msg.MessageEvent;
 import ca.gc.cra.radar.domain.msg.MessageMetadata;
 import ca.gc.cra.radar.domain.msg.MessageType;
@@ -131,7 +132,7 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
     private static final int DO = 0xFD;
     private static final int DONT = 0xFE;
 
-    private final ByteRing record = new ByteRing(1024);
+    private final GrowableBuffer record = new GrowableBuffer(1024);
     private boolean pendingIac = false;
     private boolean inSubneg = false;
     private int awaitingOptionCmd = 0;
@@ -150,20 +151,20 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
             continue;
           }
           if (!inSubneg) {
-            record.write((byte) b);
+            record.writeByte((byte) b);
           }
           continue;
         }
         pendingIac = false;
         switch (b) {
-          case IAC -> record.write((byte) IAC);
+          case IAC -> record.writeByte((byte) IAC);
           case SB -> inSubneg = true;
           case SE -> inSubneg = false;
           case WILL, WONT, DO, DONT -> awaitingOptionCmd = b;
           case EOR -> {
-            if (!record.isEmpty()) {
+            if (record.readableBytes() > 0) {
               if (out == null) out = new ArrayList<>();
-              out.add(record.take());
+              out.add(record.copyAll());
             }
           }
           default -> { /* ignore */ }
@@ -179,47 +180,14 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
       awaitingOptionCmd = 0;
     }
 
-    private static final class ByteRing {
-      private byte[] buf;
-      private int size;
-
-      ByteRing(int cap) {
-        buf = new byte[Math.max(256, cap)];
-        size = 0;
-      }
-
-      void write(byte b) {
-        ensureCapacity(1);
-        buf[size++] = b;
-      }
-
-      boolean isEmpty() {
-        return size == 0;
-      }
-
-      byte[] take() {
-        byte[] out = new byte[size];
-        System.arraycopy(buf, 0, out, 0, size);
-        size = 0;
-        return out;
-      }
-
-      void clear() {
-        size = 0;
-      }
-
-      private void ensureCapacity(int extra) {
-        int needed = size + extra;
-        if (needed <= buf.length) return;
-        int n = buf.length;
-        while (n < needed) n <<= 1;
-        byte[] nb = new byte[n];
-        System.arraycopy(buf, 0, nb, 0, size);
-        buf = nb;
-      }
-    }
   }
+
 }
+
+
+
+
+
 
 
 

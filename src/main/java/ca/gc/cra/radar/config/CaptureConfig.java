@@ -2,6 +2,7 @@ package ca.gc.cra.radar.config;
 
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -23,6 +24,9 @@ import java.util.Objects;
  * @param ioMode capture persistence mode ({@link IoMode#FILE} or {@link IoMode#KAFKA})
  * @param kafkaBootstrap Kafka bootstrap servers (required for Kafka mode)
  * @param kafkaTopicSegments Kafka topic for segments in Kafka mode
+ * @param persistenceWorkers number of persistence workers for live processing
+ * @param persistenceQueueCapacity capacity of the live persistence queue
+ * @param persistenceQueueType queue implementation used for live persistence hand-off
  * @since RADAR 0.1-doc
  */
 public record CaptureConfig(
@@ -40,7 +44,10 @@ public record CaptureConfig(
     Path tn3270OutputDirectory,
     IoMode ioMode,
     String kafkaBootstrap,
-    String kafkaTopicSegments) {
+    String kafkaTopicSegments,
+    int persistenceWorkers,
+    int persistenceQueueCapacity,
+    PersistenceQueueType persistenceQueueType) {
 
   /**
    * Validates capture configuration values.
@@ -66,7 +73,14 @@ public record CaptureConfig(
     if (rollMiB <= 0) {
       throw new IllegalArgumentException("rollMiB must be positive");
     }
+    if (persistenceWorkers <= 0) {
+      throw new IllegalArgumentException("persistenceWorkers must be positive");
+    }
+    if (persistenceQueueCapacity < persistenceWorkers) {
+      throw new IllegalArgumentException("persistenceQueueCapacity must be >= persistenceWorkers");
+    }
     ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
+    persistenceQueueType = Objects.requireNonNullElse(persistenceQueueType, PersistenceQueueType.ARRAY);
     if (ioMode == IoMode.KAFKA) {
       if (kafkaBootstrap == null || kafkaBootstrap.isBlank()) {
         throw new IllegalArgumentException("kafkaBootstrap is required when ioMode=KAFKA");
@@ -84,6 +98,8 @@ public record CaptureConfig(
    * @since RADAR 0.1-doc
    */
   public static CaptureConfig defaults() {
+    int defaultWorkers = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
+    int defaultQueueCapacity = defaultWorkers * 128;
     return new CaptureConfig(
         "eth0",
         null,
@@ -99,9 +115,11 @@ public record CaptureConfig(
         Path.of("out", "tn3270"),
         IoMode.FILE,
         null,
-        "radar.segments");
+        "radar.segments",
+        defaultWorkers,
+        defaultQueueCapacity,
+        PersistenceQueueType.ARRAY);
   }
-
 
   /**
    * Parses CLI-style {@code key=value} arguments into a configuration.
@@ -175,6 +193,11 @@ public record CaptureConfig(
     String kafkaBootstrap = normalized(kv.get("kafkaBootstrap"));
     kafkaTopicSegments = normalized(kv.getOrDefault("kafkaTopicSegments", kafkaTopicSegments));
 
+    int persistenceWorkers = parseInt(kv.get("persistWorkers"), defaults.persistenceWorkers());
+    int persistenceQueueCapacity = parseInt(kv.get("persistQueueCapacity"), defaults.persistenceQueueCapacity());
+    PersistenceQueueType persistenceQueueType =
+        parsePersistenceQueueType(kv.get("persistQueueType"), defaults.persistenceQueueType());
+
     return new CaptureConfig(
         iface,
         filter,
@@ -190,7 +213,10 @@ public record CaptureConfig(
         tnOut,
         ioMode,
         kafkaBootstrap,
-        kafkaTopicSegments);
+        kafkaTopicSegments,
+        persistenceWorkers,
+        persistenceQueueCapacity,
+        persistenceQueueType);
   }
 
   private static IoMode parseIoMode(String value, IoMode fallback) {
@@ -198,6 +224,13 @@ public record CaptureConfig(
       return fallback;
     }
     return IoMode.fromString(value.trim());
+  }
+
+  private static PersistenceQueueType parsePersistenceQueueType(String value, PersistenceQueueType fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
+    }
+    return PersistenceQueueType.fromString(value.trim());
   }
 
   private static String sanitizeTopic(String topic) {
@@ -244,11 +277,27 @@ public record CaptureConfig(
 
   private static String firstNonBlank(Map<String, String> map, String... keys) {
     for (String key : keys) {
-      String value = map.get(key);
-      if (value != null && !value.isBlank()) {
-        return value;
+      String val = map.get(key);
+      if (val != null && !val.isBlank()) {
+        return val;
       }
     }
     return null;
+  }
+
+  /** Queue implementations available for live persistence hand-off. */
+  public enum PersistenceQueueType {
+    ARRAY,
+    LINKED;
+
+    static PersistenceQueueType fromString(String value) {
+      String normalized = value.toLowerCase(Locale.ROOT);
+      return switch (normalized) {
+        case "array", "arrayblockingqueue", "array-queue" -> ARRAY;
+        case "linked", "linkedblockingqueue", "linked-queue" -> LINKED;
+        default -> throw new IllegalArgumentException(
+            "persistQueueType must be one of ARRAY or LINKED (was " + value + ")");
+      };
+    }
   }
 }
