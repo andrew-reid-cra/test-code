@@ -2,8 +2,12 @@ package ca.gc.cra.radar.api;
 
 import ca.gc.cra.radar.config.CaptureConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.IoMode;
+import ca.gc.cra.radar.logging.Logs;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
+import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,25 +20,32 @@ import org.slf4j.LoggerFactory;
 public final class LiveCli {
   private static final Logger log = LoggerFactory.getLogger(LiveCli.class);
   private static final String SUMMARY_USAGE =
-      "usage: live iface=<nic> [bufmb=1024 snap=65535 timeout=1 bpf='<expr>' immediate=true promisc=true]";
+      "usage: live iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
+          + "[snap=64-262144] [bufmb=4-4096] [timeout=0-60000] [--enable-bpf --bpf='expr'] "
+          + "[--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR live processing pipeline
 
       Usage:
         live iface=<nic> [options]
 
-      Required options:
+      Required:
         iface=NAME                Network interface to capture from
 
-      Common options:
-        bpf='expr'                Optional BPF filter expression
-        out=PATH|out=kafka:TOPIC  Optional capture output override
-        --help                    Show detailed help
+      Optional (validated):
+        out=PATH                  Segment output directory (default ~/.radar/out/capture/segments)
+        out=kafka:TOPIC           Stream segments to Kafka topic (sanitized [A-Za-z0-9._-])
+        ioMode=FILE|KAFKA         FILE writes under ~/.radar/out; KAFKA requires kafkaBootstrap
+        kafkaBootstrap=HOST:PORT  Validated host/port when ioMode=KAFKA
+        snap=64-262144            Snap length bytes (default 65535)
+        bufmb=4-4096              Capture buffer in MiB (default 256)
+        timeout=0-60000           Poll timeout in ms (default 1000)
+        --enable-bpf              Required gate for custom BPF expressions
+        --bpf="expr"               Printable ASCII <=1024 bytes; ';' and '`' rejected
+        --dry-run                 Validate inputs and print plan without processing
+        --allow-overwrite         Permit writing into non-empty output directories
         --verbose                 Enable DEBUG logging for troubleshooting
-
-      Examples:
-        live iface=en0 bpf='tcp port 80'
-        live iface=eth0 --verbose
+        --help                    Show this message
       """;
 
   private LiveCli() {}
@@ -66,39 +77,67 @@ public final class LiveCli {
       log.debug("Verbose logging enabled for live CLI");
     }
 
-    Map<String, String> kv = CliArgsParser.toMap(input.keyValueArgs());
-    String iface = kv.get("iface");
-    if (iface == null || iface.isBlank()) {
-      log.error("Missing required argument iface=<nic>");
+    boolean dryRun = input.hasFlag("--dry-run");
+    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean enableBpfFlag = input.hasFlag("--enable-bpf");
+
+    Map<String, String> kv;
+    try {
+      kv = CliArgsParser.toMap(input.keyValueArgs());
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
+    }
+    if (enableBpfFlag) {
+      kv.put("enableBpf", "true");
     }
 
     CaptureConfig captureConfig;
     try {
       captureConfig = CaptureConfig.fromMap(kv);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid live capture configuration: {}", ex.getMessage(), ex);
-      return ExitCode.CONFIG_ERROR;
+      log.error("Invalid live capture configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    ValidatedPaths validated;
+    try {
+      validated = validateOutputs(captureConfig, allowOverwrite, !dryRun);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid output path configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    if (dryRun) {
+      printDryRunPlan(captureConfig, validated, allowOverwrite);
+      return ExitCode.SUCCESS;
+    }
+
+    if (captureConfig.customBpfEnabled()) {
+      log.warn("SECURITY: Custom BPF expression enabled ({} bytes)", captureConfig.filter().length());
+      log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureConfig.filter(), 128));
     }
 
     CompositionRoot root =
         new CompositionRoot(ca.gc.cra.radar.config.Config.defaults(), captureConfig);
 
     try {
-      log.info("Starting live processing on interface {}", iface);
+      log.info("Starting live processing on interface {}", captureConfig.iface());
       root.liveProcessingUseCase().run();
-      log.info("Live processing completed on interface {}", iface);
+      log.info("Live processing completed on interface {}", captureConfig.iface());
       return ExitCode.SUCCESS;
     } catch (IOException ex) {
-      log.error("Live processing I/O failure on interface {}", iface, ex);
+      log.error("Live processing I/O failure on interface {}", captureConfig.iface(), ex);
       return ExitCode.IO_ERROR;
     } catch (IllegalArgumentException ex) {
       log.error("Live processing configuration error: {}", ex.getMessage(), ex);
       return ExitCode.CONFIG_ERROR;
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
-      log.error("Live processing interrupted; shutting down interface {}", iface, ex);
+      log.error("Live processing interrupted; shutting down interface {}", captureConfig.iface(), ex);
       return ExitCode.INTERRUPTED;
     } catch (RuntimeException ex) {
       log.error("Unexpected runtime failure in live processing", ex);
@@ -108,4 +147,39 @@ public final class LiveCli {
       return ExitCode.RUNTIME_FAILURE;
     }
   }
+
+  private static ValidatedPaths validateOutputs(
+      CaptureConfig config, boolean allowOverwrite, boolean createIfMissing) {
+    Path segments = config.outputDirectory();
+    if (config.ioMode() == IoMode.FILE) {
+      segments =
+          Paths.validateWritableDir(segments, null, createIfMissing, allowOverwrite);
+    }
+    Path http =
+        Paths.validateWritableDir(config.httpOutputDirectory(), null, createIfMissing, allowOverwrite);
+    Path tn3270 =
+        Paths.validateWritableDir(config.tn3270OutputDirectory(), null, createIfMissing, allowOverwrite);
+    return new ValidatedPaths(segments, http, tn3270);
+  }
+
+  private static void printDryRunPlan(
+      CaptureConfig config, ValidatedPaths paths, boolean allowOverwrite) {
+    CliPrinter.printLines(
+        "Live dry-run: no packets will be processed.",
+        " Interface        : " + config.iface(),
+        " Snaplen          : " + config.snaplen(),
+        " Buffer (bytes)   : " + config.bufferBytes(),
+        " Timeout (ms)     : " + config.timeoutMillis(),
+        " I/O mode         : " + config.ioMode(),
+        " Segments dir     : " + paths.segments(),
+        " HTTP dir         : " + paths.http(),
+        " TN3270 dir       : " + paths.tn3270(),
+        " Kafka bootstrap  : " + (config.kafkaBootstrap() == null ? "<none>" : config.kafkaBootstrap()),
+        " Kafka topic      : " + (config.kafkaTopicSegments() == null ? "<none>" : config.kafkaTopicSegments()),
+        " Allow overwrite  : " + allowOverwrite,
+        " BPF filter       : " + Logs.truncate(config.filter(), 96),
+        " Re-run without --dry-run to start processing.");
+  }
+
+  private record ValidatedPaths(Path segments, Path http, Path tn3270) {}
 }

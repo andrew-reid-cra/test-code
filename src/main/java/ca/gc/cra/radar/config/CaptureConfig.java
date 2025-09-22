@@ -1,5 +1,9 @@
 package ca.gc.cra.radar.config;
 
+import ca.gc.cra.radar.validation.Net;
+import ca.gc.cra.radar.validation.Numbers;
+import ca.gc.cra.radar.validation.Strings;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Locale;
@@ -10,7 +14,8 @@ import java.util.Objects;
  * Configuration for the capture CLI, covering NIC selection, IO modes, and file rotation.
  *
  * @param iface network interface name to capture from
- * @param filter optional BPF filter expression
+ * @param filter active BPF filter expression (sanitized)
+ * @param customBpfEnabled {@code true} when a custom BPF expression was explicitly enabled
  * @param snaplen libpcap snap length in bytes
  * @param bufferBytes capture buffer size in bytes
  * @param timeoutMillis polling timeout in milliseconds
@@ -32,6 +37,7 @@ import java.util.Objects;
 public record CaptureConfig(
     String iface,
     String filter,
+    boolean customBpfEnabled,
     int snaplen,
     int bufferBytes,
     int timeoutMillis,
@@ -49,40 +55,62 @@ public record CaptureConfig(
     int persistenceQueueCapacity,
     PersistenceQueueType persistenceQueueType) {
 
+  private static final String DEFAULT_SAFE_BPF = "tcp";
+  private static final int DEFAULT_SNAPLEN = 65_535;
+  private static final int DEFAULT_BUFFER_MIB = 256;
+  private static final int DEFAULT_TIMEOUT_MILLIS = 1_000;
+  private static final int DEFAULT_ROLL_MIB = 512;
+  private static final int MIN_SNAPLEN = 64;
+  private static final int MAX_SNAPLEN = 262_144;
+  private static final int MIN_BUFFER_MIB = 4;
+  private static final int MAX_BUFFER_MIB = 4_096;
+  private static final int MIN_TIMEOUT_MILLIS = 0;
+  private static final int MAX_TIMEOUT_MILLIS = 60_000;
+  private static final int MIN_ROLL_MIB = 8;
+  private static final int MAX_ROLL_MIB = 10_240;
+  private static final int MAX_BPF_LENGTH = 1_024;
+  private static final int MIN_PERSIST_WORKERS = 1;
+  private static final int MAX_PERSIST_WORKERS = 32;
+  private static final int MAX_QUEUE_CAPACITY = 65_536;
+
   /**
    * Validates capture configuration values.
    *
    * @since RADAR 0.1-doc
    */
   public CaptureConfig {
-    if (iface == null || iface.isBlank()) {
-      throw new IllegalArgumentException("iface must be provided");
-    }
-    if (outputDirectory == null) {
-      throw new IllegalArgumentException("outputDirectory must be provided");
-    }
-    if (httpOutputDirectory == null) {
-      throw new IllegalArgumentException("httpOutputDirectory must be provided");
-    }
-    if (tn3270OutputDirectory == null) {
-      throw new IllegalArgumentException("tn3270OutputDirectory must be provided");
-    }
-    if (fileBase == null || fileBase.isBlank()) {
-      throw new IllegalArgumentException("fileBase must be provided");
-    }
-    if (rollMiB <= 0) {
-      throw new IllegalArgumentException("rollMiB must be positive");
-    }
-    if (persistenceWorkers <= 0) {
-      throw new IllegalArgumentException("persistenceWorkers must be positive");
-    }
-    if (persistenceQueueCapacity < persistenceWorkers) {
-      throw new IllegalArgumentException("persistenceQueueCapacity must be >= persistenceWorkers");
-    }
+    iface = Strings.requireNonBlank("iface", iface);
+    filter = Strings.requirePrintableAscii("bpf", filter, MAX_BPF_LENGTH);
+    outputDirectory = normalizePath("outputDirectory", outputDirectory);
+    httpOutputDirectory = normalizePath("httpOutputDirectory", httpOutputDirectory);
+    tn3270OutputDirectory = normalizePath("tn3270OutputDirectory", tn3270OutputDirectory);
+    fileBase = Strings.requireNonBlank("fileBase", fileBase);
+    Numbers.requireRange("snaplen", snaplen, MIN_SNAPLEN, MAX_SNAPLEN);
+    Numbers.requireRange(
+        "bufferBytes",
+        bufferBytes,
+        MIN_BUFFER_MIB * 1_024L * 1_024L,
+        MAX_BUFFER_MIB * 1_024L * 1_024L);
+    Numbers.requireRange("timeoutMillis", timeoutMillis, MIN_TIMEOUT_MILLIS, MAX_TIMEOUT_MILLIS);
+    Numbers.requireRange("rollMiB", rollMiB, MIN_ROLL_MIB, MAX_ROLL_MIB);
+    Numbers.requireRange("persistenceWorkers", persistenceWorkers, MIN_PERSIST_WORKERS, MAX_PERSIST_WORKERS);
+    Numbers.requireRange(
+        "persistenceQueueCapacity",
+        persistenceQueueCapacity,
+        persistenceWorkers,
+        MAX_QUEUE_CAPACITY);
     ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
     persistenceQueueType = Objects.requireNonNullElse(persistenceQueueType, PersistenceQueueType.ARRAY);
+    if (kafkaBootstrap != null && !kafkaBootstrap.isBlank()) {
+      kafkaBootstrap = Net.validateHostPort(kafkaBootstrap);
+    } else {
+      kafkaBootstrap = null;
+    }
+    if (kafkaTopicSegments != null) {
+      kafkaTopicSegments = Strings.sanitizeTopic("kafkaTopicSegments", kafkaTopicSegments);
+    }
     if (ioMode == IoMode.KAFKA) {
-      if (kafkaBootstrap == null || kafkaBootstrap.isBlank()) {
+      if (kafkaBootstrap == null) {
         throw new IllegalArgumentException("kafkaBootstrap is required when ioMode=KAFKA");
       }
       if (kafkaTopicSegments == null || kafkaTopicSegments.isBlank()) {
@@ -92,27 +120,30 @@ public record CaptureConfig(
   }
 
   /**
-   * Provides default capture settings that assume local file output.
+   * Provides default capture settings that assume local file output with conservative tuning.
    *
    * @return default configuration
    * @since RADAR 0.1-doc
    */
   public static CaptureConfig defaults() {
-    int defaultWorkers = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
-    int defaultQueueCapacity = defaultWorkers * 128;
+    Path base = defaultBaseDirectory();
+    int processors = Math.max(1, Runtime.getRuntime().availableProcessors());
+    int defaultWorkers = Math.min(4, Math.max(1, processors / 2));
+    int defaultQueueCapacity = defaultWorkers * 64;
     return new CaptureConfig(
         "eth0",
-        null,
-        65_535,
-        1_024 * 1_024 * 1_024,
-        1_000,
-        true,
-        true,
-        Path.of("out", "segments"),
+        DEFAULT_SAFE_BPF,
+        false,
+        DEFAULT_SNAPLEN,
+        DEFAULT_BUFFER_MIB * 1_024 * 1_024,
+        DEFAULT_TIMEOUT_MILLIS,
+        false,
+        false,
+        base.resolve("capture").resolve("segments"),
         "segments",
-        1_024,
-        Path.of("out", "http"),
-        Path.of("out", "tn3270"),
+        DEFAULT_ROLL_MIB,
+        base.resolve("capture").resolve("http"),
+        base.resolve("capture").resolve("tn3270"),
         IoMode.FILE,
         null,
         "radar.segments",
@@ -128,6 +159,106 @@ public record CaptureConfig(
    * @return parsed configuration
    * @throws IllegalArgumentException when required values are missing or invalid
    * @since RADAR 0.1-doc
+   */
+  public static CaptureConfig fromMap(Map<String, String> args) {
+    Map<String, String> kv = args == null ? Map.of() : new HashMap<>(args);
+    CaptureConfig defaults = defaults();
+
+    String iface = Strings.requireNonBlank("iface", kv.getOrDefault("iface", defaults.iface()));
+
+    boolean bpfAcknowledged = parseBoolean(kv.get("enableBpf"), false);
+    String filter = DEFAULT_SAFE_BPF;
+    boolean customBpf = false;
+    String rawFilter = kv.get("bpf");
+    if (rawFilter != null && !rawFilter.isBlank()) {
+      if (!bpfAcknowledged) {
+        throw new IllegalArgumentException("bpf requires --enable-bpf acknowledgement");
+      }
+      filter = Strings.requirePrintableAscii("bpf", rawFilter, MAX_BPF_LENGTH);
+      denyDangerousBpf(filter);
+      customBpf = true;
+    }
+
+    int snap = parseBoundedInt(kv, "snap", defaults.snaplen(), MIN_SNAPLEN, MAX_SNAPLEN);
+    int bufMib = parseBoundedInt(kv, "bufmb", defaults.bufferBytes() / (1_024 * 1_024), MIN_BUFFER_MIB, MAX_BUFFER_MIB);
+    int bufferBytes = Math.toIntExact(bufMib * 1_024L * 1_024L);
+    int timeout = parseBoundedInt(kv, "timeout", defaults.timeoutMillis(), MIN_TIMEOUT_MILLIS, MAX_TIMEOUT_MILLIS);
+    boolean promisc = parseBoolean(kv.get("promisc"), defaults.promiscuous());
+    boolean immediate = parseBoolean(kv.get("immediate"), defaults.immediate());
+
+    String outRaw = firstNonBlank(kv, "out", "segmentsOut");
+    Path outputDir = defaults.outputDirectory();
+    IoMode ioMode = parseIoMode(kv.get("ioMode"), defaults.ioMode());
+    String kafkaTopicSegments = defaults.kafkaTopicSegments();
+    if (outRaw != null) {
+      if (outRaw.startsWith("kafka:")) {
+        ioMode = IoMode.KAFKA;
+        kafkaTopicSegments = Strings.sanitizeTopic("kafkaTopicSegments", outRaw.substring("kafka:".length()));
+      } else {
+        outputDir = parsePath("out", outRaw);
+      }
+    }
+
+    String fileBase = Strings.requireNonBlank("fileBase", kv.getOrDefault("fileBase", defaults.fileBase()));
+    int rollMiB = parseBoundedInt(kv, "rollMiB", defaults.rollMiB(), MIN_ROLL_MIB, MAX_ROLL_MIB);
+
+    Path httpOut = parseOptionalPath("httpOut", firstNonBlank(kv, "httpOut", "--httpOut"))
+        .orElse(defaults.httpOutputDirectory());
+    Path tnOut = parseOptionalPath("tnOut", firstNonBlank(kv, "tnOut", "--tnOut"))
+        .orElse(defaults.tn3270OutputDirectory());
+
+    String kafkaBootstrapRaw = kv.get("kafkaBootstrap");
+    String kafkaBootstrap = kafkaBootstrapRaw == null || kafkaBootstrapRaw.isBlank()
+        ? null
+        : Net.validateHostPort(kafkaBootstrapRaw);
+    String kafkaTopicOverride = kv.get("kafkaTopicSegments");
+    if (kafkaTopicOverride != null && !kafkaTopicOverride.isBlank()) {
+      kafkaTopicSegments = Strings.sanitizeTopic("kafkaTopicSegments", kafkaTopicOverride);
+    }
+
+    int persistenceWorkers = parseBoundedInt(
+        kv,
+        "persistWorkers",
+        defaults.persistenceWorkers(),
+        MIN_PERSIST_WORKERS,
+        MAX_PERSIST_WORKERS);
+    int persistenceQueueCapacity = parseBoundedInt(
+        kv,
+        "persistQueueCapacity",
+        defaults.persistenceQueueCapacity(),
+        persistenceWorkers,
+        MAX_QUEUE_CAPACITY);
+    PersistenceQueueType persistenceQueueType =
+        parsePersistenceQueueType(kv.get("persistQueueType"), defaults.persistenceQueueType());
+
+    return new CaptureConfig(
+        iface,
+        filter,
+        customBpf,
+        snap,
+        bufferBytes,
+        timeout,
+        promisc,
+        immediate,
+        outputDir,
+        fileBase,
+        rollMiB,
+        httpOut,
+        tnOut,
+        ioMode,
+        kafkaBootstrap,
+        kafkaTopicSegments,
+        persistenceWorkers,
+        persistenceQueueCapacity,
+        persistenceQueueType);
+  }
+
+  /**
+   * Parses CLI-style {@code key=value} arguments into a configuration (legacy helper).
+   *
+   * @param args CLI arguments array
+   * @return parsed configuration
+   * @throws IllegalArgumentException if parsing fails
    * @deprecated since RADAR 0.1.1; prefer {@link #fromMap(Map)} fed by {@code CliArgsParser.toMap(args)}.
    */
   @Deprecated(since = "0.1.1", forRemoval = true)
@@ -147,78 +278,6 @@ public record CaptureConfig(
     return fromMap(kv);
   }
 
-  /**
-   * Creates a configuration from a map of settings.
-   *
-   * @param args configuration map, typically derived from CLI input
-   * @return parsed configuration
-   * @throws IllegalArgumentException if validation fails
-   * @since RADAR 0.1-doc
-   */
-  public static CaptureConfig fromMap(Map<String, String> args) {
-    Map<String, String> kv = args == null ? Map.of() : new HashMap<>(args);
-    CaptureConfig defaults = defaults();
-
-    String iface = normalized(kv.getOrDefault("iface", defaults.iface()));
-    if (iface == null) {
-      throw new IllegalArgumentException("iface must be provided");
-    }
-
-    String filter = normalized(kv.getOrDefault("bpf", defaults.filter()));
-    int snap = parseInt(kv.get("snap"), defaults.snaplen());
-    int bufferBytes = Math.max(1, parseInt(kv.get("bufmb"), defaults.bufferBytes() / (1024 * 1024))) * 1024 * 1024;
-    int timeout = parseInt(kv.get("timeout"), defaults.timeoutMillis());
-    boolean promisc = parseBoolean(kv.get("promisc"), defaults.promiscuous());
-    boolean immediate = parseBoolean(kv.get("immediate"), defaults.immediate());
-
-    String outRaw = normalized(firstNonBlank(kv, "out", "segmentsOut"));
-    Path outputDir = defaults.outputDirectory();
-    IoMode ioMode = parseIoMode(kv.get("ioMode"), defaults.ioMode());
-    String kafkaTopicSegments = defaults.kafkaTopicSegments();
-
-    if (outRaw != null) {
-      if (outRaw.startsWith("kafka:")) {
-        ioMode = IoMode.KAFKA;
-        kafkaTopicSegments = sanitizeTopic(outRaw.substring("kafka:".length()));
-      } else {
-        outputDir = Path.of(outRaw);
-      }
-    }
-
-    String fileBase = normalized(kv.getOrDefault("fileBase", defaults.fileBase()));
-    int rollMiB = parseInt(kv.get("rollMiB"), defaults.rollMiB());
-    Path httpOut = parsePath(kv.get("httpOut"), defaults.httpOutputDirectory());
-    Path tnOut = parsePath(kv.get("tnOut"), defaults.tn3270OutputDirectory());
-
-    String kafkaBootstrap = normalized(kv.get("kafkaBootstrap"));
-    kafkaTopicSegments = normalized(kv.getOrDefault("kafkaTopicSegments", kafkaTopicSegments));
-
-    int persistenceWorkers = parseInt(kv.get("persistWorkers"), defaults.persistenceWorkers());
-    int persistenceQueueCapacity = parseInt(kv.get("persistQueueCapacity"), defaults.persistenceQueueCapacity());
-    PersistenceQueueType persistenceQueueType =
-        parsePersistenceQueueType(kv.get("persistQueueType"), defaults.persistenceQueueType());
-
-    return new CaptureConfig(
-        iface,
-        filter,
-        snap,
-        bufferBytes,
-        timeout,
-        promisc,
-        immediate,
-        outputDir,
-        fileBase,
-        rollMiB,
-        httpOut,
-        tnOut,
-        ioMode,
-        kafkaBootstrap,
-        kafkaTopicSegments,
-        persistenceWorkers,
-        persistenceQueueCapacity,
-        persistenceQueueType);
-  }
-
   private static IoMode parseIoMode(String value, IoMode fallback) {
     if (value == null || value.isBlank()) {
       return fallback;
@@ -233,33 +292,25 @@ public record CaptureConfig(
     return PersistenceQueueType.fromString(value.trim());
   }
 
-  private static String sanitizeTopic(String topic) {
-    if (topic == null) {
-      return null;
+  private static void denyDangerousBpf(String expression) {
+    if (expression.contains(";") || expression.contains("`")) {
+      throw new IllegalArgumentException("bpf expression contains disallowed characters");
     }
-    String trimmed = topic.trim();
-    if (trimmed.isEmpty()) {
-      throw new IllegalArgumentException("Kafka topic must not be blank");
-    }
-    return trimmed;
   }
 
-  private static String normalized(String value) {
-    if (value == null) {
-      return null;
-    }
-    String trimmed = value.trim();
-    return trimmed.isEmpty() ? null : trimmed;
-  }
-
-  private static int parseInt(String value, int fallback) {
-    if (value == null || value.isBlank()) {
-      return fallback;
+  private static int parseBoundedInt(
+      Map<String, String> kv, String key, int defaultValue, int min, int max) {
+    String raw = kv.get(key);
+    if (raw == null || raw.isBlank()) {
+      Numbers.requireRange(key, defaultValue, min, max);
+      return defaultValue;
     }
     try {
-      return Integer.parseInt(value.trim());
-    } catch (NumberFormatException e) {
-      return fallback;
+      int parsed = Integer.parseInt(raw.trim());
+      Numbers.requireRange(key, parsed, min, max);
+      return parsed;
+    } catch (NumberFormatException ex) {
+      throw new IllegalArgumentException(key + " must be an integer between " + min + " and " + max, ex);
     }
   }
 
@@ -270,9 +321,19 @@ public record CaptureConfig(
     return Boolean.parseBoolean(value.trim());
   }
 
-  private static Path parsePath(String value, Path fallback) {
-    String normalized = normalized(value);
-    return normalized == null ? fallback : Path.of(normalized);
+  private static Path parsePath(String name, String value) {
+    try {
+      return Path.of(Strings.requireNonBlank(name, value)).toAbsolutePath().normalize();
+    } catch (InvalidPathException ex) {
+      throw new IllegalArgumentException(name + " is not a valid path: " + value, ex);
+    }
+  }
+
+  private static java.util.Optional<Path> parseOptionalPath(String value) {
+    if (value == null || value.isBlank()) {
+      return java.util.Optional.empty();
+    }
+    return java.util.Optional.of(parsePath("path", value));
   }
 
   private static String firstNonBlank(Map<String, String> map, String... keys) {
@@ -283,6 +344,22 @@ public record CaptureConfig(
       }
     }
     return null;
+  }
+
+  private static Path normalizePath(String name, Path path) {
+    if (path == null) {
+      throw new IllegalArgumentException(name + " must not be null");
+    }
+    String raw = path.toString();
+    if (raw.indexOf('\0') >= 0) {
+      throw new IllegalArgumentException(name + " must not contain null bytes");
+    }
+    return path.toAbsolutePath().normalize();
+  }
+
+  private static Path defaultBaseDirectory() {
+    String userHome = System.getProperty("user.home", ".");
+    return Path.of(userHome, ".radar", "out");
   }
 
   /** Queue implementations available for live persistence hand-off. */

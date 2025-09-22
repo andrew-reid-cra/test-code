@@ -5,8 +5,12 @@ import ca.gc.cra.radar.config.AssembleConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
 import ca.gc.cra.radar.config.IoMode;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
+import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,31 +22,37 @@ import org.slf4j.LoggerFactory;
 public final class AssembleCli {
   private static final Logger log = LoggerFactory.getLogger(AssembleCli.class);
   private static final String SUMMARY_USAGE =
-      "usage: assemble in=./cap-out|in=kafka:<topic> out=./pairs-out [httpOut=<dir>] [tnOut=<dir>] "
-          + "[httpEnabled=true] [tnEnabled=false] [ioMode=FILE|KAFKA] "
-          + "[kafkaBootstrap=host:port] [kafkaSegmentsTopic=radar.segments] "
-          + "[kafkaHttpPairsTopic=radar.http.pairs] [kafkaTnPairsTopic=radar.tn3270.pairs]";
+      "usage: assemble in=PATH|in=kafka:TOPIC out=PATH [ioMode=FILE|KAFKA] "
+          + "[httpOut=PATH] [tnOut=PATH] [httpEnabled=true|false] [tnEnabled=true|false] "
+          + "[kafkaBootstrap=HOST:PORT] [--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR assemble pipeline
 
       Usage:
         assemble in=./cap-out out=./pairs-out [options]
 
-      Required options:
+      Required:
         in=PATH|in=kafka:TOPIC   Segment input directory or Kafka topic
-        out=PATH                 Output directory for paired messages when ioMode=FILE
+        out=PATH                 Output directory root when writing files
 
-      Common options:
-        httpOut=PATH             Optional override for HTTP pair output directory
-        tnOut=PATH               Optional override for TN3270 pair output directory
-        ioMode=FILE|KAFKA        Selects file or Kafka input for segments
-        kafkaBootstrap=HOST:PORT Required when ioMode=KAFKA or posterOutMode=KAFKA
-        --help                   Show detailed help
-        --verbose                Enable DEBUG logging for troubleshooting
+      Optional (validated):
+        httpOut=PATH             Override HTTP output directory
+        tnOut=PATH               Override TN3270 output directory
+        ioMode=FILE|KAFKA        FILE reads from directories; KAFKA requires kafkaBootstrap
+        kafkaBootstrap=HOST:PORT Validated host/port when Kafka input/output configured
+        kafkaSegmentsTopic=TOPIC Sanitized topic supplying segments
+        kafkaHttpPairsTopic=TOPIC Sanitized topic for HTTP pairs
+        kafkaTnPairsTopic=TOPIC  Sanitized topic for TN3270 pairs
+        httpEnabled=true|false   Enable HTTP reconstruction (default true)
+        tnEnabled=true|false     Enable TN3270 reconstruction (default false)
+        --dry-run                Validate inputs and print plan without assembling
+        --allow-overwrite        Permit writing into non-empty output directories
+        --verbose                Enable DEBUG logging
+        --help                   Show this message
 
-      Examples:
-        assemble in=./cap-out out=./pairs-out httpEnabled=true tnEnabled=false
-        assemble in=kafka:radar.segments out=./pairs-out ioMode=KAFKA kafkaBootstrap=localhost:9092
+      Notes:
+        ? Paths are canonicalized; directories must exist (for inputs) or be empty unless --allow-overwrite.
+        ? Kafka topics are constrained to [A-Za-z0-9._-].
       """;
 
   private AssembleCli() {}
@@ -74,7 +84,18 @@ public final class AssembleCli {
       log.debug("Verbose logging enabled for assemble CLI");
     }
 
-    Map<String, String> kv = CliArgsParser.toMap(input.keyValueArgs());
+    boolean dryRun = input.hasFlag("--dry-run");
+    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+
+    Map<String, String> kv;
+    try {
+      kv = CliArgsParser.toMap(input.keyValueArgs());
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid argument: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
     AssembleConfig config;
     try {
       config = AssembleConfig.fromMap(kv);
@@ -84,10 +105,18 @@ public final class AssembleCli {
       return ExitCode.INVALID_ARGS;
     }
 
-    if (config.ioMode() == IoMode.KAFKA && config.kafkaBootstrap().isEmpty()) {
-      log.error("Invalid assemble arguments: kafkaBootstrap is required when ioMode=KAFKA");
+    ValidatedPaths validated;
+    try {
+      validated = validatePaths(config, allowOverwrite, !dryRun);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid assemble path configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
+    }
+
+    if (dryRun) {
+      printDryRunPlan(config, validated, allowOverwrite);
+      return ExitCode.SUCCESS;
     }
 
     CompositionRoot root = new CompositionRoot(ca.gc.cra.radar.config.Config.defaults());
@@ -95,13 +124,13 @@ public final class AssembleCli {
 
     try {
       useCase.run();
-      log.info("Assemble pipeline completed for input {}", config.inputDirectory());
+      log.info("Assemble pipeline completed for input {}", validated.input());
       return ExitCode.SUCCESS;
     } catch (IllegalArgumentException ex) {
       log.error("Assemble configuration error: {}", ex.getMessage(), ex);
       return ExitCode.CONFIG_ERROR;
     } catch (IOException ex) {
-      log.error("Assemble pipeline I/O failure while processing {}", config.inputDirectory(), ex);
+      log.error("Assemble pipeline I/O failure while processing {}", validated.input(), ex);
       return ExitCode.IO_ERROR;
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
@@ -115,4 +144,64 @@ public final class AssembleCli {
       return ExitCode.RUNTIME_FAILURE;
     }
   }
+
+  private static ValidatedPaths validatePaths(
+      AssembleConfig config, boolean allowOverwrite, boolean createIfMissing) {
+    Path input = config.inputDirectory();
+    if (config.ioMode() == IoMode.FILE) {
+      input = ensureReadableDirectory(input);
+    }
+
+    Path outputRoot = Paths.validateWritableDir(config.outputDirectory(), null, createIfMissing, allowOverwrite);
+    Optional<Path> http = config.httpOutputDirectory()
+        .map(path -> Paths.validateWritableDir(path, null, createIfMissing, allowOverwrite))
+        .or(() -> Optional.of(Paths.validateWritableDir(
+            config.outputDirectory().resolve("http"), null, createIfMissing, allowOverwrite)));
+    Optional<Path> tn = config.tnOutputDirectory()
+        .map(path -> Paths.validateWritableDir(path, null, createIfMissing, allowOverwrite))
+        .or(() -> Optional.of(Paths.validateWritableDir(
+            config.outputDirectory().resolve("tn3270"), null, createIfMissing, allowOverwrite)));
+
+    return new ValidatedPaths(input, outputRoot, http.orElse(null), tn.orElse(null));
+  }
+
+  private static Path ensureReadableDirectory(Path path) {
+    try {
+      Path real = path.toRealPath();
+      if (!Files.isDirectory(real)) {
+        throw new IllegalArgumentException("Input directory must exist: " + path);
+      }
+      if (!Files.isReadable(real)) {
+        throw new IllegalArgumentException("Input directory is not readable: " + path);
+      }
+      return real;
+    } catch (IOException ex) {
+      throw new IllegalArgumentException("Unable to access input directory: " + path, ex);
+    }
+  }
+
+  private static void printDryRunPlan(
+      AssembleConfig config, ValidatedPaths paths, boolean allowOverwrite) {
+    CliPrinter.printLines(
+        "Assemble dry-run: no files will be produced.",
+        " Input mode        : " + config.ioMode(),
+        " Input directory   : " + (config.ioMode() == IoMode.FILE ? paths.input() : "<Kafka>"),
+        " Output root       : " + paths.outputRoot(),
+        " HTTP enabled      : " + config.httpEnabled(),
+        " TN3270 enabled    : " + config.tnEnabled(),
+        " HTTP out dir      : " + (paths.http() == null ? "<derived>" : paths.http()),
+        " TN3270 out dir    : " + (paths.tn() == null ? "<derived>" : paths.tn()),
+        " Kafka bootstrap   : " + config.kafkaBootstrap().orElse("<none>"),
+        " Kafka segments    : " + config.kafkaSegmentsTopic(),
+        " Kafka HTTP pairs  : " + config.kafkaHttpPairsTopic(),
+        " Kafka TN pairs    : " + config.kafkaTnPairsTopic(),
+        " Allow overwrite   : " + allowOverwrite,
+        " Re-run without --dry-run to assemble segments.");
+  }
+
+  private record ValidatedPaths(Path input, Path outputRoot, Path http, Path tn) {}
 }
+
+
+
+

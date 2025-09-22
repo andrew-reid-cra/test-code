@@ -1,5 +1,8 @@
 package ca.gc.cra.radar.config;
 
+import ca.gc.cra.radar.validation.Net;
+import ca.gc.cra.radar.validation.Strings;
+
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -169,6 +172,7 @@ public final class PosterConfig {
 
   private static ProtocolConfig buildProtocolConfig(
       Map<String, String> args,
+      String protocol,
       String[] inKeys,
       String[] outKeys,
       Optional<String> kafkaPairsTopic,
@@ -182,15 +186,14 @@ public final class PosterConfig {
     if (inRaw.isPresent()) {
       String value = inRaw.get();
       if (value.startsWith("kafka:")) {
-        kafkaInputTopic = Optional.of(value);
-        if (value.substring("kafka:".length()).trim().isEmpty()) {
-          throw new IllegalArgumentException("Kafka input topic must not be blank");
-        }
+        String topic = value.substring("kafka:".length());
+        kafkaInputTopic = Optional.of(Strings.sanitizeTopic(protocol + "KafkaInputTopic", topic));
       } else {
-        inputDir = Optional.of(resolvePath(value));
+        inputDir = Optional.of(resolvePath(protocol + "In", value));
       }
     } else if (kafkaPairsTopic.isPresent()) {
-      kafkaInputTopic = Optional.of(kafkaPairsTopic.get());
+      kafkaInputTopic = Optional.of(
+          Strings.sanitizeTopic(protocol + "KafkaPairsTopic", kafkaPairsTopic.get()));
     }
 
     Optional<Path> outputDir = Optional.empty();
@@ -199,23 +202,20 @@ public final class PosterConfig {
     if (outRaw.isPresent()) {
       String value = outRaw.get();
       if (value.startsWith("kafka:")) {
-        kafkaOutputTopic = Optional.of(value);
-        if (value.substring("kafka:".length()).trim().isEmpty()) {
-          throw new IllegalArgumentException("Kafka output topic must not be blank");
-        }
+        String topic = value.substring("kafka:".length());
+        kafkaOutputTopic = Optional.of(
+            Strings.sanitizeTopic(protocol + "KafkaOutputTopic", topic));
       } else {
-        outputDir = Optional.of(resolvePath(value));
+        outputDir = Optional.of(resolvePath(protocol + "Out", value));
       }
     } else if (kafkaReportsTopic.isPresent()) {
-      kafkaOutputTopic = Optional.of(kafkaReportsTopic.get());
+      kafkaOutputTopic = Optional.of(
+          Strings.sanitizeTopic(protocol + "KafkaReportsTopic", kafkaReportsTopic.get()));
     }
 
     if (inputDir.isEmpty() && kafkaInputTopic.isEmpty()) {
       return null;
     }
-
-    kafkaInputTopic = kafkaTopic(kafkaInputTopic);
-    kafkaOutputTopic = kafkaTopic(kafkaOutputTopic);
 
     return new ProtocolConfig(inputDir, kafkaInputTopic, outputDir, kafkaOutputTopic);
   }
@@ -230,23 +230,6 @@ public final class PosterConfig {
     return Optional.empty();
   }
 
-  private static Optional<String> kafkaTopic(Optional<String> raw) {
-    if (raw.isEmpty()) {
-      return Optional.empty();
-    }
-    String value = raw.get().trim();
-    if (value.isEmpty()) {
-      throw new IllegalArgumentException("Kafka topic must not be blank");
-    }
-    if (value.startsWith("kafka:")) {
-      value = value.substring("kafka:".length()).trim();
-      if (value.isEmpty()) {
-        throw new IllegalArgumentException("Kafka topic must not be blank");
-      }
-    }
-    return Optional.of(value);
-  }
-
   private static Optional<String> optionalString(String value) {
     if (value == null) {
       return Optional.empty();
@@ -255,14 +238,11 @@ public final class PosterConfig {
     return trimmed.isEmpty() ? Optional.empty() : Optional.of(trimmed);
   }
 
-  private static Path resolvePath(String value) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("Path value must not be blank");
-    }
+  private static Path resolvePath(String name, String value) {
     try {
-      return Path.of(value);
+      return Path.of(Strings.requireNonBlank(name, value)).toAbsolutePath().normalize();
     } catch (InvalidPathException ex) {
-      throw new IllegalArgumentException("Invalid path: " + value, ex);
+      throw new IllegalArgumentException(name + " is not a valid path: " + value, ex);
     }
   }
 
@@ -286,9 +266,11 @@ public final class PosterConfig {
      * @since RADAR 0.1-doc
      */
     public ProtocolConfig {
-      inputDirectory = Objects.requireNonNullElseGet(inputDirectory, Optional::empty);
+      inputDirectory = Objects.requireNonNullElseGet(inputDirectory, Optional::empty)
+          .map(path -> path.toAbsolutePath().normalize());
       kafkaInputTopic = Objects.requireNonNullElseGet(kafkaInputTopic, Optional::empty);
-      outputDirectory = Objects.requireNonNullElseGet(outputDirectory, Optional::empty);
+      outputDirectory = Objects.requireNonNullElseGet(outputDirectory, Optional::empty)
+          .map(path -> path.toAbsolutePath().normalize());
       kafkaOutputTopic = Objects.requireNonNullElseGet(kafkaOutputTopic, Optional::empty);
     }
 
@@ -447,4 +429,8 @@ public final class PosterConfig {
     }
   }
 }
+
+
+
+
 

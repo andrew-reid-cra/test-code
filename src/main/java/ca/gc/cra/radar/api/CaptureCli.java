@@ -3,8 +3,12 @@ package ca.gc.cra.radar.api;
 import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
 import ca.gc.cra.radar.config.CaptureConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.IoMode;
+import ca.gc.cra.radar.logging.Logs;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
+import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,29 +21,40 @@ import org.slf4j.LoggerFactory;
 public final class CaptureCli {
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
   private static final String SUMMARY_USAGE =
-      "usage: capture iface=<nic> [bufmb=1024 snap=65535 timeout=1 bpf='<expr>' immediate=true promisc=true] "
-          + "[out=out/segments|out=kafka:<topic>] [ioMode=FILE|KAFKA] "
-          + "[kafkaBootstrap=host:port] [kafkaTopicSegments=radar.segments]";
+      "usage: capture iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
+          + "[snap=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
+          + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite]";
   private static final String HELP_TEXT = """
       RADAR capture pipeline
 
       Usage:
         capture iface=<nic> [options]
 
-      Required options:
-        iface=NAME                Network interface to capture from unless custom PacketSource configured
+      Required:
+        iface=NAME                Network interface to capture from (e.g., en0)
 
-      Common options:
-        out=PATH|out=kafka:TOPIC  Segment output directory or Kafka topic
-        ioMode=FILE|KAFKA         Selects file or Kafka output
-        kafkaBootstrap=HOST:PORT  Required when ioMode=KAFKA
-        bpf='expr'                Optional BPF filter expression
-        --help                    Show detailed help
+      Optional (validated):
+        out=PATH                  Capture output directory (default ~/.radar/out/capture/segments)
+        out=kafka:TOPIC           Write segments to Kafka topic (A-Z, a-z, 0-9, ., _, -)
+        ioMode=FILE|KAFKA         FILE keeps writes under ~/.radar/out; KAFKA requires kafkaBootstrap
+        kafkaBootstrap=HOST:PORT  Validated host/port (IPv4/IPv6) when ioMode=KAFKA
+        snap=64-262144            Snap length bytes (default 65535)
+        bufmb=4-4096              Capture buffer size in MiB (default 256)
+        timeout=0-60000           Poll timeout in ms (default 1000)
+        rollMiB=8-10240           Segment rotation size in MiB (default 512)
+        promisc=true|false        Promiscuous mode (default false)
+        immediate=true|false      Immediate mode (default false)
+        --enable-bpf              Required gate for custom BPF expressions
+        --bpf="expr"               Printable ASCII (<=1024 bytes); rejects ';' and '`'
+        --dry-run                 Validate inputs and print the plan without capturing
+        --allow-overwrite         Permit writing into non-empty output directories
         --verbose                 Enable DEBUG logging for troubleshooting
+        --help                    Show this message
 
-      Examples:
-        capture iface=en0 out=./cap-out
-        capture iface=eth0 out=kafka:radar.segments ioMode=KAFKA kafkaBootstrap=localhost:9092
+      Notes:
+        ? Directories are canonicalized and must be writable; reuse requires --allow-overwrite.
+        ? Kafka topics are sanitized to [A-Za-z0-9._-].
+        ? Custom BPF expressions emit a SECURITY warning in logs when enabled.
       """;
 
   private CaptureCli() {}
@@ -71,20 +86,52 @@ public final class CaptureCli {
       log.debug("Verbose logging enabled for capture CLI");
     }
 
-    Map<String, String> kv = CliArgsParser.toMap(input.keyValueArgs());
-    String iface = kv.get("iface");
-    if (iface == null || iface.isBlank()) {
-      log.error("Missing required argument iface=<nic>");
+    boolean dryRun = input.hasFlag("--dry-run");
+    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean enableBpfFlag = input.hasFlag("--enable-bpf");
+
+    Map<String, String> kv;
+    try {
+      kv = CliArgsParser.toMap(input.keyValueArgs());
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
+    }
+    if (enableBpfFlag) {
+      kv.put("enableBpf", "true");
     }
 
     CaptureConfig captureCfg;
     try {
       captureCfg = CaptureConfig.fromMap(kv);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid capture configuration: {}", ex.getMessage(), ex);
-      return ExitCode.CONFIG_ERROR;
+      log.error("Invalid capture arguments: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    ValidatedPaths validated;
+    try {
+      validated = validateOutputs(captureCfg, allowOverwrite, !dryRun);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid output path configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    if (dryRun) {
+      printDryRunPlan(captureCfg, validated, allowOverwrite);
+      return ExitCode.SUCCESS;
+    }
+
+    if (captureCfg.customBpfEnabled()) {
+      log.warn(
+          "SECURITY: Custom BPF expression enabled ({} bytes)",
+          captureCfg.filter().length());
+      log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureCfg.filter(), 128));
+    } else {
+      log.info("Using default BPF filter '{}'", captureCfg.filter());
     }
 
     CompositionRoot root =
@@ -92,19 +139,19 @@ public final class CaptureCli {
     SegmentCaptureUseCase useCase = root.segmentCaptureUseCase();
 
     try {
-      log.info("Starting capture on interface {}", iface);
+      log.info("Starting capture on interface {}", captureCfg.iface());
       useCase.run();
-      log.info("Capture completed on interface {}", iface);
+      log.info("Capture completed on interface {}", captureCfg.iface());
       return ExitCode.SUCCESS;
     } catch (IOException ex) {
-      log.error("Capture I/O failure on interface {}", iface, ex);
+      log.error("Capture I/O failure on interface {}", captureCfg.iface(), ex);
       return ExitCode.IO_ERROR;
     } catch (IllegalArgumentException ex) {
       log.error("Capture configuration error: {}", ex.getMessage(), ex);
       return ExitCode.CONFIG_ERROR;
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
-      log.error("Capture interrupted; shutting down interface {}", iface, ex);
+      log.error("Capture interrupted; shutting down interface {}", captureCfg.iface(), ex);
       return ExitCode.INTERRUPTED;
     } catch (RuntimeException ex) {
       log.error("Unexpected runtime failure in capture pipeline", ex);
@@ -114,4 +161,44 @@ public final class CaptureCli {
       return ExitCode.RUNTIME_FAILURE;
     }
   }
+
+  private static ValidatedPaths validateOutputs(
+      CaptureConfig config, boolean allowOverwrite, boolean createIfMissing) {
+    Path segments = config.outputDirectory();
+    if (config.ioMode() == IoMode.FILE) {
+      segments =
+          Paths.validateWritableDir(segments, null, createIfMissing, allowOverwrite);
+    }
+    Path http =
+        Paths.validateWritableDir(config.httpOutputDirectory(), null, createIfMissing, allowOverwrite);
+    Path tn3270 =
+        Paths.validateWritableDir(config.tn3270OutputDirectory(), null, createIfMissing, allowOverwrite);
+    return new ValidatedPaths(segments, http, tn3270);
+  }
+
+  private static void printDryRunPlan(
+      CaptureConfig config, ValidatedPaths paths, boolean allowOverwrite) {
+    CliPrinter.printLines(
+        "Capture dry-run: no packets will be captured.",
+        " Interface        : " + config.iface(),
+        " Snaplen          : " + config.snaplen(),
+        " Buffer (bytes)   : " + config.bufferBytes(),
+        " Timeout (ms)     : " + config.timeoutMillis(),
+        " I/O mode         : " + config.ioMode(),
+        " Segments dir     : " + paths.segments(),
+        " HTTP dir         : " + paths.http(),
+        " TN3270 dir       : " + paths.tn3270(),
+        " Kafka bootstrap  : " + (config.kafkaBootstrap() == null ? "<none>" : config.kafkaBootstrap()),
+        " Kafka topic      : " + (config.kafkaTopicSegments() == null ? "<none>" : config.kafkaTopicSegments()),
+        " Promiscuous mode : " + config.promiscuous(),
+        " Immediate mode   : " + config.immediate(),
+        " Allow overwrite  : " + allowOverwrite,
+        " BPF filter       : "
+            + (config.customBpfEnabled() ? "custom" : "safe default")
+            + " -> "
+            + Logs.truncate(config.filter(), 96),
+        " Re-run without --dry-run to start capture.");
+  }
+
+  private record ValidatedPaths(Path segments, Path http, Path tn3270) {}
 }

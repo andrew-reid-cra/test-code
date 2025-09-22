@@ -1,7 +1,10 @@
 package ca.gc.cra.radar.config;
 
+import ca.gc.cra.radar.validation.Net;
+import ca.gc.cra.radar.validation.Strings;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,6 +38,8 @@ public record AssembleConfig(
     Optional<Path> httpOutputDirectory,
     Optional<Path> tnOutputDirectory) {
 
+  private static final Path DEFAULT_BASE = defaultBaseDirectory();
+
   /**
    * Normalizes assemble configuration values.
    *
@@ -42,14 +47,14 @@ public record AssembleConfig(
    */
   public AssembleConfig {
     ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
-    Optional<String> bootstrap = kafkaBootstrap == null ? Optional.empty() : kafkaBootstrap;
-    kafkaBootstrap = bootstrap.map(String::trim).filter(s -> !s.isEmpty());
-    kafkaHttpPairsTopic = sanitizeTopic(kafkaHttpPairsTopic, "kafkaHttpPairsTopic");
-    kafkaTnPairsTopic = sanitizeTopic(kafkaTnPairsTopic, "kafkaTnPairsTopic");
-    Objects.requireNonNull(inputDirectory, "inputDirectory");
-    Objects.requireNonNull(outputDirectory, "outputDirectory");
-    httpOutputDirectory = sanitizeOptional(httpOutputDirectory);
-    tnOutputDirectory = sanitizeOptional(tnOutputDirectory);
+    kafkaBootstrap = sanitizeBootstrap(kafkaBootstrap);
+    kafkaSegmentsTopic = Strings.sanitizeTopic("kafkaSegmentsTopic", kafkaSegmentsTopic);
+    kafkaHttpPairsTopic = Strings.sanitizeTopic("kafkaHttpPairsTopic", kafkaHttpPairsTopic);
+    kafkaTnPairsTopic = Strings.sanitizeTopic("kafkaTnPairsTopic", kafkaTnPairsTopic);
+    inputDirectory = normalizePath("inputDirectory", inputDirectory);
+    outputDirectory = normalizePath("outputDirectory", outputDirectory);
+    httpOutputDirectory = sanitizeOptionalPath("httpOutputDirectory", httpOutputDirectory);
+    tnOutputDirectory = sanitizeOptionalPath("tnOutputDirectory", tnOutputDirectory);
 
     if (!httpEnabled && !tnEnabled) {
       throw new IllegalArgumentException("At least one protocol must be enabled");
@@ -72,8 +77,8 @@ public record AssembleConfig(
         "radar.segments",
         "radar.http.pairs",
         "radar.tn3270.pairs",
-        Path.of("./cap-out"),
-        Path.of("./pairs-out"),
+        DEFAULT_BASE.resolve("capture").resolve("segments"),
+        DEFAULT_BASE.resolve("assemble"),
         true,
         false,
         Optional.empty(),
@@ -89,36 +94,42 @@ public record AssembleConfig(
    * @since RADAR 0.1-doc
    */
   public static AssembleConfig fromMap(Map<String, String> options) {
+    Objects.requireNonNull(options, "options");
     AssembleConfig defaults = defaults();
+
     IoMode ioMode = parseIoMode(options.get("ioMode"), defaults.ioMode());
-    Optional<String> kafkaBootstrap = optionalString(options.get("kafkaBootstrap"));
+    Optional<String> kafkaBootstrap = sanitizeBootstrap(optionalString(options.get("kafkaBootstrap")));
 
     Path input = defaults.inputDirectory();
     String kafkaSegmentsTopic = defaults.kafkaSegmentsTopic();
-    String inRaw = firstNonBlank(options.get("in"), options.get("segments"));
-    if (inRaw != null && !inRaw.isBlank()) {
+    String inRaw = firstNonBlank(options, "in", "segments");
+    if (inRaw != null) {
       if (inRaw.startsWith("kafka:")) {
         ioMode = IoMode.KAFKA;
-        kafkaSegmentsTopic = sanitizeTopic(inRaw.substring("kafka:".length()), "kafkaSegmentsTopic");
+        kafkaSegmentsTopic = Strings.sanitizeTopic("kafkaSegmentsTopic", inRaw.substring("kafka:".length()));
       } else {
-        input = resolvePath(inRaw);
+        input = parsePath("in", inRaw);
       }
     }
-    String segmentsTopicOverride = optionalString(options.get("kafkaSegmentsTopic"))
-        .orElse(kafkaSegmentsTopic);
-    kafkaSegmentsTopic = segmentsTopicOverride;
+    String kafkaSegmentsOverride = options.get("kafkaSegmentsTopic");
+    if (kafkaSegmentsOverride != null && !kafkaSegmentsOverride.isBlank()) {
+      kafkaSegmentsTopic = Strings.sanitizeTopic("kafkaSegmentsTopic", kafkaSegmentsOverride);
+    }
 
-    Path output = resolvePath(
-        firstNonBlank(options.get("out"), options.get("--out"), defaults.outputDirectory().toString()));
+    Path output = parsePath(
+        "out",
+        firstNonBlank(options, "out", "--out", defaults.outputDirectory().toString()));
     boolean httpEnabled = parseBoolean(options.get("httpEnabled"), true);
     boolean tnEnabled = parseBoolean(options.get("tnEnabled"), false);
 
-    Optional<Path> httpOut = optionalPath(firstNonBlank(options.get("httpOut"), options.get("--httpOut")));
-    Optional<Path> tnOut = optionalPath(firstNonBlank(options.get("tnOut"), options.get("--tnOut")));
+    Optional<Path> httpOut = optionalPath("httpOut", firstNonBlank(options, "httpOut", "--httpOut"));
+    Optional<Path> tnOut = optionalPath("tnOut", firstNonBlank(options, "tnOut", "--tnOut"));
 
     String kafkaHttpPairsTopic = optionalString(options.get("kafkaHttpPairsTopic"))
+        .map(value -> Strings.sanitizeTopic("kafkaHttpPairsTopic", value))
         .orElse(defaults.kafkaHttpPairsTopic());
     String kafkaTnPairsTopic = optionalString(options.get("kafkaTnPairsTopic"))
+        .map(value -> Strings.sanitizeTopic("kafkaTnPairsTopic", value))
         .orElse(defaults.kafkaTnPairsTopic());
 
     if (!httpEnabled && !tnEnabled) {
@@ -164,44 +175,10 @@ public record AssembleConfig(
   }
 
   private static boolean parseBoolean(String value, boolean defaultValue) {
-    if (value == null) {
+    if (value == null || value.isBlank()) {
       return defaultValue;
     }
-    return Boolean.parseBoolean(value);
-  }
-
-  private static Path resolvePath(String value) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("Path value must not be blank");
-    }
-    try {
-      return Path.of(value);
-    } catch (InvalidPathException ex) {
-      throw new IllegalArgumentException("Invalid path: " + value, ex);
-    }
-  }
-
-  private static String firstNonBlank(String... values) {
-    for (String value : values) {
-      if (value != null && !value.isBlank()) {
-        return value;
-      }
-    }
-    return values.length == 0 ? "" : values[values.length - 1];
-  }
-
-  private static Optional<Path> optionalPath(String value) {
-    if (value == null || value.isBlank()) {
-      return Optional.empty();
-    }
-    return Optional.of(resolvePath(value));
-  }
-
-  private static Optional<Path> sanitizeOptional(Optional<Path> candidate) {
-    if (candidate == null) {
-      return Optional.empty();
-    }
-    return candidate.map(Path::normalize);
+    return Boolean.parseBoolean(value.trim());
   }
 
   private static Optional<String> optionalString(String value) {
@@ -212,21 +189,63 @@ public record AssembleConfig(
     return trimmed.isEmpty() ? Optional.empty() : Optional.of(trimmed);
   }
 
+  private static Optional<String> sanitizeBootstrap(Optional<String> candidate) {
+    if (candidate == null) {
+      return Optional.empty();
+    }
+    return candidate.map(Net::validateHostPort);
+  }
+
+  private static Optional<Path> optionalPath(String name, String value) {
+    if (value == null || value.isBlank()) {
+      return Optional.empty();
+    }
+    return Optional.of(parsePath(name, value));
+  }
+
+  private static Optional<Path> sanitizeOptionalPath(String name, Optional<Path> candidate) {
+    if (candidate == null || candidate.isEmpty()) {
+      return Optional.empty();
+    }
+    return candidate.map(path -> normalizePath(name, path));
+  }
+
+  private static Path parsePath(String name, String value) {
+    try {
+      return Path.of(Strings.requireNonBlank(name, value)).toAbsolutePath().normalize();
+    } catch (InvalidPathException ex) {
+      throw new IllegalArgumentException(name + " is not a valid path: " + value, ex);
+    }
+  }
+
+  private static Path normalizePath(String name, Path path) {
+    Objects.requireNonNull(path, name + " must not be null");
+    String raw = path.toString();
+    if (raw.indexOf('\0') >= 0) {
+      throw new IllegalArgumentException(name + " must not contain null bytes");
+    }
+    return path.toAbsolutePath().normalize();
+  }
+
+  private static String firstNonBlank(Map<String, String> map, String... keys) {
+    for (String key : keys) {
+      String val = map.get(key);
+      if (val != null && !val.isBlank()) {
+        return val;
+      }
+    }
+    return null;
+  }
+
   private static IoMode parseIoMode(String value, IoMode fallback) {
     if (value == null || value.isBlank()) {
       return fallback;
     }
-    return IoMode.fromString(value);
+    return IoMode.fromString(value.trim());
   }
 
-  private static String sanitizeTopic(String topic, String name) {
-    if (topic == null) {
-      throw new IllegalArgumentException(name + " must not be null");
-    }
-    String trimmed = topic.trim();
-    if (trimmed.isEmpty()) {
-      throw new IllegalArgumentException(name + " must not be blank");
-    }
-    return trimmed;
+  private static Path defaultBaseDirectory() {
+    String home = System.getProperty("user.home", ".");
+    return Path.of(home, ".radar", "out");
   }
 }

@@ -7,8 +7,11 @@ import ca.gc.cra.radar.api.ExitCode;
 import ca.gc.cra.radar.domain.capture.SegmentRecord;
 import ca.gc.cra.radar.infrastructure.persistence.SegmentIoAdapter;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
+import ca.gc.cra.radar.validation.Numbers;
+import ca.gc.cra.radar.validation.Strings;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -36,8 +39,8 @@ public final class SegbinGrepCli {
         needle=STRING              Literal byte sequence to search for (ISO-8859-1)
 
       Common options:
-        in=PATH                    Segment directory to search (default ./cap-out)
-        ctx=N                      Context bytes shown around the match (default 32)
+        in=PATH                    Segment directory to search (must exist)
+        ctx=1-4096                 Context bytes shown around the match (default 32)
         --help                     Show detailed help
         --verbose                  Enable DEBUG logging for troubleshooting
 
@@ -74,13 +77,47 @@ public final class SegbinGrepCli {
       log.debug("Verbose logging enabled for segbingrep CLI");
     }
 
-    Map<String, String> kv = CliArgsParser.toMap(input.keyValueArgs());
-    String inputDir = kv.getOrDefault("in", "./cap-out");
-    String needle = kv.getOrDefault("needle", "");
-    int ctx = parseInt(kv.getOrDefault("ctx", "32"));
+    Map<String, String> kv;
+    try {
+      kv = CliArgsParser.toMap(input.keyValueArgs());
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid argument: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
 
-    if (needle == null || needle.isBlank()) {
+    String needleRaw = kv.get("needle");
+    if (needleRaw == null) {
       log.error("Missing required argument needle=STRING");
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    String needle;
+    try {
+      needle = Strings.requireNonBlank("needle", needleRaw);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid needle: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    String ctxRaw = kv.getOrDefault("ctx", "32");
+    int ctx;
+    try {
+      ctx = Integer.parseInt(ctxRaw.trim());
+      Numbers.requireRange("ctx", ctx, 1, 4_096);
+    } catch (NumberFormatException | IllegalArgumentException ex) {
+      log.error("Invalid ctx value: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    Path inputDir = Path.of(kv.getOrDefault("in", "./cap-out"));
+    try {
+      inputDir = ensureReadableDirectory(inputDir);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid input directory: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
@@ -89,7 +126,7 @@ public final class SegbinGrepCli {
     int total = 0;
     int hits = 0;
 
-    try (SegmentIoAdapter.Reader reader = new SegmentIoAdapter.Reader(Path.of(inputDir))) {
+    try (SegmentIoAdapter.Reader reader = new SegmentIoAdapter.Reader(inputDir)) {
       SegmentRecord record;
       while ((record = reader.next()) != null) {
         total++;
@@ -140,18 +177,18 @@ public final class SegbinGrepCli {
     return ExitCode.SUCCESS;
   }
 
-  /**
-   * Parses the ctx argument, defaulting to 32 on invalid input.
-   *
-   * @param s ctx string supplied by the user
-   * @return parsed integer context window
-   */
-  private static int parseInt(String s) {
+  private static Path ensureReadableDirectory(Path path) {
     try {
-      return Integer.parseInt(s);
-    } catch (NumberFormatException ex) {
-      log.warn("Invalid ctx value '{}'; defaulting to 32", s);
-      return 32;
+      Path real = path.toRealPath();
+      if (!Files.isDirectory(real)) {
+        throw new IllegalArgumentException("path is not a directory");
+      }
+      if (!Files.isReadable(real)) {
+        throw new IllegalArgumentException("directory is not readable");
+      }
+      return real;
+    } catch (IOException ex) {
+      throw new IllegalArgumentException("unable to access directory: " + path, ex);
     }
   }
 

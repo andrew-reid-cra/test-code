@@ -24,6 +24,6 @@ public record Config(
    * @since RADAR 0.1-doc
    */
   public static Config defaults() {
-    return new Config("eth0", "", 65535, Set.of(ProtocolId.HTTP, ProtocolId.TN3270));
+    return new Config("eth0", "tcp", 65535, Set.of(ProtocolId.HTTP, ProtocolId.TN3270));
   }
 }
