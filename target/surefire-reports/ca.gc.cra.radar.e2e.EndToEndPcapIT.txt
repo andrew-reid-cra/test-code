@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: ca.gc.cra.radar.e2e.EndToEndPcapIT
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.975 s <<< FAILURE! -- in ca.gc.cra.radar.e2e.EndToEndPcapIT
-ca.gc.cra.radar.e2e.EndToEndPcapIT.httpEndToEnd -- Time elapsed: 0.915 s <<< ERROR!
+Tests run: 2, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.455 s <<< FAILURE! -- in ca.gc.cra.radar.e2e.EndToEndPcapIT
+ca.gc.cra.radar.e2e.EndToEndPcapIT.httpEndToEnd -- Time elapsed: 0.388 s <<< ERROR!
 java.lang.IllegalStateException: RADAR CLI execution failed
 	at ca.gc.cra.radar.e2e.EndToEndPcapIT.runRadar(EndToEndPcapIT.java:217)
 	at ca.gc.cra.radar.e2e.EndToEndPcapIT.httpEndToEnd(EndToEndPcapIT.java:48)
@@ -79,7 +79,7 @@ Caused by: java.lang.UnsatisfiedLinkError: unknown
 Library names
 [wpcap, npcap, pcap]
 Search paths:
-[d:\JDKs\java25\bin, C:\WINDOWS\Sun\Java\bin, C:\WINDOWS\system32, C:\WINDOWS, C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin, C:\Program Files (x86)\Intel\iCLS Client\, C:\Program Files\Intel\iCLS Client\, C:\Windows\system32, C:\Windows, C:\Windows\System32\Wbem, C:\Windows\System32\WindowsPowerShell\v1.0\, C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL, C:\Program Files\Intel\Intel(R) Management Engine Components\DAL, C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT, C:\Program Files\Intel\Intel(R) Management Engine Components\IPT, C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common, C:\WINDOWS\System32\Wbem, C:\WINDOWS\System32\WindowsPowerShell\v1.0\, C:\WINDOWS\System32\OpenSSH\, C:\Program Files\dotnet\, D:\terraform\, D:\Program Files\Git\, D:\applications\kube\, C:\Program Files\Amazon\AWSCLIV2\, D:\Program Files\Git\mingw64\bin\, C:\Program Files (x86)\HP\Common\HPDestPlgIn\, d:\Program Files\Git\cmd, d:\maven\bin, d:\jdks\java25\bin, C:\Users\andre\AppData\Local\Microsoft\WindowsApps, C:\Users\andre\AppData\Local\Programs\Microsoft VS Code\bin, c:\Users\andre\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\debugCommand, .]
+[C:\Windows\System32\Npcap, C:\Windows\System32, C:\Windows\System32\Npcap, C:\Windows\System32, C:\Windows\System32\Npcap, C:\Windows\System32]
 	at jnr.ffi.provider.jffi.NativeLibrary.loadNativeLibraries(NativeLibrary.java:111)
 	at jnr.ffi.provider.jffi.NativeLibrary.getNativeLibraries(NativeLibrary.java:85)
 	at jnr.ffi.provider.jffi.NativeLibrary.getSymbolAddress(NativeLibrary.java:64)
@@ -88,9 +88,8 @@ Search paths:
 	at jnr.ffi.provider.jffi.AsmLibraryLoader.loadLibrary(AsmLibraryLoader.java:87)
 	at jnr.ffi.provider.jffi.NativeLibraryLoader.loadLibrary(NativeLibraryLoader.java:44)
 	at jnr.ffi.LibraryLoader.load(LibraryLoader.java:420)
-	at jnr.ffi.LibraryLoader.load(LibraryLoader.java:399)
-	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.loadInstance(JnrLibpcap.java:30)
-	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.<clinit>(JnrLibpcap.java:22)
+	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.loadInstance(JnrLibpcap.java:47)
+	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.<clinit>(JnrLibpcap.java:11)
 	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrPcapAdapter.<init>(JnrPcapAdapter.java:17)
 	at ca.gc.cra.radar.capture.pcap.PcapFilePacketSource.start(PcapFilePacketSource.java:74)
 	at ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase.run(SegmentCaptureUseCase.java:66)
@@ -101,7 +100,7 @@ Search paths:
 	at ca.gc.cra.radar.e2e.EndToEndPcapIT.runRadar(EndToEndPcapIT.java:209)
 	... 70 more
 
-ca.gc.cra.radar.e2e.EndToEndPcapIT.tn3270EndToEnd -- Time elapsed: 0.012 s <<< ERROR!
+ca.gc.cra.radar.e2e.EndToEndPcapIT.tn3270EndToEnd -- Time elapsed: 0.021 s <<< ERROR!
 java.lang.IllegalStateException: RADAR CLI execution failed
 	at ca.gc.cra.radar.e2e.EndToEndPcapIT.runRadar(EndToEndPcapIT.java:217)
 	at ca.gc.cra.radar.e2e.EndToEndPcapIT.tn3270EndToEnd(EndToEndPcapIT.java:118)
@@ -178,7 +177,7 @@ Caused by: java.lang.UnsatisfiedLinkError: unknown
 Library names
 [wpcap, npcap, pcap]
 Search paths:
-[d:\JDKs\java25\bin, C:\WINDOWS\Sun\Java\bin, C:\WINDOWS\system32, C:\WINDOWS, C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin, C:\Program Files (x86)\Intel\iCLS Client\, C:\Program Files\Intel\iCLS Client\, C:\Windows\system32, C:\Windows, C:\Windows\System32\Wbem, C:\Windows\System32\WindowsPowerShell\v1.0\, C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL, C:\Program Files\Intel\Intel(R) Management Engine Components\DAL, C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT, C:\Program Files\Intel\Intel(R) Management Engine Components\IPT, C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common, C:\WINDOWS\System32\Wbem, C:\WINDOWS\System32\WindowsPowerShell\v1.0\, C:\WINDOWS\System32\OpenSSH\, C:\Program Files\dotnet\, D:\terraform\, D:\Program Files\Git\, D:\applications\kube\, C:\Program Files\Amazon\AWSCLIV2\, D:\Program Files\Git\mingw64\bin\, C:\Program Files (x86)\HP\Common\HPDestPlgIn\, d:\Program Files\Git\cmd, d:\maven\bin, d:\jdks\java25\bin, C:\Users\andre\AppData\Local\Microsoft\WindowsApps, C:\Users\andre\AppData\Local\Programs\Microsoft VS Code\bin, c:\Users\andre\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\debugCommand, .]
+[C:\Windows\System32\Npcap, C:\Windows\System32, C:\Windows\System32\Npcap, C:\Windows\System32, C:\Windows\System32\Npcap, C:\Windows\System32]
 	at jnr.ffi.provider.jffi.NativeLibrary.loadNativeLibraries(NativeLibrary.java:111)
 	at jnr.ffi.provider.jffi.NativeLibrary.getNativeLibraries(NativeLibrary.java:85)
 	at jnr.ffi.provider.jffi.NativeLibrary.getSymbolAddress(NativeLibrary.java:64)
@@ -187,9 +186,8 @@ Search paths:
 	at jnr.ffi.provider.jffi.AsmLibraryLoader.loadLibrary(AsmLibraryLoader.java:87)
 	at jnr.ffi.provider.jffi.NativeLibraryLoader.loadLibrary(NativeLibraryLoader.java:44)
 	at jnr.ffi.LibraryLoader.load(LibraryLoader.java:420)
-	at jnr.ffi.LibraryLoader.load(LibraryLoader.java:399)
-	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.loadInstance(JnrLibpcap.java:30)
-	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.<clinit>(JnrLibpcap.java:22)
+	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.loadInstance(JnrLibpcap.java:47)
+	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrLibpcap.<clinit>(JnrLibpcap.java:11)
 	at ca.gc.cra.radar.infrastructure.capture.libpcap.JnrPcapAdapter.<init>(JnrPcapAdapter.java:17)
 	at ca.gc.cra.radar.capture.pcap.PcapFilePacketSource.start(PcapFilePacketSource.java:74)
 	at ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase.run(SegmentCaptureUseCase.java:66)
