@@ -74,6 +74,11 @@ public final class BufferPool {
       this.data = data;
     }
 
+    /**
+     * Exposes the currently borrowed buffer; callers must not retain it after closing.
+     *
+     * @return active backing array
+     */
     public byte[] array() {
       if (released) {
         throw new IllegalStateException("buffer already released");

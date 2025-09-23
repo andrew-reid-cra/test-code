@@ -14,6 +14,12 @@ public final class PooledBufferedOutputStream extends OutputStream {
   private int position;
   private boolean closed;
 
+  /**
+   * Creates a buffered stream using a reusable array from the supplied pool.
+   *
+   * @param delegate downstream stream receiving flushed bytes
+   * @param pool buffer pool providing the backing array
+   */
   public PooledBufferedOutputStream(OutputStream delegate, BufferPool pool) {
     this.delegate = Objects.requireNonNull(delegate, "delegate");
     Objects.requireNonNull(pool, "pool");

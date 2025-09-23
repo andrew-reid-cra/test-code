@@ -16,10 +16,19 @@ public final class GrowableBuffer {
   private int readIndex;
   private int writeIndex;
 
+  /**
+   * Creates a buffer using the default initial capacity.
+   */
   public GrowableBuffer() {
     this(DEFAULT_CAPACITY);
   }
 
+  /**
+   * Creates a buffer with a caller-supplied initial capacity.
+   *
+   * @param initialCapacity minimum backing array size
+   * @throws IllegalArgumentException when {@code initialCapacity} is not positive
+   */
   public GrowableBuffer(int initialCapacity) {
     if (initialCapacity <= 0) {
       throw new IllegalArgumentException("initialCapacity must be positive");

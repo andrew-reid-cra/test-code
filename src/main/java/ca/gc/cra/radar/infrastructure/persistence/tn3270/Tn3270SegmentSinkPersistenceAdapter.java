@@ -34,10 +34,21 @@ public final class Tn3270SegmentSinkPersistenceAdapter implements PersistencePor
   private final String indexName;
   private final PersistencePort fallback;
 
+  /**
+   * Creates a TN3270 sink that writes blobs and indices under the given directory.
+   *
+   * @param directory destination directory for TN3270 artifacts
+   */
   public Tn3270SegmentSinkPersistenceAdapter(Path directory) {
     this(directory, null);
   }
 
+  /**
+   * Creates a TN3270 sink that optionally forwards non-TN pairs to a fallback port.
+   *
+   * @param directory destination directory for TN3270 artifacts
+   * @param fallback delegate used for non-TN3270 message pairs (nullable)
+   */
   public Tn3270SegmentSinkPersistenceAdapter(Path directory, PersistencePort fallback) {
     try {
       Files.createDirectories(directory);

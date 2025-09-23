@@ -546,12 +546,24 @@ public final class LiveProcessingUseCase {
 
   /** Persistence tuning parameters. */
   public record PersistenceSettings(int workers, int queueCapacity, QueueType queueType) {
+    /**
+     * Normalizes persistence settings by clamping worker/queue values and defaulting the queue type.
+     *
+     * @param workers requested worker thread count
+     * @param queueCapacity requested queue capacity
+     * @param queueType desired queue implementation
+     */
     public PersistenceSettings {
       workers = Math.max(1, workers);
       queueType = Objects.requireNonNullElse(queueType, QueueType.ARRAY);
       queueCapacity = Math.max(workers, queueCapacity);
     }
 
+    /**
+     * Derives persistence settings using the pipeline defaults.
+     *
+     * @return normalized persistence settings
+     */
     public static PersistenceSettings defaults() {
       return new PersistenceSettings(DEFAULT_PERSISTENCE_WORKERS, DEFAULT_QUEUE_CAPACITY, QueueType.ARRAY);
     }

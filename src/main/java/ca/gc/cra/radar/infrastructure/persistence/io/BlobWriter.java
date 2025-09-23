@@ -17,6 +17,12 @@ public final class BlobWriter implements AutoCloseable {
   private final PooledBufferedOutputStream stream;
   private long position;
 
+  /**
+   * Opens (or creates) a blob file, appending to the existing content if present.
+   *
+   * @param path target file path
+   * @throws IOException when the file cannot be opened for append
+   */
   public BlobWriter(Path path) throws IOException {
     this.channel =
         FileChannel.open(
@@ -31,10 +37,23 @@ public final class BlobWriter implements AutoCloseable {
     this.stream = new PooledBufferedOutputStream(out, BufferPools.ioBuffers());
   }
 
+  /**
+   * Returns the current write position within the blob.
+   *
+   * @return byte offset for the next write
+   */
   public long position() {
     return position;
   }
 
+  /**
+   * Writes a slice of the provided array into the blob.
+   *
+   * @param data source buffer
+   * @param offset starting offset within {@code data}
+   * @param length number of bytes to write
+   * @throws IOException when the write fails
+   */
   public void write(byte[] data, int offset, int length) throws IOException {
     if (length <= 0) {
       return;
@@ -43,11 +62,22 @@ public final class BlobWriter implements AutoCloseable {
     position += length;
   }
 
+  /**
+   * Flushes buffered bytes to disk and optionally forces filesystem metadata.
+   *
+   * @param metadata when {@code true}, forces an fsync of metadata as well as data
+   * @throws IOException when the flush fails
+   */
   public void flush(boolean metadata) throws IOException {
     stream.flush();
     channel.force(metadata);
   }
 
+  /**
+   * Flushes and releases all resources associated with this writer.
+   *
+   * @throws IOException when flushing or closing the underlying channel fails
+   */
   @Override
   public void close() throws IOException {
     try {
