@@ -47,7 +47,6 @@ public class EndToEndPcapIT {
     ExitCode captureCode =
         runRadar(
             "capture",
-            "--enable-bpf",
             "pcapFile=" + pcap.toAbsolutePath(),
             "out=" + captureDir.toAbsolutePath(),
             "httpOut=" + captureDir.resolve("http-poster").toAbsolutePath(),
@@ -56,6 +55,7 @@ public class EndToEndPcapIT {
             "rollMiB=64",
             "protocol=GENERIC",
             "ioMode=FILE",
+            "--enable-bpf",
             "bpf=tcp and port 80");
     assertSuccess("HTTP capture", captureCode);
 
@@ -117,7 +117,6 @@ public class EndToEndPcapIT {
     ExitCode captureCode =
         runRadar(
             "capture",
-            "--enable-bpf",
             "pcapFile=" + pcap.toAbsolutePath(),
             "out=" + captureDir.toAbsolutePath(),
             "httpOut=" + captureDir.resolve("http-poster").toAbsolutePath(),
@@ -126,6 +125,7 @@ public class EndToEndPcapIT {
             "rollMiB=64",
             "protocol=TN3270",
             "ioMode=FILE",
+            "--enable-bpf",
             "bpf=tcp and (port 23 or port 992)");
     assertSuccess("TN3270 capture", captureCode);
 

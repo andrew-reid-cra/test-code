@@ -4,6 +4,7 @@ import ca.gc.cra.radar.api.tools.SegbinGrepCli;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +72,11 @@ public final class Main {
     }
 
     String command = remainder[0].toLowerCase(Locale.ROOT);
-    String[] delegateArgs = Arrays.copyOfRange(remainder, 1, remainder.length);
+        String[] delegateArgs =
+        Stream.concat(
+                input.flags().stream(),
+                Arrays.stream(remainder, 1, remainder.length))
+            .toArray(String[]::new);
 
     return switch (command) {
       case "capture" -> CaptureCli.run(delegateArgs);

@@ -1,4 +1,4 @@
-#Mon Sep 22 21:39:50 ADT 2025
+#Mon Sep 22 22:20:56 ADT 2025
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPersistenceAdapter.java=1758419850453
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPosterPipeline.java=1758419883039
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\KafkaPosterOutputAdapter.java=1758419603883
@@ -14,7 +14,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CliInput.java=1
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CliPrinter.java=1758476677836
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\ExitCode.java=1758476683620
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\LiveCli.java=1758546091037
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\Main.java=1758476809864
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\Main.java=1758590422251
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\PosterCli.java=1758523631189
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\package-info.java=1758472003426
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\tools\\SegbinGrepCli.java=1758524097878

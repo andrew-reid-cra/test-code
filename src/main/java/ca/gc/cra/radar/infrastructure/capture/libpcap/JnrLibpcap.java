@@ -1,7 +1,10 @@
 package ca.gc.cra.radar.infrastructure.capture.libpcap;
 
+import java.util.Locale;
+
 import ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct.BpfProgramStruct;
 import jnr.ffi.Pointer;
+import java.util.Locale;
 
 /**
  * JNR-FFI bindings for the subset of libpcap APIs used by RADAR.
@@ -15,7 +18,17 @@ public interface JnrLibpcap {
    *
    * @since RADAR 0.1-doc
    */
-  JnrLibpcap INSTANCE = jnr.ffi.LibraryLoader.create(JnrLibpcap.class).load("pcap");
+  
+    JnrLibpcap INSTANCE = loadInstance();
+
+  private static JnrLibpcap loadInstance() {
+    jnr.ffi.LibraryLoader<JnrLibpcap> loader = jnr.ffi.LibraryLoader.create(JnrLibpcap.class);
+    String osName = System.getProperty("os.name", "");
+    if (osName.toLowerCase(Locale.ROOT).contains("win")) {
+      loader.library("wpcap").library("npcap");
+    }
+    return loader.load("pcap");
+  }
 
   /**
    * Wraps {@code pcap_create} to allocate a capture handle for the given device.
