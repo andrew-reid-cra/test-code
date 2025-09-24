@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: ca.gc.cra.radar.validation.NumbersTest
--------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in ca.gc.cra.radar.validation.NumbersTest
