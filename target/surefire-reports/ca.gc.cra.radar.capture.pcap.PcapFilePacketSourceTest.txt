@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: ca.gc.cra.radar.capture.pcap.PcapFilePacketSourceTest
--------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.054 s -- in ca.gc.cra.radar.capture.pcap.PcapFilePacketSourceTest
