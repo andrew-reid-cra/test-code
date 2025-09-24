@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: ca.gc.cra.radar.infrastructure.capture.PcapPacketSourceTest
 -------------------------------------------------------------------------------
-Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.120 s -- in ca.gc.cra.radar.infrastructure.capture.PcapPacketSourceTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.071 s -- in ca.gc.cra.radar.infrastructure.capture.PcapPacketSourceTest
