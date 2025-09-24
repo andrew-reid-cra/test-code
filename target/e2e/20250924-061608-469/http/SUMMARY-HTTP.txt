@@ -1,0 +1,8 @@
+# E2E Summary
+timestamp=20250924-061608-469
+dir=D:\radar\test-code\target\e2e\20250924-061608-469\http\cap-20250924-061608-469
+dir=D:\radar\test-code\target\e2e\20250924-061608-469\http\asm-20250924-061608-469\http
+dir=D:\radar\test-code\target\e2e\20250924-061608-469\http\post-20250924-061608-469\http
+captureSegbinCount=1
+assembleHttpCount=2
+posterHttpCount=2
