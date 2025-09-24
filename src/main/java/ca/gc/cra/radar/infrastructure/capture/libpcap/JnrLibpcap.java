@@ -2,8 +2,12 @@ package ca.gc.cra.radar.infrastructure.capture.libpcap;
 
 import java.util.Locale;
 
+import ca.gc.cra.radar.application.pipeline.LiveProcessingUseCase;
 import ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct.BpfProgramStruct;
 import jnr.ffi.Pointer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 
 /**
@@ -21,13 +25,14 @@ public interface JnrLibpcap {
   
     JnrLibpcap INSTANCE = loadInstance();
   private static JnrLibpcap loadInstance() {
-    System.out.println("About to load JnrLibpcap");
+    final Logger log = LoggerFactory.getLogger(LiveProcessingUseCase.class);
+    log.debug("About to load JnrLibpcap");
     final String path = System.getenv("PATH");
-    System.out.println("*****Loading JnrLibpcap: PATH=" + path);
-    System.out.println("os.name=" + System.getProperty("os.name"));
-    System.out.println("os.arch=" + System.getProperty("os.arch"));
-    System.out.println("sun.arch.data.model=" + System.getProperty("sun.arch.data.model"));
-    System.out.println("java.library.path=" + System.getProperty("java.library.path"));
+    log.debug("*****Loading JnrLibpcap: PATH=" + path);
+    log.debug("os.name=" + System.getProperty("os.name"));
+    log.debug("os.arch=" + System.getProperty("os.arch"));
+    log.debug("sun.arch.data.model=" + System.getProperty("sun.arch.data.model"));
+    log.debug("java.library.path=" + System.getProperty("java.library.path"));
 
     jnr.ffi.LibraryLoader<JnrLibpcap> loader =
     jnr.ffi.LibraryLoader.create(JnrLibpcap.class).failImmediately();
