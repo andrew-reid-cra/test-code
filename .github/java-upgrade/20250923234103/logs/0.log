@@ -1,0 +1,33 @@
+2025-09-23T23:41:03.334Z [INFO] ----------------------invoke list_jdks----------------------
+2025-09-23T23:41:03.334Z [INFO] [Tool.invoke]({name: list_jdks, input: {
+  "version": "21",
+  "projectPath": "d:\\radar\\test-code"
+}}).
+2025-09-23T23:41:03.335Z [INFO] [Task.start](): Starting task toolCall
+2025-09-23T23:41:03.335Z [INFO] [Task.start](): Started task toolCall
+2025-09-23T23:41:03.335Z [INFO] [Tool.invoke] validate GitHub Copilot license.
+2025-09-23T23:41:21.947Z [INFO] Copilot user info:{
+  "access_type_sku": "free_limited_copilot",
+  "analytics_tracking_id": "3f03e7cd9e50e0761143ce7c2024b066",
+  "assigned_date": "2025-09-18T16:43:06-04:00",
+  "can_signup_for_limited": false,
+  "chat_enabled": true,
+  "copilot_plan": "individual",
+  "organization_login_list": [],
+  "organization_list": [],
+  "limited_user_quotas": {
+    "chat": 260,
+    "completions": 3870
+  },
+  "limited_user_subscribed_day": 18,
+  "limited_user_reset_date": "2025-10-18",
+  "monthly_quotas": {
+    "chat": 500,
+    "completions": 4000
+  }
+}
+2025-09-23T23:41:21.948Z [WARN] "GitHub Copilot app modernization - upgrade for Java" and its tools are only available for GitHub Copilot "Pro", "Pro+", "Business" and "Enterprise" plans.
+2025-09-23T23:41:21.948Z [ERROR] [Tool.invoke] error occurs when invoking tool list_jdks: UserError: "GitHub Copilot app modernization - upgrade for Java" and its tools are only available for GitHub Copilot "Pro", "Pro+", "Business" and "Enterprise" plans.. Please upgrade your GitHub Copilot plan to use this feature or upgrading this project using other tools you prefer..
+2025-09-23T23:41:21.949Z [INFO] [Task.complete](): Completing task toolCall
+2025-09-23T23:41:21.949Z [INFO] ----------------------invoked list_jdks----------------------
+2025-09-23T23:41:21.951Z [INFO] [Task.complete](): Completed task toolCall
