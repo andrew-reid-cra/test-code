@@ -1,0 +1,104 @@
+@options
+@packages
+-classpath
+'C:/Users/andre/.m2/repository/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar;C:/Users/andre/.m2/repository/ch/qos/logback/logback-classic/1.4.14/logback-classic-1.4.14.jar;C:/Users/andre/.m2/repository/ch/qos/logback/logback-core/1.4.14/logback-core-1.4.14.jar;C:/Users/andre/.m2/repository/org/apache/kafka/kafka-clients/2.8.2/kafka-clients-2.8.2.jar;C:/Users/andre/.m2/repository/com/github/luben/zstd-jni/1.4.9-1/zstd-jni-1.4.9-1.jar;C:/Users/andre/.m2/repository/org/lz4/lz4-java/1.7.1/lz4-java-1.7.1.jar;C:/Users/andre/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.1/snappy-java-1.1.8.1.jar;C:/Users/andre/.m2/repository/com/github/jnr/jnr-ffi/2.2.12/jnr-ffi-2.2.12.jar;C:/Users/andre/.m2/repository/com/github/jnr/jffi/1.3.9/jffi-1.3.9.jar;C:/Users/andre/.m2/repository/org/ow2/asm/asm/9.2/asm-9.2.jar;C:/Users/andre/.m2/repository/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.jar;C:/Users/andre/.m2/repository/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.jar;C:/Users/andre/.m2/repository/org/ow2/asm/asm-tree/9.2/asm-tree-9.2.jar;C:/Users/andre/.m2/repository/org/ow2/asm/asm-util/9.2/asm-util-9.2.jar;C:/Users/andre/.m2/repository/com/github/jnr/jnr-a64asm/1.0.0/jnr-a64asm-1.0.0.jar;C:/Users/andre/.m2/repository/com/github/jnr/jnr-x86asm/1.0.2/jnr-x86asm-1.0.2.jar'
+-encoding
+'UTF-8'
+-protected
+--release
+17
+-sourcepath
+'D:/radar/test-code/src/main/java'
+-Xdoclint:all
+-author
+-bottom
+'Copyright &#169; 2025. All rights reserved.'
+-charset
+'UTF-8'
+-d
+'D:/radar/test-code/target/site/apidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'RADAR 0.1.0-SNAPSHOT API'
+-link
+'https://docs.oracle.com/en/java/javase/17/docs/api'
+-linksource
+-tag
+"implNote:a:Implementation Note:"
+-use
+-version
+-windowtitle
+'RADAR 0.1.0-SNAPSHOT API'
+ca.gc.cra.radar.adapter.kafka
+ca.gc.cra.radar.api
+ca.gc.cra.radar.api.tools
+ca.gc.cra.radar.application
+ca.gc.cra.radar.application.pipeline
+ca.gc.cra.radar.application.port
+ca.gc.cra.radar.application.port.context
+ca.gc.cra.radar.application.port.poster
+ca.gc.cra.radar.application.util
+ca.gc.cra.radar.capture.pcap
+ca.gc.cra.radar.config
+ca.gc.cra.radar.domain.capture
+ca.gc.cra.radar.domain.flow
+ca.gc.cra.radar.domain.msg
+ca.gc.cra.radar.domain.net
+ca.gc.cra.radar.domain
+ca.gc.cra.radar.domain.protocol
+ca.gc.cra.radar.domain.util
+ca.gc.cra.radar.infrastructure.buffer
+ca.gc.cra.radar.infrastructure.capture
+ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct
+ca.gc.cra.radar.infrastructure.capture.libpcap
+ca.gc.cra.radar.infrastructure.detect
+ca.gc.cra.radar.infrastructure.metrics
+ca.gc.cra.radar.infrastructure.net
+ca.gc.cra.radar.infrastructure
+ca.gc.cra.radar.infrastructure.persistence.http
+ca.gc.cra.radar.infrastructure.persistence.io
+ca.gc.cra.radar.infrastructure.persistence
+ca.gc.cra.radar.infrastructure.persistence.segment
+ca.gc.cra.radar.infrastructure.persistence.tn3270
+ca.gc.cra.radar.infrastructure.poster
+ca.gc.cra.radar.infrastructure.protocol.http
+ca.gc.cra.radar.infrastructure.protocol.http.legacy
+ca.gc.cra.radar.infrastructure.protocol.tn3270
+ca.gc.cra.radar.infrastructure.time
+ca.gc.cra.radar.logging
+ca.gc.cra.radar.validation
+C:\Users\andre\.m2\repository\org\slf4j\slf4j-api\2.0.13\slf4j-api-2.0.13.jar = 1758475468065
+C:\Users\andre\.m2\repository\ch\qos\logback\logback-classic\1.4.14\logback-classic-1.4.14.jar = 1758475468327
+C:\Users\andre\.m2\repository\ch\qos\logback\logback-core\1.4.14\logback-core-1.4.14.jar = 1758475468328
+C:\Users\andre\.m2\repository\org\apache\kafka\kafka-clients\2.8.2\kafka-clients-2.8.2.jar = 1758389283764
+C:\Users\andre\.m2\repository\com\github\luben\zstd-jni\1.4.9-1\zstd-jni-1.4.9-1.jar = 1758389285938
+C:\Users\andre\.m2\repository\org\lz4\lz4-java\1.7.1\lz4-java-1.7.1.jar = 1758389284124
+C:\Users\andre\.m2\repository\org\xerial\snappy\snappy-java\1.1.8.1\snappy-java-1.1.8.1.jar = 1758389284559
+C:\Users\andre\.m2\repository\com\github\jnr\jnr-ffi\2.2.12\jnr-ffi-2.2.12.jar = 1758389284151
+C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9.jar = 1758389284234
+C:\Users\andre\.m2\repository\org\ow2\asm\asm\9.2\asm-9.2.jar = 1758389284320
+C:\Users\andre\.m2\repository\org\ow2\asm\asm-commons\9.2\asm-commons-9.2.jar = 1758389284418
+C:\Users\andre\.m2\repository\org\ow2\asm\asm-analysis\9.2\asm-analysis-9.2.jar = 1758389284743
+C:\Users\andre\.m2\repository\org\ow2\asm\asm-tree\9.2\asm-tree-9.2.jar = 1758389284505
+C:\Users\andre\.m2\repository\org\ow2\asm\asm-util\9.2\asm-util-9.2.jar = 1758389284556
+C:\Users\andre\.m2\repository\com\github\jnr\jnr-a64asm\1.0.0\jnr-a64asm-1.0.0.jar = 1758389284602
+C:\Users\andre\.m2\repository\com\github\jnr\jnr-x86asm\1.0.2\jnr-x86asm-1.0.2.jar = 1758389284645
+D:\radar\test-code\src\main\java = 1758311659085
+D:\radar\test-code\target\site\apidocs\allclasses-index.html = 1758678471598
+D:\radar\test-code\target\site\apidocs\allpackages-index.html = 1758678471602
+D:\radar\test-code\target\site\apidocs\constant-values.html = 1758678470076
+D:\radar\test-code\target\site\apidocs\deprecated-list.html = 1758678471289
+D:\radar\test-code\target\site\apidocs\element-list = 1758678469423
+D:\radar\test-code\target\site\apidocs\help-doc.html = 1758678471809
+D:\radar\test-code\target\site\apidocs\index-all.html = 1758678471786
+D:\radar\test-code\target\site\apidocs\index.html = 1758678471295
+D:\radar\test-code\target\site\apidocs\member-search-index.js = 1758678471610
+D:\radar\test-code\target\site\apidocs\module-search-index.js = 1758678471603
+D:\radar\test-code\target\site\apidocs\overview-summary.html = 1758678471793
+D:\radar\test-code\target\site\apidocs\overview-tree.html = 1758678471252
+D:\radar\test-code\target\site\apidocs\package-search-index.js = 1758678471605
+D:\radar\test-code\target\site\apidocs\search.html = 1758678471789
+D:\radar\test-code\target\site\apidocs\serialized-form.html = 1758678470090
+D:\radar\test-code\target\site\apidocs\tag-search-index.js = 1758678471611
+D:\radar\test-code\target\site\apidocs\type-search-index.js = 1758678471606
