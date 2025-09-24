@@ -12,7 +12,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
+    <maven.compiler.release>21</maven.compiler.release>
     <junit.jupiter.version>5.9.3</junit.jupiter.version>
     <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
     <maven.javadoc.plugin.version>3.6.3</maven.javadoc.plugin.version>
@@ -167,14 +167,14 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>${maven.javadoc.plugin.version}</version>
         <configuration>
-          <source>17</source>
+          <source>21</source>
           <linksource>true</linksource>
           <failOnError>true</failOnError>
           <additionalOptions>
             <additionalOption>-Xdoclint:all</additionalOption>
           </additionalOptions>
           <links>
-            <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+            <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
           </links>
           <tags>
             <tag>
@@ -240,14 +240,14 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>${maven.javadoc.plugin.version}</version>
         <configuration>
-          <source>17</source>
+          <source>21</source>
           <linksource>true</linksource>
           <failOnError>true</failOnError>
           <additionalOptions>
             <additionalOption>-Xdoclint:all</additionalOption>
           </additionalOptions>
           <links>
-            <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+            <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
           </links>
           <tags>
             <tag>
