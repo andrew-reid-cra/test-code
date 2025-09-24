@@ -123,6 +123,7 @@
 
         <!-- Allow jffi to call System.load without future warnings -->
         <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+        <argLine>@{argLine} -Djna.library.path=C:\Windows\System32\Npcap</argLine>
 
 
           <useModulePath>false</useModulePath>

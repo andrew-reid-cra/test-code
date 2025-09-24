@@ -4,7 +4,7 @@ import java.util.Locale;
 
 import ca.gc.cra.radar.infrastructure.capture.libpcap.cstruct.BpfProgramStruct;
 import jnr.ffi.Pointer;
-import java.util.Locale;
+
 
 /**
  * JNR-FFI bindings for the subset of libpcap APIs used by RADAR.
@@ -20,15 +20,36 @@ public interface JnrLibpcap {
    */
   
     JnrLibpcap INSTANCE = loadInstance();
-
   private static JnrLibpcap loadInstance() {
-    jnr.ffi.LibraryLoader<JnrLibpcap> loader = jnr.ffi.LibraryLoader.create(JnrLibpcap.class);
-    String osName = System.getProperty("os.name", "");
-    if (osName.toLowerCase(Locale.ROOT).contains("win")) {
-      loader.library("wpcap").library("npcap");
+    System.out.println("About to load JnrLibpcap");
+    final String path = System.getenv("PATH");
+    System.out.println("*****Loading JnrLibpcap: PATH=" + path);
+    System.out.println("os.name=" + System.getProperty("os.name"));
+    System.out.println("os.arch=" + System.getProperty("os.arch"));
+    System.out.println("sun.arch.data.model=" + System.getProperty("sun.arch.data.model"));
+    System.out.println("java.library.path=" + System.getProperty("java.library.path"));
+
+    jnr.ffi.LibraryLoader<JnrLibpcap> loader =
+    jnr.ffi.LibraryLoader.create(JnrLibpcap.class).failImmediately();
+
+    final String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    if (os.startsWith("windows")) {
+        // Add likely locations explicitly (helps when Maven test env differs)
+        loader.search("C:\\Windows\\System32\\Npcap")
+              .search("C:\\Windows\\System32"); // Packet.dll may be here on some installs
+        loader.library("wpcap");                // canonical export library for libpcap on Windows
+    } else {
+        loader.library("pcap").library("libpcap");
     }
-    return loader.load("pcap");
-  }
+
+    try {
+        return loader.load(); // try candidates in order
+    } catch (UnsatisfiedLinkError e) {
+        // Print nested causes to find the missing dependency name
+        e.printStackTrace();
+        throw e;
+    }
+}
 
   /**
    * Wraps {@code pcap_create} to allocate a capture handle for the given device.

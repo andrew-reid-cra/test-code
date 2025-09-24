@@ -54,9 +54,7 @@ public class EndToEndPcapIT {
             "fileBase=capture-http-" + TS,
             "rollMiB=64",
             "protocol=GENERIC",
-            "ioMode=FILE",
-            "--enable-bpf",
-            "bpf=tcp and port 80");
+            "ioMode=FILE");
     assertSuccess("HTTP capture", captureCode);
 
     long segbinCount = countMatchingFiles(captureDir, SEGBIN_PATTERN);
@@ -106,6 +104,7 @@ public class EndToEndPcapIT {
 
   @Test
   void tn3270EndToEnd() throws Exception {
+    
     Path pcap = resource("pcap/tn3270_small.pcap");
     Assumptions.assumeTrue(Files.exists(pcap), "TN3270 PCAP missing");
 
@@ -124,9 +123,8 @@ public class EndToEndPcapIT {
             "fileBase=capture-tn3270-" + TS,
             "rollMiB=64",
             "protocol=TN3270",
-            "ioMode=FILE",
-            "--enable-bpf",
-            "bpf=tcp and (port 23 or port 992)");
+            "ioMode=FILE"
+            );
     assertSuccess("TN3270 capture", captureCode);
 
     long segbinCount = countMatchingFiles(captureDir, SEGBIN_PATTERN);
