@@ -57,7 +57,7 @@ public final class LoadHarness {
       executor.submit(
           () -> {
             try {
-              ((java.util.concurrent.ConcurrentMap<String, String>) pair.metadata().attributes()).put("enqueueNanos", Long.toString(System.nanoTime()));
+              ((java.util.concurrent.ConcurrentMap<String, String>) pair.request().metadata().attributes()).put("enqueueNanos", Long.toString(System.nanoTime()));
               invoke(useCase, "enqueueForPersistence", pair);
             } catch (Exception e) {
               throw new RuntimeException(e);
@@ -80,14 +80,10 @@ public final class LoadHarness {
     long p95 = percentile(latencies, 0.95);
     long p99 = percentile(latencies, 0.99);
 
-    System.out.printf("Pairs: %d
-", persistence.count.get());
-    System.out.printf("Throughput: %.2f ops/s
-", throughput);
-    System.out.printf("Latency p95: %s
-", Duration.ofNanos(p95));
-    System.out.printf("Latency p99: %s
-", Duration.ofNanos(p99));
+    System.out.printf("Pairs: %d", persistence.count.get());
+    System.out.printf("Throughput: %.2f ops/s", throughput);
+    System.out.printf("Latency p95: %s", Duration.ofNanos(p95));
+    System.out.printf("Latency p99: %s", Duration.ofNanos(p99));
   }
 
   private static LiveProcessingUseCase buildUseCase(int workers, int capacity, PersistencePort persistence)
@@ -150,12 +146,13 @@ public final class LoadHarness {
     @Override
     public void persist(MessagePair pair) {
       count.incrementAndGet();
-      String start = pair.metadata().attributes().get("enqueueNanos");
+      String start = pair.request().metadata().attributes().get("enqueueNanos");
       if (start != null) {
         long enqueue = Long.parseLong(start);
         latencies.add(System.nanoTime() - enqueue);
       }
     }
+    
 
     List<Long> latencies() {
       return List.copyOf(latencies);
