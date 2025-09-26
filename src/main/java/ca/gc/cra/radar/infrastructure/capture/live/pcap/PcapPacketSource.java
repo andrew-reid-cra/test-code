@@ -10,8 +10,20 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * PacketSource adapter backed by the existing JNR libpcap implementation. This is intentionally thin
- * while the capture pipeline is migrated.
+ * <strong>What:</strong> Live {@link PacketSource} that captures frames from a network interface via libpcap.
+ * <p><strong>Why:</strong> Powers the capture stage for production deployments while the architecture continues to evolve.</p>
+ * <p><strong>Role:</strong> Infrastructure adapter on the capture side.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Configure and open a libpcap handle with optional BPF filters.</li>
+ *   <li>Stream frames into RADAR as {@link RawFrame} objects.</li>
+ *   <li>Expose exhaustion when the interface stops delivering traffic.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe; callers must poll from a single capture thread.</p>
+ * <p><strong>Performance:</strong> Delegates to libpcap for zero-copy capture; copies payloads into fresh arrays for pipeline safety.</p>
+ * <p><strong>Observability:</strong> Should be wrapped with capture metrics (drops, latency) and logs key configuration.</p>
+ *
+ * @since 0.1.0
  */
 public final class PcapPacketSource implements PacketSource {
   private final String iface;
@@ -30,13 +42,16 @@ public final class PcapPacketSource implements PacketSource {
   /**
    * Creates a packet source without a capture filter.
    *
-   * @param iface network interface name
-   * @param snaplen snap length in bytes
+   * @param iface network interface name; must not be {@code null}
+   * @param snaplen snap length in bytes (0 disables truncation)
    * @param promiscuous whether to enable promiscuous mode
    * @param timeoutMillis poll timeout in milliseconds
    * @param bufferBytes capture buffer size in bytes
    * @param immediate whether to enable immediate mode
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Invoke during single-threaded bootstrap.</p>
+   * <p><strong>Performance:</strong> Defers libpcap initialization to {@link #start()}.</p>
+   * <p><strong>Observability:</strong> Parameters map to capture metrics and startup logs.</p>
    */
   public PcapPacketSource(
       String iface,
@@ -51,14 +66,17 @@ public final class PcapPacketSource implements PacketSource {
   /**
    * Creates a packet source with an optional BPF filter expression.
    *
-   * @param iface network interface name
+   * @param iface network interface name; must not be {@code null}
    * @param snaplen snap length in bytes
    * @param promiscuous whether to enable promiscuous mode
    * @param timeoutMillis poll timeout in milliseconds
    * @param bufferBytes capture buffer size in bytes
    * @param immediate whether to enable immediate mode
    * @param filter optional BPF filter expression; {@code null} or blank disables filtering
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread.</p>
+   * <p><strong>Performance:</strong> Applies the filter during {@link #start()}.</p>
+   * <p><strong>Observability:</strong> Filter configuration is logged for troubleshooting.</p>
    */
   public PcapPacketSource(
       String iface,
@@ -71,6 +89,11 @@ public final class PcapPacketSource implements PacketSource {
     this(iface, snaplen, promiscuous, timeoutMillis, bufferBytes, immediate, filter, JnrPcapAdapter::new);
   }
 
+  /**
+   * Internal constructor that allows tests to inject a custom {@link Pcap} binding.
+   *
+   * @since RADAR 0.1-doc
+   */
   PcapPacketSource(
       String iface,
       int snaplen,
@@ -94,7 +117,10 @@ public final class PcapPacketSource implements PacketSource {
    * Opens the libpcap handle for the configured interface.
    *
    * @throws Exception if libpcap initialization fails
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Call once before polling; not thread-safe.</p>
+   * <p><strong>Performance:</strong> Configures buffers, mode flags, and optional BPF filters.</p>
+   * <p><strong>Observability:</strong> Callers should log interface and filter details.</p>
    */
   @Override
   public void start() throws Exception {
@@ -113,9 +139,12 @@ public final class PcapPacketSource implements PacketSource {
   /**
    * Polls for the next frame.
    *
-   * @return captured frame when available; otherwise empty (including EOF)
+   * @return captured frame when available; otherwise {@link Optional#empty()} (including EOF)
    * @throws Exception if libpcap reports an error
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Invoke from a single capture thread.</p>
+   * <p><strong>Performance:</strong> Copies captured bytes into a new array; leverages libpcap for polling.</p>
+   * <p><strong>Observability:</strong> Callers should record polling latency and drop metrics.</p>
    */
   @Override
   public Optional<RawFrame> poll() throws Exception {
@@ -141,6 +170,15 @@ public final class PcapPacketSource implements PacketSource {
     return Optional.ofNullable(captured[0]);
   }
 
+  /**
+   * Indicates whether the underlying capture has stopped producing frames.
+   *
+   * @return {@code true} when the libpcap handle reports EOF
+   *
+   * <p><strong>Concurrency:</strong> Safe for use by polling and control threads.</p>
+   * <p><strong>Performance:</strong> Constant-time check.</p>
+   * <p><strong>Observability:</strong> Used by pipelines to trigger shutdown; no direct metrics.</p>
+   */
   @Override
   public boolean isExhausted() {
     return exhausted;
@@ -150,7 +188,10 @@ public final class PcapPacketSource implements PacketSource {
    * Closes the capture handle and associated resources.
    *
    * @throws Exception if closing fails
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Invoke after polling has stopped; not thread-safe.</p>
+   * <p><strong>Performance:</strong> Closes libpcap handles; may block briefly.</p>
+   * <p><strong>Observability:</strong> Callers should log shutdown and emit capture stop metrics.</p>
    */
   @Override
   public void close() throws Exception {

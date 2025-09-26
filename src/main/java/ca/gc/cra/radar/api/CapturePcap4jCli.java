@@ -75,6 +75,8 @@ public final class CapturePcap4jCli {
 
   /**
    * Entry point invoked by the JVM.
+   *
+   * @param args command-line arguments
    */
   public static void main(String[] args) {
     ExitCode exit = run(args);
@@ -83,6 +85,9 @@ public final class CapturePcap4jCli {
 
   /**
    * Executes the pcap4j capture CLI logic.
+   *
+   * @param args command-line arguments
+   * @return exit code describing the result of execution
    */
   public static ExitCode run(String[] args) {
     CliInput input = CliInput.parse(args);

@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.application.port;
+package ca.gc.cra.radar.application.port;
 
 /**
  * <strong>What:</strong> Domain port supplying wall-clock timestamps to message reconstruction flows.

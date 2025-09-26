@@ -11,6 +11,11 @@ import ca.gc.cra.radar.domain.msg.MessagePair;
  */
 public final class NoOpPersistenceAdapter implements PersistencePort {
   /**
+   * Creates a stateless adapter that drops all persistence requests.
+   */
+  public NoOpPersistenceAdapter() {}
+
+  /**
    * Discards the provided pair.
    *
    * @param pair ignored; may be {@code null}

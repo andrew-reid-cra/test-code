@@ -15,15 +15,23 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
- * Coordinates packet capture by polling a {@link PacketSource}, decoding frames, and persisting
- * TCP segments.
- * <p>Not thread-safe; expected to run once per process. Filters pure ACKs to reduce storage
- * volume.</p>
+ * <strong>What:</strong> Coordinates packet capture by polling a {@link PacketSource}, decoding frames, and persisting TCP segments.
+ * <p><strong>Why:</strong> Provides a reusable capture loop for live or offline sources.</p>
+ * <p><strong>Role:</strong> Application-layer use case on the capture side of the hexagonal architecture.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Start and stop the packet source lifecycle.</li>
+ *   <li>Decode frames into {@link TcpSegment}s.</li>
+ *   <li>Filter pure ACKs and persist remaining segments.</li>
+ *   <li>Emit capture metrics and structured logs.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe; run a single instance per capture pipeline.</p>
+ * <p><strong>Performance:</strong> Hot-path loop; minimises allocations by reusing decoder outputs.</p>
+ * <p><strong>Observability:</strong> Increments metrics such as {@code capture.segment.persisted} and logs flow IDs via MDC.</p>
  *
- * @implNote Uses {@link SegmentPersistencePort#persist(SegmentRecord)} for each accepted segment
- * and increments metrics counters for observability.
- * @see ca.gc.cra.radar.application.port.SegmentPersistencePort
- * @since RADAR 0.1-doc
+ * @implNote Uses {@link SegmentPersistencePort#persist(SegmentRecord)} for each accepted segment and increments metrics counters for observability.
+ * @see SegmentPersistencePort
+ * @since 0.1.0
  */
 public final class SegmentCaptureUseCase {
   private static final Logger log = LoggerFactory.getLogger(SegmentCaptureUseCase.class);
@@ -36,10 +44,14 @@ public final class SegmentCaptureUseCase {
   /**
    * Creates a capture use case with the supplied dependencies.
    *
-   * @param packetSource source of raw frames
-   * @param frameDecoder decoder that maps frames to TCP segments
-   * @param persistence sink for persisted segments
-   * @param metrics metrics sink for capture counters
+   * @param packetSource source of raw frames; must not be {@code null}
+   * @param frameDecoder decoder that maps frames to TCP segments; must not be {@code null}
+   * @param persistence sink for persisted segments; must not be {@code null}
+   * @param metrics metrics sink for capture counters; must not be {@code null}
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread before capture begins.</p>
+   * <p><strong>Performance:</strong> Constructor performs null checks only.</p>
+   * <p><strong>Observability:</strong> No metrics emitted during construction.</p>
    */
   public SegmentCaptureUseCase(
       PacketSource packetSource,
@@ -55,9 +67,11 @@ public final class SegmentCaptureUseCase {
   /**
    * Runs the capture loop until interrupted, persisting each non-empty TCP segment.
    *
-   * @throws Exception if any port fails during capture, persistence, or cleanup
-   * @implNote Interrupts the current thread when {@link InterruptedException} is observed during poll.
-   * @since RADAR 0.1-doc
+   * @throws Exception if any port fails during capture, persistence, flushing, or cleanup
+   *
+   * <p><strong>Concurrency:</strong> Intended for single-threaded execution; the loop checks {@link Thread#isInterrupted()}.</p>
+   * <p><strong>Performance:</strong> Polls the packet source continuously, skipping empty results and pure ACKs to cut storage.</p>
+   * <p><strong>Observability:</strong> Increments metrics ({@code capture.segment.skipped.*}, {@code capture.segment.persisted}) and logs lifecycle events.</p>
    */
   public void run() throws Exception {
     boolean started = false;
@@ -141,12 +155,6 @@ public final class SegmentCaptureUseCase {
     }
   }
 
-  /**
-   * Determines whether a segment represents a pure ACK frame.
-   *
-   * @param segment segment under inspection
-   * @return {@code true} if the segment contains only the ACK flag
-   */
   private static boolean isPureAck(TcpSegment segment) {
     return segment.payload().length == 0
         && segment.ack()
@@ -156,13 +164,6 @@ public final class SegmentCaptureUseCase {
         && !segment.psh();
   }
 
-  /**
-   * Converts a decoded TCP segment into a persisted record.
-   *
-   * @param timestampMicros capture timestamp in microseconds
-   * @param segment decoded TCP segment
-   * @return record ready for persistence
-   */
   private static SegmentRecord toRecord(long timestampMicros, TcpSegment segment) {
     FiveTuple flow = segment.flow();
     int flags = 0;
@@ -187,3 +188,4 @@ public final class SegmentCaptureUseCase {
     return flow.srcIp() + ":" + flow.srcPort() + "->" + flow.dstIp() + ":" + flow.dstPort();
   }
 }
+

@@ -15,9 +15,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * PacketSource implementation that replays packets from an on-disk pcap or pcapng trace.
- * <p>Provides the same RawFrame payloads produced by live capture so downstream pipelines can
- * remain unchanged.</p>
+ * <strong>What:</strong> {@link PacketSource} adapter that replays frames from an on-disk pcap/pcapng trace.
+ * <p><strong>Why:</strong> Lets assemble and poster pipelines operate on captured traffic without requiring live interfaces.</p>
+ * <p><strong>Role:</strong> Infrastructure adapter on the capture side.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Open offline traces using libpcap, applying optional BPF filters.</li>
+ *   <li>Stream frames as {@link RawFrame} instances in capture order.</li>
+ *   <li>Surface exhaustion when the file has been fully consumed.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe; callers must poll from a single thread.</p>
+ * <p><strong>Performance:</strong> Performs sequential disk IO; copies only the captured payload for each frame.</p>
+ * <p><strong>Observability:</strong> Logs key events (filters, truncation, completion) and should be wrapped with capture metrics.</p>
+ *
+ * @implNote Supports Ethernet and Linux SLL data link types; others trigger an {@link IllegalArgumentException}.
+ * @since 0.1.0
  */
 public final class PcapFilePacketSource implements PacketSource {
   private static final Logger log = LoggerFactory.getLogger(PcapFilePacketSource.class);
@@ -38,18 +50,31 @@ public final class PcapFilePacketSource implements PacketSource {
   private boolean truncationWarned;
 
   /**
-   * Creates an offline packet source using the default JNR libpcap adapter.
+   * Creates an offline packet source that replays frames using the default JNR libpcap adapter.
    *
-   * @param pcapPath path to an existing pcap or pcapng file
+   * @param pcapPath path to an existing pcap/pcapng file; must be readable
    * @param bpf optional BPF expression; blank disables filtering
-   * @param snaplen snap length in bytes
+   * @param snaplen snap length in bytes (0 to disable truncation)
+   *
+   * <p><strong>Concurrency:</strong> Invoke during single-threaded bootstrap.</p>
+   * <p><strong>Performance:</strong> Defers opening the file until {@link #start()}.</p>
+   * <p><strong>Observability:</strong> Parameters propagate to startup logs and capture metrics.</p>
    */
   public PcapFilePacketSource(Path pcapPath, String bpf, int snaplen) {
     this(pcapPath, bpf, snaplen, JnrPcapAdapter::new);
   }
 
   /**
-   * Creates an offline packet source with an explicit Pcap supplier (primarily for tests).
+   * Creates an offline packet source with an explicit {@link Pcap} supplier (primarily for tests).
+   *
+   * @param pcapPath path to the capture file; must not be {@code null}
+   * @param bpf optional BPF expression; blank disables filtering
+   * @param snaplen snap length in bytes
+   * @param pcapSupplier factory that yields a {@link Pcap} binding; must not be {@code null}
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread.</p>
+   * <p><strong>Performance:</strong> Defers expensive work until {@link #start()}.</p>
+   * <p><strong>Observability:</strong> Allows tests to inject canned adapters for deterministic replay.</p>
    */
   public PcapFilePacketSource(Path pcapPath, String bpf, int snaplen, Supplier<Pcap> pcapSupplier) {
     this.pcapPath = Objects.requireNonNull(pcapPath, "pcapPath").toAbsolutePath().normalize();
@@ -58,6 +83,15 @@ public final class PcapFilePacketSource implements PacketSource {
     this.pcapSupplier = Objects.requireNonNull(pcapSupplier, "pcapSupplier");
   }
 
+  /**
+   * Opens the capture file and prepares libpcap for replay.
+   *
+   * @throws Exception if the file cannot be opened or the data link type is unsupported
+   *
+   * <p><strong>Concurrency:</strong> Call once before polling begins; not thread-safe.</p>
+   * <p><strong>Performance:</strong> Performs filesystem checks and libpcap initialization.</p>
+   * <p><strong>Observability:</strong> Logs filter configuration and link-type details.</p>
+   */
   @Override
   public void start() throws Exception {
     if (handle != null) {
@@ -103,6 +137,16 @@ public final class PcapFilePacketSource implements PacketSource {
         dataLinkName(datalink));
   }
 
+  /**
+   * Reads the next frame from the capture file.
+   *
+   * @return {@link Optional#empty()} when EOF has been reached; otherwise a {@link RawFrame}
+   * @throws Exception if libpcap encounters an error
+   *
+   * <p><strong>Concurrency:</strong> Invoke from a single polling thread.</p>
+   * <p><strong>Performance:</strong> Copies captured bytes into a fresh array; sequential read from disk.</p>
+   * <p><strong>Observability:</strong> Logs when snaplen truncation occurs and updates internal counters.</p>
+   */
   @Override
   public Optional<RawFrame> poll() throws Exception {
     if (handle == null) {
@@ -137,11 +181,29 @@ public final class PcapFilePacketSource implements PacketSource {
     return Optional.ofNullable(frameHolder[0]);
   }
 
+  /**
+   * Reports whether the capture file has been fully replayed.
+   *
+   * @return {@code true} after EOF has been reached
+   *
+   * <p><strong>Concurrency:</strong> Safe for polling and control threads.</p>
+   * <p><strong>Performance:</strong> Constant-time check.</p>
+   * <p><strong>Observability:</strong> Exposed for higher-level shutdown logic; no direct metrics.</p>
+   */
   @Override
   public boolean isExhausted() {
     return exhausted;
   }
 
+  /**
+   * Releases libpcap resources and logs capture summary information.
+   *
+   * @throws Exception if handle or adapter closure fails
+   *
+   * <p><strong>Concurrency:</strong> Call after polling stops; not thread-safe.</p>
+   * <p><strong>Performance:</strong> Flushes libpcap state; may block briefly.</p>
+   * <p><strong>Observability:</strong> Logs packet counts and file name.</p>
+   */
   @Override
   public void close() throws Exception {
     if (handle != null) {

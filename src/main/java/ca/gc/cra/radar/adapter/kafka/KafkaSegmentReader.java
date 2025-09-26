@@ -18,11 +18,20 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 /**
- * Kafka consumer wrapper that streams {@link SegmentRecord} instances from a topic.
- * <p>Belongs to the infrastructure layer for Assemble pipelines. Not thread-safe; each instance
- * owns a dedicated {@link Consumer}.
+ * <strong>What:</strong> Kafka consumer wrapper that streams {@link SegmentRecord} instances.
+ * <p><strong>Why:</strong> Feeds assemble pipelines from capture topics when running in Kafka mode.</p>
+ * <p><strong>Role:</strong> Infrastructure adapter bridging capture output topics to assemble use cases.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Subscribe to a segment topic and deserialize records.</li>
+ *   <li>Provide polling semantics that align with assemble processing.</li>
+ *   <li>Close the consumer cleanly during shutdown.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe; one consumer per reader.</p>
+ * <p><strong>Performance:</strong> Relies on Kafka client batching; decoding is linear in payload size.</p>
+ * <p><strong>Observability:</strong> Exposes Kafka client metrics; callers should layer {@code assemble.kafka.*} counters.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class KafkaSegmentReader implements AutoCloseable {
   private final Consumer<String, byte[]> consumer;
@@ -30,11 +39,14 @@ public final class KafkaSegmentReader implements AutoCloseable {
   /**
    * Creates a segment reader bound to the specified Kafka topic.
    *
-   * @param bootstrapServers comma-separated Kafka bootstrap servers
-   * @param topic topic containing serialized segment records
+   * @param bootstrapServers comma-separated Kafka bootstrap servers; must not be blank
+   * @param topic Kafka topic containing serialized segment records; must not be blank
    * @throws NullPointerException if {@code bootstrapServers} is {@code null}
-   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
-   * @since RADAR 0.1-doc
+   * @throws IllegalArgumentException if any parameter is blank
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread.</p>
+   * <p><strong>Performance:</strong> Initializes a {@link KafkaConsumer} with sensible defaults.</p>
+   * <p><strong>Observability:</strong> Consumer exposes standard Kafka metrics; callers should log topic group details.</p>
    */
   public KafkaSegmentReader(String bootstrapServers, String topic) {
     this(createConsumer(bootstrapServers), topic);
@@ -49,11 +61,13 @@ public final class KafkaSegmentReader implements AutoCloseable {
   /**
    * Polls Kafka for the next segment record.
    *
-   * @param timeout maximum time to wait for a record
-   * @return next segment record when available; otherwise empty
+   * @param timeout maximum time to wait for a record; must not be {@code null}
+   * @return next segment record when available; otherwise {@link Optional#empty()}
    * @throws NullPointerException if {@code timeout} is {@code null}
-   * @implNote Skips malformed records quietly to keep the stream progressing.
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Call from a single consumer thread.</p>
+   * <p><strong>Performance:</strong> Delegates to {@link Consumer#poll(Duration)} and decodes Base64 payloads; latency driven by broker configuration.</p>
+   * <p><strong>Observability:</strong> Callers should meter lag and deserialize errors (malformed records are skipped).</p>
    */
   public Optional<SegmentRecord> poll(Duration timeout) {
     ConsumerRecords<String, byte[]> records = consumer.poll(timeout);
@@ -72,8 +86,9 @@ public final class KafkaSegmentReader implements AutoCloseable {
   /**
    * Closes the underlying Kafka consumer after flushing outstanding commits.
    *
-   * @implNote Waits up to five seconds for the consumer to close cleanly.
-   * @since RADAR 0.1-doc
+   * <p><strong>Concurrency:</strong> Invoke once when tearing down the reader.</p>
+   * <p><strong>Performance:</strong> Waits up to five seconds for the consumer to close cleanly.</p>
+   * <p><strong>Observability:</strong> Callers should log shutdown and monitor Kafka client metrics for errors.</p>
    */
   @Override
   public void close() {

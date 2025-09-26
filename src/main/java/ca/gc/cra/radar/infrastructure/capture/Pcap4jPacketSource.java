@@ -61,6 +61,14 @@ public final class Pcap4jPacketSource implements PacketSource {
 
   /**
    * Creates a live capture source.
+   *
+   * @param iface network interface name
+   * @param snaplen snap length in bytes
+   * @param promiscuous whether to enable promiscuous mode
+   * @param timeoutMillis poll timeout in milliseconds
+   * @param bufferBytes capture buffer size in bytes
+   * @param immediate whether to enable immediate mode
+   * @param filter optional BPF filter expression; {@code null} or blank disables filtering
    */
   public Pcap4jPacketSource(
       String iface,
@@ -84,6 +92,10 @@ public final class Pcap4jPacketSource implements PacketSource {
 
   /**
    * Creates an offline capture source that replays packets from disk.
+   *
+   * @param pcapFile path to the capture file
+   * @param filter optional BPF filter expression; {@code null} or blank disables filtering
+   * @param snaplen snap length in bytes
    */
   public Pcap4jPacketSource(Path pcapFile, String filter, int snaplen) {
     this.iface = null;

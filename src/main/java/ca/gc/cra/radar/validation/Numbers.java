@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.validation;
+package ca.gc.cra.radar.validation;
 
 /**
  * <strong>What:</strong> Numeric validation helpers used by RADAR CLI and configuration parsing.

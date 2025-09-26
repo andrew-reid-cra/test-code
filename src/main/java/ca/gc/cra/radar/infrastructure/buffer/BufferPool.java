@@ -32,6 +32,8 @@ public final class BufferPool {
 
   /**
    * Borrows a buffer from the pool, creating one when the pool is empty.
+   *
+   * @return pooled buffer wrapper ready for use
    */
   public PooledBuffer acquire() {
     byte[] data;

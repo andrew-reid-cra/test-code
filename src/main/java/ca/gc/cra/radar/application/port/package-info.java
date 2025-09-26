@@ -1,4 +1,4 @@
-﻿/**
+/**
  * <strong>Purpose:</strong> Core domain ports defining the capture -> assemble -> sink workflow contracts.
  * <p><strong>Pipeline role:</strong> Domain layer; adapters implement these interfaces to integrate external systems.</p>
  * <p><strong>Concurrency:</strong> Port implementations must be thread-safe unless documented otherwise.</p>

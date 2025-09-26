@@ -37,15 +37,21 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
- * Executes live packet capture and protocol reconstruction, persisting message pairs in real time.
- * <p>The pipeline decouples capture from persistence via a bounded worker pool so back-pressure is
- * handled gracefully. Instances are not reusable; invoke {@link #run()} at most once.</p>
- * <p>The persistence stage runs on an ExecutorService-backed worker pool (threads named
- * <code>live-persist-</code>) with a dedicated uncaught-exception handler. Failures propagate
- * immediately across the pipeline while the non-daemon threads guarantee reliable shutdown
- * semantics.</p>
+ * <strong>What:</strong> Executes live packet capture and protocol reconstruction, persisting message pairs in real time.
+ * <p><strong>Why:</strong> Powers RADAR's online capture -> assemble -> sink pipeline for production traffic.</p>
+ * <p><strong>Role:</strong> Application-layer orchestration tying together capture ports, flow assembly, and persistence adapters.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Poll {@link ca.gc.cra.radar.application.port.PacketSource} for frames and decode them.</li>
+ *   <li>Route segments through {@link FlowProcessingEngine} to build {@link ca.gc.cra.radar.domain.msg.MessagePair}s.</li>
+ *   <li>Offload persistence to worker threads with bounded queues and record metrics.</li>
+ *   <li>Handle shutdown, backpressure, and failure propagation across the pipeline.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> One instance per pipeline run; internal workers coordinate via thread-safe queues and atomics.</p>
+ * <p><strong>Performance:</strong> Designed for sustained high-throughput capture using batching, exponential moving averages, and bounded queues.</p>
+ * <p><strong>Observability:</strong> Emits {@code live.*} metrics (enqueue wait, persistence latency, worker errors) and structured logs for saturation events.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class LiveProcessingUseCase {
   private static final Logger log = LoggerFactory.getLogger(LiveProcessingUseCase.class);
@@ -90,70 +96,24 @@ public final class LiveProcessingUseCase {
   private boolean workersStarted;
 
   /**
-   * Creates the live processing pipeline by wiring capture, flow assembly, and persistence ports.
+   * Creates the live processing pipeline with explicit persistence worker configuration.
    *
-   * @param packetSource source of raw frames; must support {@link PacketSource#start()} and {@link PacketSource#poll()}
-   * @param frameDecoder converts frames to TCP segments when possible
-   * @param flowAssembler orders TCP bytes per flow
-   * @param protocolDetector detects protocols for new flows
-   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
-   * @param pairingFactories factories that convert message events to {@link MessagePair}s
-   * @param persistence sink for emitting message pairs immediately
-   * @param metrics metrics sink updated for capture, decode, and pairing events
-   * @param enabledProtocols subset of protocols to process; others are ignored
-   * @since RADAR 0.1-doc
-   */
-  public LiveProcessingUseCase(
-      PacketSource packetSource,
-      FrameDecoder frameDecoder,
-      FlowAssembler flowAssembler,
-      ProtocolDetector protocolDetector,
-      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
-      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
-      PersistencePort persistence,
-      MetricsPort metrics,
-      Set<ProtocolId> enabledProtocols) {
-    this(
-        packetSource,
-        frameDecoder,
-        flowAssembler,
-        protocolDetector,
-        reconstructorFactories,
-        pairingFactories,
-        persistence,
-        metrics,
-        enabledProtocols,
-        PersistenceSettings.defaults());
-  }
-
-  /**
-   * Creates the live processing pipeline with explicit persistence worker settings.
+   * @param packetSource source of raw frames; must not be {@code null}
+   * @param frameDecoder converts frames into TCP segments; must not be {@code null}
+   * @param flowAssembler orders TCP bytes per flow; must not be {@code null}
+   * @param protocolDetector detects protocols for new flows; must not be {@code null}
+   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers; must not be {@code null}
+   * @param pairingFactories factories that convert message events to {@link MessagePair}s; must not be {@code null}
+   * @param persistence sink for emitting message pairs immediately; must not be {@code null}
+   * @param metrics metrics sink updated for capture, decode, and pairing events; must not be {@code null}
+   * @param enabledProtocols subset of protocols to process; others are ignored; must not be {@code null}
+   * @param persistenceWorkers number of worker threads handling persistence; must be >= 1
+   * @param persistenceQueueCapacity maximum buffered message pairs awaiting persistence; must be >= workers
    *
-   * @param packetSource source of raw frames
-   * @param frameDecoder converts frames to TCP segments
-   * @param flowAssembler orders TCP bytes per flow
-   * @param protocolDetector detects protocols for new flows
-   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
-   * @param pairingFactories factories that convert message events to {@link MessagePair}s
-   * @param persistence sink for emitting message pairs immediately
-   * @param metrics metrics sink updated for capture, decode, and pairing events
-   * @param enabledProtocols subset of protocols to process; others are ignored
-   * @param persistenceWorkers number of worker threads handling persistence
-   * @param persistenceQueueCapacity maximum buffered message pairs awaiting persistence
-   * @since RADAR 0.1-doc
-   */
-  public LiveProcessingUseCase(
-      PacketSource packetSource,
-      FrameDecoder frameDecoder,
-      FlowAssembler flowAssembler,
-      ProtocolDetector protocolDetector,
-      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
-      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
-      PersistencePort persistence,
-      MetricsPort metrics,
-      Set<ProtocolId> enabledProtocols,
-      int persistenceWorkers,
-      int persistenceQueueCapacity) {
+   * <p><strong>Concurrency:</strong> Invoke during single-threaded bootstrap before {@link #run()}.</p>
+   * <p><strong>Performance:</strong> Allows callers to tune worker count and queue capacity to match sink throughput.</p>
+   * <p><strong>Observability:</strong> Runtime metrics reflect the provided settings (queue depth, wait time).</p>
+   */  public LiveProcessingUseCase(      PacketSource packetSource,      FrameDecoder frameDecoder,      FlowAssembler flowAssembler,      ProtocolDetector protocolDetector,      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,      PersistencePort persistence,      MetricsPort metrics,      Set<ProtocolId> enabledProtocols,      int persistenceWorkers,      int persistenceQueueCapacity) {
     this(
         packetSource,
         frameDecoder,
@@ -612,13 +572,24 @@ public final class LiveProcessingUseCase {
     };
   }
 
-  /** Queue types supported for persistence hand-off. */
+  /**\n   * Queue types supported for persistence hand-off.\n   * <p><strong>Role:</strong> Determines the blocking semantics of the persistence queue.</p>\n   * <p><strong>Performance:</strong> {@link #ARRAY} uses a bounded {@link java.util.concurrent.ArrayBlockingQueue}; {@link #LINKED} uses a bounded {@link java.util.concurrent.LinkedBlockingQueue}.</p>\n   * <p><strong>Observability:</strong> Metrics such as {@code live.persist.queue.*} reflect the chosen queue type.</p>\n   */
   public enum QueueType {
     ARRAY,
     LINKED
   }
 
-  /** Persistence tuning parameters. */
+  /**\n   * Persistence tuning parameters controlling worker count and queue behaviour.\n   * <p><strong>Thread-safety:</strong> Immutable record; safe to share between threads.</p>\n   * <p><strong>Performance:</strong> Guides how many persistence workers run and how deep the queue can grow.</p>\n   * <p><strong>Observability:</strong> Values feed directly into metrics such as {@code live.persist.queue.capacity}.</p>\n   */
+  /**
+   * Immutable configuration for persistence worker pools.
+   *
+   * @param workers number of persistence worker threads
+   * @param queueCapacity maximum queue depth per worker
+   * @param queueType queue implementation used when buffering persistence tasks
+   *
+   * <p><strong>Concurrency:</strong> Immutable snapshot shared across threads.</p>
+   * <p><strong>Performance:</strong> Controls queue selection and worker sizing for persistence throughput.</p>
+   * <p><strong>Observability:</strong> Values surface in metrics (e.g., {@code live.persistence.workers}).</p>
+   */
   public record PersistenceSettings(int workers, int queueCapacity, QueueType queueType) {
     /**
      * Normalizes persistence settings by clamping worker/queue values and defaulting the queue type.
@@ -655,3 +626,15 @@ public final class LiveProcessingUseCase {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+

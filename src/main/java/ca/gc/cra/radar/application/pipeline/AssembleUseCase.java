@@ -24,13 +24,21 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
- * Replays captured segment records to reconstruct higher-level protocol message pairs.
- * <p>Coordinates the {@link FlowProcessingEngine} with persistence and metrics. Not thread-safe;
- * intended for single-threaded batch execution.</p>
+ * <strong>What:</strong> Replays captured segment records to reconstruct higher-level protocol message pairs.
+ * <p><strong>Why:</strong> Allows operators to assemble offline captures into poster-ready exchanges.</p>
+ * <p><strong>Role:</strong> Application-layer use case coordinating domain ports and persistence adapters.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Read {@link SegmentRecord}s from disk.</li>
+ *   <li>Feed segments through {@link FlowProcessingEngine} to produce {@link MessagePair}s.</li>
+ *   <li>Persist results via {@link PersistencePort} and emit metrics.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe; intended for single-threaded batch execution.</p>
+ * <p><strong>Performance:</strong> Streams segments sequentially, relying on flow engine batching and persistence flushing.</p>
+ * <p><strong>Observability:</strong> Emits {@code assemble.*} metrics and structured logs (flow IDs, segment counts).</p>
  *
- * @implNote Tracks flow orientation using {@link FlowDirectionService} to determine client/server side
- * for synthesized {@link TcpSegment} instances.
- * @since RADAR 0.1-doc
+ * @implNote Tracks flow orientation using {@link FlowDirectionService} to determine client/server side for synthesized {@link TcpSegment} instances.
+ * @since 0.1.0
  */
 public final class AssembleUseCase {
   private static final Logger log = LoggerFactory.getLogger(AssembleUseCase.class);
@@ -46,15 +54,19 @@ public final class AssembleUseCase {
   /**
    * Creates an assemble use case with explicit dependencies.
    *
-   * @param config assemble configuration
-   * @param flowAssembler flow assembler implementation
-   * @param protocolDetector protocol detector implementation
-   * @param reconstructorFactories factories for message reconstructors
-   * @param pairingFactories factories for pairing engines
-   * @param persistence persistence port
-   * @param metrics metrics port
-   * @param enabledProtocols protocols to process
-   * @param readerFactory factory for segment readers
+   * @param config assemble configuration describing input location and limits; must not be {@code null}
+   * @param flowAssembler flow assembler implementation used by {@link FlowProcessingEngine}; must not be {@code null}
+   * @param protocolDetector detector responsible for classifying flows; must not be {@code null}
+   * @param reconstructorFactories factories for message reconstructors keyed by protocol; must not be {@code null}
+   * @param pairingFactories factories for pairing engines keyed by protocol; must not be {@code null}
+   * @param persistence persistence port receiving assembled pairs; must not be {@code null}
+   * @param metrics metrics port used to record assemble statistics; must not be {@code null}
+   * @param enabledProtocols whitelist of protocols to process; must not be {@code null}
+   * @param readerFactory factory creating {@link SegmentRecordReader}s for the configured input; must not be {@code null}
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread before pipeline execution.</p>
+   * <p><strong>Performance:</strong> Initializes {@link FlowProcessingEngine} once; heavy work happens during {@link #run()}.</p>
+   * <p><strong>Observability:</strong> Constructor emits no metrics; runtime metrics surface during processing.</p>
    */
   public AssembleUseCase(
       AssembleConfig config,
@@ -86,7 +98,10 @@ public final class AssembleUseCase {
    * Streams segment records through the flow engine and persists resulting message pairs.
    *
    * @throws Exception if reading records, processing flows, or persisting results fails
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Not thread-safe; call once per pipeline execution.</p>
+   * <p><strong>Performance:</strong> Processes segments sequentially; persistence flush happens after reading completes.</p>
+   * <p><strong>Observability:</strong> Emits MDC flow identifiers, increments {@code assemble.pairs.persisted}, and logs throughput.</p>
    */
   public void run() throws Exception {
     MDC.put("assemble.in", config.inputDirectory().toString());
@@ -161,19 +176,16 @@ public final class AssembleUseCase {
         record.timestampMicros());
   }
 
-  /**
-   * Checks whether a flag mask is set.
-   *
-   * @param flags bitmask to inspect
-   * @param mask mask to test
-   * @return {@code true} when the mask is present
-   */
   private static boolean hasFlag(int flags, int mask) {
     return (flags & mask) != 0;
   }
 
   /**
    * Reader abstraction over a source of serialized {@link SegmentRecord}s.
+   *
+   * <p><strong>Thread-safety:</strong> Implementations are typically single-threaded.</p>
+   * <p><strong>Performance:</strong> Should stream records sequentially without loading entire files.</p>
+   * <p><strong>Observability:</strong> Callers may measure read latency and errors per implementation.</p>
    */
   public interface SegmentRecordReader extends AutoCloseable {
     /**
@@ -181,21 +193,36 @@ public final class AssembleUseCase {
      *
      * @return next record or {@code null} when complete
      * @throws Exception if reading fails
+     *
+     * <p><strong>Concurrency:</strong> Not thread-safe unless documented.</p>
+     * <p><strong>Performance:</strong> Expected to perform O(1) incremental reads backed by streaming IO.</p>
+     * <p><strong>Observability:</strong> Implementations should log or tag read errors.</p>
      */
     SegmentRecord next() throws Exception;
+
+    @Override
+    void close() throws Exception;
   }
 
   /**
    * Factory for {@link SegmentRecordReader} instances tied to an {@link AssembleConfig} input.
+   *
+   * <p><strong>Thread-safety:</strong> Implementations should be thread-safe; factories are typically stateless.</p>
+   * <p><strong>Performance:</strong> Responsible for lightweight reader creation.</p>
+   * <p><strong>Observability:</strong> Callers may log factory selection during startup.</p>
    */
   @FunctionalInterface
   public interface SegmentReaderFactory {
     /**
      * Opens a reader bound to the supplied configuration.
      *
-     * @param config assemble configuration describing the source
+     * @param config assemble configuration describing the source; must not be {@code null}
      * @return opened reader
      * @throws Exception if the reader cannot be created
+     *
+     * <p><strong>Concurrency:</strong> Typically invoked during single-threaded setup.</p>
+     * <p><strong>Performance:</strong> Should perform minimal validation before returning a reader.</p>
+     * <p><strong>Observability:</strong> Implementations may emit metrics for reader initialization.</p>
      */
     SegmentRecordReader open(AssembleConfig config) throws Exception;
   }
@@ -204,22 +231,18 @@ public final class AssembleUseCase {
    * Creates a {@link SegmentReaderFactory} that streams serialized segments via {@link SegmentIoAdapter}.
    *
    * @return factory producing file-based segment readers
+   *
+   * <p><strong>Concurrency:</strong> Factory is stateless and thread-safe.</p>
+   * <p><strong>Performance:</strong> Readers stream from disk using {@link SegmentIoAdapter.Reader}.</p>
+   * <p><strong>Observability:</strong> Callers should monitor IO metrics exposed by the adapter.</p>
    */
   public static SegmentReaderFactory segmentIoReaderFactory() {
     return config -> new SegmentIoAdapterRecordReader(new SegmentIoAdapter.Reader(config.inputDirectory()));
   }
 
-  /**
-   * Concrete reader that adapts {@link SegmentIoAdapter.Reader} to the {@link SegmentRecordReader} interface.
-   */
   private static final class SegmentIoAdapterRecordReader implements SegmentRecordReader {
     private final SegmentIoAdapter.Reader delegate;
 
-    /**
-     * Creates a reader wrapper around the provided adapter.
-     *
-     * @param delegate underlying adapter
-     */
     private SegmentIoAdapterRecordReader(SegmentIoAdapter.Reader delegate) {
       this.delegate = delegate;
     }
@@ -235,13 +258,11 @@ public final class AssembleUseCase {
     }
   }
 
-  /**
-   * Formats a five-tuple into a compact string for MDC logging.
-   *
-   * @param flow flow metadata to format
-   * @return compact textual representation
-   */
   private static String formatFlow(FiveTuple flow) {
     return flow.srcIp() + ":" + flow.srcPort() + "->" + flow.dstIp() + ":" + flow.dstPort();
   }
 }
+
+
+
+

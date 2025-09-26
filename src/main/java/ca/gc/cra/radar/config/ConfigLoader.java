@@ -9,10 +9,14 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * Loads {@link Config} instances from configuration files.
- * <p>Thread-safe; performs a best-effort parse with sensible defaults.</p>
+ * <strong>What:</strong> Loads {@link Config} instances from configuration files.
+ * <p><strong>Why:</strong> Allows operators to override default capture settings via property files.</p>
+ * <p><strong>Role:</strong> Configuration helper used by CLI composition roots.</p>
+ * <p><strong>Thread-safety:</strong> Stateless and thread-safe.</p>
+ * <p><strong>Performance:</strong> O(n) in the number of properties.</p>
+ * <p><strong>Observability:</strong> Callers should log when configuration files are missing or malformed.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class ConfigLoader {
   private ConfigLoader() {}
@@ -23,7 +27,10 @@ public final class ConfigLoader {
    * @param path properties file path; may be {@code null} or non-existent to use defaults
    * @return configuration populated with file values overriding defaults
    * @throws IOException if the file exists but cannot be read
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Thread-safe; method allocates local property objects.</p>
+   * <p><strong>Performance:</strong> O(n) in property entries; defaults fill missing values.</p>
+   * <p><strong>Observability:</strong> Callers should log path resolution and catch parsing errors for operators.</p>
    */
   public static Config fromProperties(Path path) throws IOException {
     Properties props = new Properties();
@@ -46,3 +53,4 @@ public final class ConfigLoader {
     return new Config(iface, bpf, snap, enabled);
   }
 }
+

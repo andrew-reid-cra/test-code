@@ -7,10 +7,14 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Utility for loading {@link CaptureConfig} from Java {@link Properties} streams.
- * <p>Stateless and thread-safe.</p>
+ * <strong>What:</strong> Utility for loading {@link CaptureConfig} from Java {@link Properties} streams.
+ * <p><strong>Why:</strong> Allows deployments to externalize capture settings in property files.</p>
+ * <p><strong>Role:</strong> Configuration helper used by CLI composition roots.</p>
+ * <p><strong>Thread-safety:</strong> Stateless and thread-safe.</p>
+ * <p><strong>Performance:</strong> O(n) in the number of properties.</p>
+ * <p><strong>Observability:</strong> Callers should log when loading fails.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class CapturePropertiesLoader {
   private CapturePropertiesLoader() {}
@@ -18,10 +22,13 @@ public final class CapturePropertiesLoader {
   /**
    * Reads key/value pairs from the supplied stream and builds a {@link CaptureConfig}.
    *
-   * @param in properties stream; not closed by this method
+   * @param in properties stream; not closed by this method; must not be {@code null}
    * @return capture configuration derived from the properties
    * @throws IOException if reading the stream fails
-   * @since RADAR 0.1-doc
+   *
+   * <p><strong>Concurrency:</strong> Thread-safe; method uses local data structures only.</p>
+   * <p><strong>Performance:</strong> O(n) in property entries; delegates to {@link CaptureConfig#fromMap(Map)}.</p>
+   * <p><strong>Observability:</strong> Callers should log loading failures or validation errors.</p>
    */
   public static CaptureConfig load(InputStream in) throws IOException {
     Properties props = new Properties();
@@ -33,3 +40,4 @@ public final class CapturePropertiesLoader {
     return CaptureConfig.fromMap(kv);
   }
 }
+

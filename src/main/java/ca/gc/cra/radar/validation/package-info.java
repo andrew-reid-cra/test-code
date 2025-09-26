@@ -1,4 +1,4 @@
-﻿/**
+/**
  * <strong>Purpose:</strong> Validation helpers used during CLI parsing and configuration bootstrap.
  * <p><strong>Pipeline role:</strong> Domain support for the capture and assemble stages; ensures invalid
  * inputs are rejected before ports/adapters allocate network or file resources.

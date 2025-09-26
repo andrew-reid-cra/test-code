@@ -13,6 +13,8 @@ public final class BufferPools {
 
   /**
    * Provides the shared IO buffer pool sized for file/network writes.
+   *
+   * @return shared buffer pool instance used across adapters
    */
   public static BufferPool ioBuffers() {
     return IO_POOL;

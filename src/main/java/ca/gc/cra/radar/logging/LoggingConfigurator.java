@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.logging;
+package ca.gc.cra.radar.logging;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;

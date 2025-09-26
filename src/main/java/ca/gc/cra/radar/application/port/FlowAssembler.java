@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.application.port;
+package ca.gc.cra.radar.application.port;
 
 import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.TcpSegment;

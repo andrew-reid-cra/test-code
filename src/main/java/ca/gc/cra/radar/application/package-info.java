@@ -1,9 +1,9 @@
 /**
- * Application layer orchestration for RADAR: pipelines, ports, and shared utilities.
- * <p>Implements use cases that coordinate domain models with infrastructure adapters.</p>
- * <p>Depends on {@code ca.gc.cra.radar.domain}; consumed by {@code ca.gc.cra.radar.api}
- * and infrastructure implementations.</p>
- *
- * @since RADAR 0.1-doc
+ * Application layer orchestration for RADAR pipelines.
+ * <p><strong>Role:</strong> Hosts use cases and ports that coordinate capture → assemble → sink stages.</p>
+ * <p><strong>Concurrency:</strong> Use cases manage worker pools explicitly; interfaces document caller responsibilities.</p>
+ * <p><strong>Performance:</strong> Pipelines stream traffic with bounded queues and backpressure controls.</p>
+ * <p><strong>Metrics:</strong> Emits namespaces including {@code live.persist.*}, {@code assemble.usecase.*}, and {@code poster.pipeline.*}.</p>
+ * <p><strong>Security:</strong> Relies on validation utilities to reject unsafe configuration before activating adapters.</p>
  */
 package ca.gc.cra.radar.application;

@@ -397,11 +397,24 @@ public record CaptureConfig(
     return Path.of(userHome, ".radar", "out");
   }
 
-  /** Queue implementations available for live persistence hand-off. */
+  /**\n   * Queue implementations available for live persistence hand-off.\n   * <p><strong>Role:</strong> Determines the blocking semantics of the persistence queue.</p>\n   * <p><strong>Performance:</strong> {@link #ARRAY} maps to {@link java.util.concurrent.ArrayBlockingQueue}, {@link #LINKED} to {@link java.util.concurrent.LinkedBlockingQueue}.</p>\n   * <p><strong>Observability:</strong> Metrics such as {@code capture.persist.queue.type} should reference the chosen constant.</p>\n   */
   public enum PersistenceQueueType {
+    /** Array-backed bounded queue (high throughput, fixed capacity). */
     ARRAY,
+    /** Linked queue supporting dynamic growth at the cost of extra allocations. */
     LINKED;
 
+    /**
+     * Parses a queue type string into a {@link PersistenceQueueType}.
+     *
+     * @param value textual representation (e.g., {@code array}, {@code linked}); must not be {@code null}
+     * @return corresponding queue type
+     * @throws IllegalArgumentException if the value is not recognized
+     *
+     * <p><strong>Concurrency:</strong> Thread-safe static helper.</p>
+     * <p><strong>Performance:</strong> Normalizes input using lower-case conversion; O(n) in the input length.</p>
+     * <p><strong>Observability:</strong> Callers should log invalid values for operator feedback.</p>
+     */
     static PersistenceQueueType fromString(String value) {
       String normalized = value.toLowerCase(Locale.ROOT);
       return switch (normalized) {
@@ -413,6 +426,14 @@ public record CaptureConfig(
     }
   }
 }
+
+
+
+
+
+
+
+
 
 
 

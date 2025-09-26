@@ -1,9 +1,9 @@
 /**
- * Persistence adapters for RADAR segment capture and poster outputs.
- * <p>Includes filesystem readers/writers, Kafka bridges, and format-specific sinks that materialize
- * reconstructed pairs. Adapters are deliberately blocking and expect to be invoked from managed
- * worker threads coordinated by the application pipelines.</p>
- *
- * @since RADAR 0.1-doc
+ * Persistence adapters that deliver segments and poster payloads to durable storage (files, Kafka, HTTP).
+ * <p><strong>Role:</strong> Sink-side adapter implementations for RADAR ports.</p>
+ * <p><strong>Concurrency:</strong> Designed for managed worker pools; individual adapters document thread safety.</p>
+ * <p><strong>Performance:</strong> Emphasizes streaming writes and batching to sustain throughput.</p>
+ * <p><strong>Metrics:</strong> Emits {@code sink.*} namespaces covering latency, retries, and queue depth.</p>
+ * <p><strong>Security:</strong> Validates target paths and enforces TLS or credential usage as configured.</p>
  */
 package ca.gc.cra.radar.infrastructure.persistence;

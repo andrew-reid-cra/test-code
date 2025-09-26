@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.validation;
+package ca.gc.cra.radar.validation;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;

@@ -15,11 +15,20 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 /**
- * Kafka-backed {@link SegmentPersistencePort} that streams serialized TCP segments to a topic.
- * <p>Acts as an infrastructure adapter for the assemble pipeline. Thread-safety follows the
- * supplied {@link Producer} implementation (the default {@link KafkaProducer} is thread-safe).
+ * <strong>What:</strong> Kafka-backed {@link SegmentPersistencePort} that streams serialized TCP segments.
+ * <p><strong>Why:</strong> Lets the capture stage hand off segments to assemble pipelines running on other hosts.</p>
+ * <p><strong>Role:</strong> Infrastructure adapter on the sink side (capture -> assemble hand-off).</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Serialize {@link SegmentRecord} instances and publish them to Kafka.</li>
+ *   <li>Preserve per-flow ordering via keyed producer records.</li>
+ *   <li>Flush and close the producer gracefully during shutdown.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Mirrors the provided {@link Producer}; the default {@link KafkaProducer} is thread-safe.</p>
+ * <p><strong>Performance:</strong> Relies on Kafka batching; serialization is linear in payload size.</p>
+ * <p><strong>Observability:</strong> Emits Kafka client metrics; callers should layer {@code sink.kafka.*} counters around usage.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
   private final Producer<String, byte[]> producer;
@@ -28,11 +37,14 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
   /**
    * Creates a Kafka sink for segment records.
    *
-   * @param bootstrapServers comma-separated Kafka bootstrap servers
-   * @param topic topic that receives serialized segments
+   * @param bootstrapServers comma-separated Kafka bootstrap servers; must not be blank
+   * @param topic Kafka topic that receives serialized segments; must not be blank
    * @throws NullPointerException if {@code bootstrapServers} is {@code null}
-   * @throws IllegalArgumentException if {@code bootstrapServers} is blank or {@code topic} is {@code null} or blank
-   * @since RADAR 0.1-doc
+   * @throws IllegalArgumentException if any parameter is blank
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single configuration thread.</p>
+   * <p><strong>Performance:</strong> Initializes a {@link KafkaProducer} with batching-friendly defaults.</p>
+   * <p><strong>Observability:</strong> Producer exposes standard Kafka metrics; callers should log bootstrap/topic details.</p>
    */
   public SegmentKafkaSinkAdapter(String bootstrapServers, String topic) {
     this(createProducer(bootstrapServers), sanitizeTopic(topic));
@@ -47,8 +59,11 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
    * Publishes the segment to Kafka.
    *
    * @param record segment record to persist; {@code null} inputs are ignored
+   *
+   * <p><strong>Concurrency:</strong> Safe when the underlying {@link Producer} is thread-safe.</p>
+   * <p><strong>Performance:</strong> Serialization is linear in payload size; producer batches as configured.</p>
+   * <p><strong>Observability:</strong> Callers should increment {@code sink.kafka.segments} counters and monitor producer metrics.</p>
    * @implNote Uses a flow-based key to preserve per-connection ordering.
-   * @since RADAR 0.1-doc
    */
   @Override
   public void persist(SegmentRecord record) {
@@ -63,7 +78,9 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
   /**
    * Flushes outstanding Kafka sends.
    *
-   * @since RADAR 0.1-doc
+   * <p><strong>Concurrency:</strong> Safe for concurrent calls; delegates to the producer.</p>
+   * <p><strong>Performance:</strong> Blocks until in-flight batches are acknowledged.</p>
+   * <p><strong>Observability:</strong> Callers may record flush latency when draining pipelines.</p>
    */
   @Override
   public void flush() {
@@ -73,8 +90,9 @@ public final class SegmentKafkaSinkAdapter implements SegmentPersistencePort {
   /**
    * Flushes pending messages and closes the producer.
    *
-   * @implNote Waits up to five seconds for in-flight sends to complete.
-   * @since RADAR 0.1-doc
+   * <p><strong>Concurrency:</strong> Invoke once during shutdown after all persist calls have completed.</p>
+   * <p><strong>Performance:</strong> Flushes and closes the producer, waiting up to five seconds for in-flight sends.</p>
+   * <p><strong>Observability:</strong> Callers should log closure and monitor Kafka client metrics for errors.</p>
    */
   @Override
   public void close() {

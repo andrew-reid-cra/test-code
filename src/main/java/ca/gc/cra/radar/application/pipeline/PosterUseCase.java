@@ -29,11 +29,20 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
- * Coordinates protocol-specific poster pipelines that render reconstructed traffic for reporting.
- * <p>Each configured protocol runs in its own task; not thread-safe for concurrent {@link #run(PosterConfig)}
- * invocations.</p>
+ * <strong>What:</strong> Coordinates protocol-specific poster pipelines that render reconstructed traffic for reporting.
+ * <p><strong>Why:</strong> Delivers decoded exchanges to operators via files or Kafka topics.</p>
+ * <p><strong>Role:</strong> Application-layer use case on the sink/poster side.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Select protocol pipelines based on configuration.</li>
+ *   <li>Provision output ports (file or Kafka).</li>
+ *   <li>Execute pipelines, possibly in parallel, and manage lifecycle.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Not thread-safe for concurrent {@link #run(PosterConfig)} invocations.</p>
+ * <p><strong>Performance:</strong> Uses a fixed-size executor when multiple protocols run concurrently.</p>
+ * <p><strong>Observability:</strong> Logs protocol execution and closes outputs; individual pipelines emit metrics.</p>
  *
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public final class PosterUseCase {
   private static final Logger log = LoggerFactory.getLogger(PosterUseCase.class);
@@ -42,6 +51,10 @@ public final class PosterUseCase {
 
   /**
    * Creates a poster use case with the default protocol pipelines.
+   *
+   * <p><strong>Concurrency:</strong> Thread-safe construction.</p>
+   * <p><strong>Performance:</strong> Copies a small map of defaults.</p>
+   * <p><strong>Observability:</strong> No metrics emitted during construction.</p>
    */
   public PosterUseCase() {
     this(defaultPipelines());
@@ -50,7 +63,11 @@ public final class PosterUseCase {
   /**
    * Creates a poster use case with custom pipelines.
    *
-   * @param pipelines map of protocol identifiers to pipeline implementations
+   * @param pipelines map of protocol identifiers to pipeline implementations; must not be {@code null}
+   *
+   * <p><strong>Concurrency:</strong> Construct on a single thread; resulting map is defensively copied.</p>
+   * <p><strong>Performance:</strong> Copies the map once.</p>
+   * <p><strong>Observability:</strong> Does not log; callers should log pipeline registration separately.</p>
    */
   public PosterUseCase(Map<ProtocolId, PosterPipeline> pipelines) {
     Objects.requireNonNull(pipelines, "pipelines");
@@ -60,8 +77,12 @@ public final class PosterUseCase {
   /**
    * Runs the configured poster pipelines.
    *
-   * @param config poster configuration supplied by the CLI layer
+   * @param config poster configuration supplied by the CLI layer; must not be {@code null}
    * @throws Exception if any pipeline fails
+   *
+   * <p><strong>Concurrency:</strong> Uses a fixed thread pool when multiple protocols are enabled; each task runs serially per protocol.</p>
+   * <p><strong>Performance:</strong> Batches pipeline execution; file outputs stream incrementally.</p>
+   * <p><strong>Observability:</strong> Logs pipeline start/stop and propagates exceptions with suppressed output-close failures.</p>
    */
   public void run(PosterConfig config) throws Exception {
     Objects.requireNonNull(config, "config");

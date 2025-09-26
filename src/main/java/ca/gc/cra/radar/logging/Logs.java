@@ -1,4 +1,4 @@
-﻿package ca.gc.cra.radar.logging;
+package ca.gc.cra.radar.logging;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;

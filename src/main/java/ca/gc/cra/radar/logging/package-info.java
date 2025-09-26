@@ -1,4 +1,4 @@
-﻿/**
+/**
  * <strong>Purpose:</strong> Logging utilities that tune verbosity and sanitize payloads before emission.
  * <p><strong>Pipeline role:</strong> Cross-cutting domain support for capture, assemble, and sink diagnostics.
  * <p><strong>Concurrency:</strong> Stateless helpers; thread-safe when invoked from concurrent pipelines.

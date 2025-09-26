@@ -1,9 +1,14 @@
 package ca.gc.cra.radar.domain.net;
 
 /**
- * Simplified TCP segment abstraction exposed by the flow assembler.
+ * <strong>What:</strong> Simplified TCP segment abstraction exposed by the flow assembler.
+ * <p><strong>Why:</strong> Provides the assemble stage with immutable segment metadata and payload for ordering.</p>
+ * <p><strong>Role:</strong> Domain value object bridging frame decoding to flow assembly.</p>
+ * <p><strong>Thread-safety:</strong> Immutable; safe for sharing across threads.</p>
+ * <p><strong>Performance:</strong> Clones payload data to avoid external mutation; flags retain original TCP semantics.</p>
+ * <p><strong>Observability:</strong> Fields support metrics like {@code assemble.segment.flags}.</p>
  *
- * @param flow five-tuple describing the connection
+ * @param flow five-tuple describing the connection; never {@code null}
  * @param sequenceNumber TCP sequence number for the first payload byte
  * @param fromClient {@code true} when oriented client-to-server
  * @param payload TCP payload bytes; defensively copied
@@ -13,7 +18,7 @@ package ca.gc.cra.radar.domain.net;
  * @param psh whether the PSH flag is set
  * @param ack whether the ACK flag is set
  * @param timestampMicros capture timestamp in microseconds since epoch
- * @since RADAR 0.1-doc
+ * @since 0.1.0
  */
 public record TcpSegment(
     FiveTuple flow,
@@ -30,7 +35,9 @@ public record TcpSegment(
   /**
    * Normalizes the TCP payload array to maintain immutability.
    *
-   * @since RADAR 0.1-doc
+   * <p><strong>Concurrency:</strong> Result is immutable.</p>
+   * <p><strong>Performance:</strong> Copies payload when provided; substitutes an empty array otherwise.</p>
+   * <p><strong>Observability:</strong> Timestamp remains unchanged for downstream metrics.</p>
    */
   public TcpSegment {
     payload = payload != null ? payload.clone() : new byte[0];
