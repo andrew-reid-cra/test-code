@@ -73,6 +73,14 @@ public final class CompositionRoot {
     this(config, captureConfig, new OpenTelemetryMetricsAdapter());
   }
 
+  /**
+   * Creates a composition root with explicit capture configuration and metrics adapter overrides.
+   *
+   * @param config base configuration for enabled protocols and defaults
+   * @param captureConfig capture-specific overrides
+   * @param metricsPort metrics adapter used by constructed use cases
+   * @since RADAR 0.1-doc
+   */
   public CompositionRoot(Config config, CaptureConfig captureConfig, MetricsPort metricsPort) {
     this.config = Objects.requireNonNull(config, "config");
     this.captureConfig = Objects.requireNonNull(captureConfig, "captureConfig");
@@ -333,6 +341,3 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
-
-
-

@@ -1,4 +1,4 @@
-#Wed Sep 24 18:16:20 ADT 2025
+#Thu Sep 25 21:42:38 ADT 2025
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPersistenceAdapter.java=1758419850453
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPosterPipeline.java=1758419883039
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\KafkaPosterOutputAdapter.java=1758419603883
@@ -7,15 +7,16 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\Kafk
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\SegmentKafkaSinkAdapter.java=1758419929857
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\Tn3270KafkaPersistenceAdapter.java=1758419945391
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\Tn3270KafkaPosterPipeline.java=1758419957153
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\AssembleCli.java=1758500414686
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CaptureCli.java=1758574504990
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\AssembleCli.java=1758844762412
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CaptureCli.java=1758844719054
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CliArgsParser.java=1758499762960
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CliInput.java=1758499745635
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\CliPrinter.java=1758476677836
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\ExitCode.java=1758476683620
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\LiveCli.java=1758546091037
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\LiveCli.java=1758844746609
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\Main.java=1758590422251
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\PosterCli.java=1758523631189
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\PosterCli.java=1758844781483
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\TelemetryConfigurator.java=1758844588822
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\package-info.java=1758472003426
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\tools\\SegbinGrepCli.java=1758524097878
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\tools\\package-info.java=1758472413180
@@ -47,7 +48,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\AssembleConf
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CaptureConfig.java=1758573771156
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CapturePropertiesLoader.java=1758409495228
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CaptureProtocol.java=1758573697616
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CompositionRoot.java=1758545905621
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CompositionRoot.java=1758847340673
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\Config.java=1758500529596
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\ConfigLoader.java=1758409495230
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\IoMode.java=1758409495230
@@ -85,6 +86,8 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\capt
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\capture\\package-info.java=1758472413180
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\detect\\DefaultProtocolDetector.java=1758421494028
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\NoOpMetricsAdapter.java=1758420963313
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\OpenTelemetryBootstrap.java=1758845277214
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\OpenTelemetryMetricsAdapter.java=1758844488887
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\net\\ContextualFlowAssembler.java=1758409821098
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\net\\FrameDecoderLibpcap.java=1758420926948
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\net\\NoOpFlowAssembler.java=1758421494029
@@ -121,7 +124,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\prot
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270Signature.java=1758391261489
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\package-info.java=1758472413181
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\time\\SystemClockAdapter.java=1758421494032
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\logging\\LoggingConfigurator.java=1758476747690
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\logging\\LoggingConfigurator.java=1758844800781
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\logging\\Logs.java=1758500241465
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\validation\\Net.java=1758499678634
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\validation\\Numbers.java=1758499658535

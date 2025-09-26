@@ -13,7 +13,6 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\poster\Tn3270PosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\validation\NetTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\capture\SegmentRecordTest.java
-D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\NoOpFlowAssemblerTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\e2e\EndToEndPcapIT.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest.java

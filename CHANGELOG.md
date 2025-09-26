@@ -17,8 +17,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - build(site): Maven site/reporting configuration with Javadoc, Surefire, Jacoco, and Checkstyle outputs.
 
 ### Changed
-- docs(javadoc): refreshed public API comments, added package overviews, and documented LegacyHttpAssembler deprecation details.
+- docs(javadoc): refreshed public API comments, added package overviews, and pruned references to retired assembler shims.
 - build(jacoco): constrained coverage collection to project packages to avoid JDK instrumentation issues.
 
 ### Deprecated
-- docs(upgrade): documented the pending removal of `LegacyHttpAssembler`; migrate to `PosterUseCase`-based pipelines.
+- docs(upgrade): external adapters must implement the core `FlowAssembler` contract; contextual overloads are deprecated in favour of domain-driven context propagation.
+
+### Removed
+- refactor(cleanup): removed `LegacyHttpAssembler`, `ContextualFlowAssembler`, and `NoOpFlowAssembler`; migrate to `PosterUseCase` + `HttpFlowAssemblerAdapter` pipelines or dedicated `FlowAssembler` test doubles.
+

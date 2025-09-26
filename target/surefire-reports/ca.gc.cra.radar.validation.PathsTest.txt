@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: ca.gc.cra.radar.validation.PathsTest
 -------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.040 s -- in ca.gc.cra.radar.validation.PathsTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.058 s -- in ca.gc.cra.radar.validation.PathsTest

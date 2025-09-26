@@ -72,7 +72,6 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\Segm
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMetrics.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270Metrics.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\FrameDecoder.java
-D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\legacy\LegacyHttpAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CaptureCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\capture\pcap\PcapFilePacketSource.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\poster\HttpPosterPipeline.java
@@ -84,7 +83,6 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\pa
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipeline.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CapturePropertiesLoader.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\package-info.java
-D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\ContextualFlowAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\msg\TransactionId.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPersistenceAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\PcapHandle.java
@@ -124,7 +122,6 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\FrameDecoder
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\PersistencePort.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpSessionExtractor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\MetricsPort.java
-D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\NoOpFlowAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\package-info.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\SegmentSinkAdapter.java

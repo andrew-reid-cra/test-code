@@ -5,9 +5,10 @@ assemblers and tightened logging / security defaults.
 
 ## Deprecations and removals
 
-- **`LegacyHttpAssembler`** ? deprecated since 0.1.0 (`@Deprecated(forRemoval=true)`). Replace any
-  direct invocations with the `PosterUseCase`/`HttpPosterPipeline` wiring shown below.
-- **Legacy segment persistence adapters** ? filesystem-only helper classes (`LegacySegmentPersistenceAdapter`)
+- **`LegacyHttpAssembler`** - removed in 0.2.0. Migrate to the `PosterUseCase` + `HttpPosterPipeline` wiring or the protocol-specific `PosterPipeline` adapters documented below.
+- **`ContextualFlowAssembler`** - removed. Implement the core `FlowAssembler` interface and propagate `FlowContext` metadata through your application ports instead of relying on the contextual extension.
+- **`NoOpFlowAssembler`** - removed. Use a purpose-built `FlowAssembler` fake under `src/test` when you need a no-op implementation during testing.
+- **Legacy segment persistence adapters** - filesystem-only helper classes (`LegacySegmentPersistenceAdapter`)
   have been removed. Use `SegmentIoAdapter`/`SegmentFileSinkAdapter` instead.
 
 ## Logging and exit codes

@@ -74,7 +74,6 @@ ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270MessageReconstructorTest.cl
 ca\gc\cra\radar\application\port\poster\PosterReportTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest.class
 ca\gc\cra\radar\capture\pcap\PcapFilePacketSourceTest.class
-ca\gc\cra\radar\infrastructure\net\NoOpFlowAssemblerTest.class
 ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakeHandle$Step.class
 ca\gc\cra\radar\e2e\EndToEndPcapIT$ProtocolPaths.class
 ca\gc\cra\radar\infrastructure\persistence\SegmentIoAdapterTest.class
