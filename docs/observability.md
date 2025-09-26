@@ -37,23 +37,24 @@ All processes **must** initialize an OTel `Resource` with:
 
 ## 2) Module Telemetry Specifications
 
-### 2.1 Capture Module (NIC → Segment Queue)
+### 2.1 Capture Module (NIC ??? Segment Queue)
 **Attributes (common):**  
 `adapter={jnr-libpcap|pcap4j}`, `if_name`, `protocol={tcp|udp|other}`, `queue=segment`
 
 **Counters**
-- `radar.capture.packets` (1) — total packets captured  
-- `radar.capture.bytes` (By) — total bytes captured  
-- `radar.capture.dropped` (1) — kernel/driver drops (if available)  
-- `radar.capture.errors` (1) — capture errors (timeouts, syscalls, adapter faults)
+- `radar.capture.packets` (1) ??? total packets captured  
+- `radar.capture.bytes` (By) ??? total bytes captured  
+- `radar.capture.dropped` (1) ??? kernel/driver drops (if available)  
+- `radar.capture.errors` (1) ??? capture errors (timeouts, syscalls, adapter faults)
 
 **Histograms**
-- `radar.capture.batch.size` (1) — packets per poll/batch  
-- `radar.capture.poll.latency` (ms) — time in poll/read calls
+- `radar.capture.batch.size` (1) ??? packets per poll/batch  
+- `radar.capture.poll.latency` (ms) ??? time in poll/read calls
 
 **Observable Gauges**
-- `radar.capture.queue.depth` (1) — pending segments in queue  
-- `radar.capture.throughput` (By/s) — rolling byte rate (calculate in code)
+- `radar.capture.queue.depth` (1) ??? pending segments in queue  
+- `radar.capture.throughput` (By/s) ??? rolling byte rate (calculate in code)
+- Attributes: tag `impl` (jni|pcap4j) plus `source` (iface or file) so dashboards distinguish adapters.
 
 **Traces**
 - **Span:** `capture.poll` around each poll/batch  
@@ -65,29 +66,29 @@ All processes **must** initialize an OTel `Resource` with:
 
 ---
 
-### 2.2 Assembler Module (Segment Queue → Flow/Message)
+### 2.2 Assembler Module (Segment Queue ??? Flow/Message)
 **Attributes (common):**  
 `protocol={http|tn3270|other}`, `queue={segment|flow}`, `reassembly={inorder|reorder}`, `buffer_pool={on|off}`
 
 **Counters**
 - `radar.assembler.sessions.started` (1)  
 - `radar.assembler.sessions.terminated` (1)  
-- `radar.assembler.messages.reassembled` (1) — HTTP msgs or TN3270 transactions  
-- `radar.assembler.reassembly.errors` (1) — checksum, gaps, timeouts  
-- `radar.assembler.tcp.retransmissions.seen` (1) — if available
+- `radar.assembler.messages.reassembled` (1) ??? HTTP msgs or TN3270 transactions  
+- `radar.assembler.reassembly.errors` (1) ??? checksum, gaps, timeouts  
+- `radar.assembler.tcp.retransmissions.seen` (1) ??? if available
 
 **Histograms**
-- `radar.assembler.reassembly.latency` (ms) — segment→message latency  
-- `radar.assembler.message.size` (By) — payload size distribution
+- `radar.assembler.reassembly.latency` (ms) ??? segment???message latency  
+- `radar.assembler.message.size` (By) ??? payload size distribution
 
 **Observable Gauges**
 - `radar.assembler.sessions.active` (1)  
-- `radar.assembler.queue.depth` (1) — inflight segments/messages  
+- `radar.assembler.queue.depth` (1) ??? inflight segments/messages  
 - `radar.assembler.buffer.pool.inuse` (By)
 
 **Traces**
 - **Span:** `assembler.reassemble` per message/flow  
-  - Link to capture span via **span link** or **context propagation** (see §4).  
+  - Link to capture span via **span link** or **context propagation** (see ??4).  
   - Events: `gap_detected`, `reorder`, `timeout_eviction`
 
 **Logs**
@@ -95,7 +96,7 @@ All processes **must** initialize an OTel `Resource` with:
 
 ---
 
-### 2.3 Sink Module (Message → Persistence/Outbound)
+### 2.3 Sink Module (Message ??? Persistence/Outbound)
 **Attributes (common):**  
 `sink={opensearch|file|kinesis|http}`, `queue={message|persist}`
 
@@ -105,12 +106,12 @@ All processes **must** initialize an OTel `Resource` with:
 - `radar.sink.retries` (1)  
 
 **Histograms**
-- `radar.sink.latency` (ms) — request→ack time  
+- `radar.sink.latency` (ms) ??? request???ack time  
 - `radar.sink.payload.size` (By)
 
 **Observable Gauges**
 - `radar.sink.queue.depth` (1)  
-- `radar.sink.endpoint.rtt` (ms) — rolling estimate if feasible
+- `radar.sink.endpoint.rtt` (ms) ??? rolling estimate if feasible
 
 **Traces**
 - **Span:** `sink.persist` or `sink.post`  
@@ -181,7 +182,7 @@ adar.metric.key attribute so dashboards can differentiate live persistence from 
 - Use **`InMemoryMetricReader`** and **in-memory span exporter** to assert:
 
 ### 4.2 Integration/Perf Tests
-- Drive synthetic traffic through **Capture → Assembler → Sink** and validate:
+- Drive synthetic traffic through **Capture ??? Assembler ??? Sink** and validate:
 ...
 ### 4.3 Local Collector Smoke Test
 - **Prerequisites:** download the OpenTelemetry Collector binary that matches your OS from the official releases page (https://github.com/open-telemetry/opentelemetry-collector-releases).
@@ -255,7 +256,7 @@ service:
 
 ---
 
-### Appendix A — Minimal Boot Example (Main)
+### Appendix A ??? Minimal Boot Example (Main)
 ```java
 ... Java code here ...
 ```
@@ -263,3 +264,5 @@ service:
 ---
 
 **This file is authoritative.** Any new code or refactor that touches hot paths must include corresponding OTel metrics/traces/logs as specified above. If in doubt, add the signal and document the rationale in the PR.
+
+

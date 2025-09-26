@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 public final class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
   private static final String SUMMARY_USAGE =
-      "usage: radar <capture|live|assemble|poster|segbingrep> [options]";
+      "usage: radar <capture|capture-pcap4j|live|assemble|poster|segbingrep> [options]";
   private static final String HELP_TEXT = """
       RADAR command dispatcher
 
@@ -24,11 +24,12 @@ public final class Main {
         radar <command> [options]
 
       Commands:
-        capture     Packet capture pipeline (capture --help for details)
-        live        Live processing pipeline (live --help for details)
-        assemble    Assemble captured segments into higher-level pairs
-        poster      Render reconstructed traffic to files or Kafka
-        segbingrep  Search segment binaries for literal byte sequences
+        capture          Packet capture pipeline (capture --help for details)
+        capture-pcap4j   pcap4j-backed capture for performance comparisons
+        live             Live processing pipeline (live --help for details)
+        assemble         Assemble captured segments into higher-level pairs
+        poster           Render reconstructed traffic to files or Kafka
+        segbingrep       Search segment binaries for literal byte sequences
 
       Global flags:
         --help      Show this message
@@ -72,7 +73,7 @@ public final class Main {
     }
 
     String command = remainder[0].toLowerCase(Locale.ROOT);
-        String[] delegateArgs =
+    String[] delegateArgs =
         Stream.concat(
                 input.flags().stream(),
                 Arrays.stream(remainder, 1, remainder.length))
@@ -80,6 +81,7 @@ public final class Main {
 
     return switch (command) {
       case "capture" -> CaptureCli.run(delegateArgs);
+      case "capture-pcap4j" -> CapturePcap4jCli.run(delegateArgs);
       case "live" -> LiveCli.run(delegateArgs);
       case "assemble" -> AssembleCli.run(delegateArgs);
       case "poster" -> PosterCli.run(delegateArgs);

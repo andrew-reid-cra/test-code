@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Added
+- feat(capture): add pcap4j-backed capture CLI (`capture-pcap4j`) and adapter for performance comparisons.
 - test(pipeline): cover persistence failure, back-pressure, and executor shutdown scenarios in live processing tests.
 - feat(observability): replace noop metrics with OpenTelemetry adapter, CLI configuration, and unit tests.
 - feat(capture): add offline PCAP/PCAPNG ingest that shares the live segment pipeline.

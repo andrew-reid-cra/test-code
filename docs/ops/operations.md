@@ -15,6 +15,7 @@ radar capture iface=ens3 bpf="tcp port 443" out=/var/radar/segments rollMiB=512
 - Safe defaults: `snap=65535`, `bufmb=1024`, `timeout=1`, `promisc=true`, `immediate=true`.
 - Add `ioMode=KAFKA kafkaBootstrap=broker:9092 kafkaTopicSegments=radar.segments` to stream
   segments directly to Kafka.
+- Alternate path: run `radar capture-pcap4j ...` to benchmark the pcap4j adapter with identical flags and outputs.
 
 ### Assemble CLI (file mode)
 ```

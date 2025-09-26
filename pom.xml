@@ -28,6 +28,7 @@
     <logback.version>1.4.14</logback.version>
     <opentelemetry.version>1.36.0</opentelemetry.version>
     <jmh.version>1.36</jmh.version>
+    <pcap4j.version>1.8.0</pcap4j.version>
   </properties>
 
   <dependencies>
@@ -71,6 +72,13 @@
       <groupId>com.github.jnr</groupId>
       <artifactId>jnr-ffi</artifactId>
       <version>2.2.12</version>
+    </dependency>
+
+    <!-- pcap4j provides an alternate capture stack for parity tests against JNI/libpcap -->
+    <dependency>
+      <groupId>org.pcap4j</groupId>
+      <artifactId>pcap4j-core</artifactId>
+      <version>${pcap4j.version}</version>
     </dependency>
 
     <dependency>

@@ -1,6 +1,7 @@
-﻿## Package Layout
+## Package Layout
 - `ca.gc.cra.radar.domain` - domain model and invariants; pure Java.
 - `ca.gc.cra.radar.application` - use cases and ports coordinating the pipeline.
+- `ca.gc.cra.radar.infrastructure.capture` - capture adapters (JNI/libpcap default + pcap4j variant) and shared utilities.
 - `ca.gc.cra.radar.infrastructure.capture.live` - real-time sniffing adapters; ...live.pcap wraps libpcap.
 - `ca.gc.cra.radar.infrastructure.capture.file` - offline replay adapters; ...file.pcap reuses libpcap for .pcap/.pcapng traces.
 - `ca.gc.cra.radar.infrastructure.capture.pcap` - shared libpcap bindings leveraged by both capture modes.
@@ -12,15 +13,15 @@ Why: placing live and offline adapters under a unified infrastructure hierarchy 
 RADAR ingests raw packets, reassembles TCP flows, and emits readable HTTP and TN3270 conversations. The architecture follows a hexagonal pattern: adapters expose packet capture, flow assembly, protocol modules, pairing engines, and persistence sinks through small ports so each stage stays testable.
 
 ## Pipeline At A Glance
-- **capture** ï¿½ wraps libpcap (via JNR) or Kafka to gather TCP segments.
-- **assemble** ï¿½ reorders TCP, detects HTTP/TN3270, reconstructs protocol messages, and persists per-protocol outputs.
-- **poster** ï¿½ consumes the assembled outputs (files or Kafka) and renders human-readable reports.
+- **capture** ??? wraps libpcap (via JNR) or Kafka to gather TCP segments.
+- **assemble** ??? reorders TCP, detects HTTP/TN3270, reconstructs protocol messages, and persists per-protocol outputs.
+- **poster** ??? consumes the assembled outputs (files or Kafka) and renders human-readable reports.
 
 ## Key Concepts
-- **SegmentBin format** ï¿½ rotating `.segbin` files hold length-prefixed segment records (timestamp, flow tuple, flags, payload).
-- **ReorderingFlowAssembler** ï¿½ buffers out-of-order TCP data per direction, trims retransmissions, and emits contiguous byte streams as soon as gaps fill.
-- **Protocol modules** ï¿½ HTTP and TN3270 reconstructors plug into the flow engine; pairing engines correlate reconstructed messages into `MessagePair`s for persistence.
-- **Persistence** ï¿½ HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode). Live capture persistence now runs on a fixed thread pool (threads named `live-persist-*`) with tunable `persistenceWorkers` and `persistenceQueueCapacity` settings exposed on the CLI.
+- **SegmentBin format** ??? rotating `.segbin` files hold length-prefixed segment records (timestamp, flow tuple, flags, payload).
+- **ReorderingFlowAssembler** ??? buffers out-of-order TCP data per direction, trims retransmissions, and emits contiguous byte streams as soon as gaps fill.
+- **Protocol modules** ??? HTTP and TN3270 reconstructors plug into the flow engine; pairing engines correlate reconstructed messages into `MessagePair`s for persistence.
+- **Persistence** ??? HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode). Live capture persistence now runs on a fixed thread pool (threads named `live-persist-*`) with tunable `persistenceWorkers` and `persistenceQueueCapacity` settings exposed on the CLI.
 
 ## CLI Quickstart
 All CLIs accept `key=value` arguments. The executable entry point is `ca.gc.cra.radar.api.Main`; the examples below assume the project has been built (`mvn -q -DskipTests package`). Replace `target/RADAR-0.1.0-SNAPSHOT.jar` with the actual jar name produced on your machine.
@@ -32,7 +33,7 @@ JAR=target/RADAR-0.1.0-SNAPSHOT.jar
 ```
 
 ### Minimal smoke (default FILE mode)
-The commands below run end-to-end with empty inputs to verify wiring ï¿½ each stage succeeds and produces the expected directory structure.
+The commands below run end-to-end with empty inputs to verify wiring ??? each stage succeeds and produces the expected directory structure.
 
 ```bash
 # 1) assemble an empty capture directory (creates http/ outputs by default)
@@ -84,6 +85,19 @@ java -cp $JAR ca.gc.cra.radar.api.Main poster \
   httpIn=./pairs-out/http httpOut=./reports-http \
   tnIn=./pairs-out/tn3270 tnOut=./reports-tn decode=all
 ```
+
+### Alternate Capture: pcap4j
+Use the optional pcap4j-backed CLI when you want to compare against the JNI/libpcap capture path without changing downstream processing.
+
+```bash
+java -cp $JAR ca.gc.cra.radar.api.Main capture-pcap4j \
+  iface=eth0 snaplen=65535 out=./cap-out fileBase=capture rollMiB=512 \
+  bufmb=1024 timeout=1000 --enable-bpf bpf="(tcp and port 80) or (tcp and port 23)"
+```
+
+- Accepts the same flags as `capture` (pcap files, Kafka sinks, dry-run, telemetry).
+- Produces identical segment files and Kafka records so assemble/poster require no changes.
+- Metrics/traces use the same names with `impl=pcap4j` for attribution; dashboards do not need updates.
 
 ### Full FILE pipeline from PCAP
 
