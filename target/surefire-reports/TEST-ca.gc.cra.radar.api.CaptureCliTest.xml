@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.CaptureCliTest" time="0.07" tests="5" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="ca.gc.cra.radar.api.CaptureCliTest" time="0.064" tests="5" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -16,7 +16,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="CA"/>
     <property name="sun.boot.library.path" value="d:\JDKs\java25\bin"/>
-    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire2504543341765951508\surefirebooter-20250925214233776_3.jar C:\Users\andre\AppData\Local\Temp\surefire2504543341765951508 2025-09-25T21-42-33_624-jvmRun1 surefire-20250925214233776_1tmp surefire_0-20250925214233776_2tmp"/>
+    <property name="sun.java.command" value="C:\Users\andre\AppData\Local\Temp\surefire5203370389983097382\surefirebooter-20250926062406473_3.jar C:\Users\andre\AppData\Local\Temp\surefire5203370389983097382 2025-09-26T06-24-06_338-jvmRun1 surefire-20250926062406473_1tmp surefire_0-20250926062406473_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="D:\radar\test-code\target\test-classes;D:\radar\test-code\target\classes;C:\Users\andre\.m2\repository\org\slf4j\slf4j-api\2.0.13\slf4j-api-2.0.13.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-classic\1.4.14\logback-classic-1.4.14.jar;C:\Users\andre\.m2\repository\ch\qos\logback\logback-core\1.4.14\logback-core-1.4.14.jar;C:\Users\andre\.m2\repository\org\apache\kafka\kafka-clients\2.8.2\kafka-clients-2.8.2.jar;C:\Users\andre\.m2\repository\com\github\luben\zstd-jni\1.4.9-1\zstd-jni-1.4.9-1.jar;C:\Users\andre\.m2\repository\org\lz4\lz4-java\1.7.1\lz4-java-1.7.1.jar;C:\Users\andre\.m2\repository\org\xerial\snappy\snappy-java\1.1.8.1\snappy-java-1.1.8.1.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-api\1.36.0\opentelemetry-api-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-context\1.36.0\opentelemetry-context-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk\1.36.0\opentelemetry-sdk-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-common\1.36.0\opentelemetry-sdk-common-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-trace\1.36.0\opentelemetry-sdk-trace-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-extension-incubator\1.36.0-alpha\opentelemetry-extension-incubator-1.36.0-alpha.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-metrics\1.36.0\opentelemetry-sdk-metrics-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-logs\1.36.0\opentelemetry-sdk-logs-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-api-events\1.36.0-alpha\opentelemetry-api-events-1.36.0-alpha.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-exporter-otlp\1.36.0\opentelemetry-exporter-otlp-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-exporter-otlp-common\1.36.0\opentelemetry-exporter-otlp-common-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-exporter-common\1.36.0\opentelemetry-exporter-common-1.36.0.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-exporter-sender-okhttp\1.36.0\opentelemetry-exporter-sender-okhttp-1.36.0.jar;C:\Users\andre\.m2\repository\com\squareup\okhttp3\okhttp\4.12.0\okhttp-4.12.0.jar;C:\Users\andre\.m2\repository\com\squareup\okio\okio\3.6.0\okio-3.6.0.jar;C:\Users\andre\.m2\repository\com\squareup\okio\okio-jvm\3.6.0\okio-jvm-3.6.0.jar;C:\Users\andre\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-common\1.9.10\kotlin-stdlib-common-1.9.10.jar;C:\Users\andre\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk8\1.8.21\kotlin-stdlib-jdk8-1.8.21.jar;C:\Users\andre\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib\1.8.21\kotlin-stdlib-1.8.21.jar;C:\Users\andre\.m2\repository\org\jetbrains\annotations\13.0\annotations-13.0.jar;C:\Users\andre\.m2\repository\org\jetbrains\kotlin\kotlin-stdlib-jdk7\1.8.21\kotlin-stdlib-jdk7-1.8.21.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-extension-autoconfigure-spi\1.36.0\opentelemetry-sdk-extension-autoconfigure-spi-1.36.0.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-ffi\2.2.12\jnr-ffi-2.2.12.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9.jar;C:\Users\andre\.m2\repository\com\github\jnr\jffi\1.3.9\jffi-1.3.9-native.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm\9.2\asm-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-commons\9.2\asm-commons-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-analysis\9.2\asm-analysis-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-tree\9.2\asm-tree-9.2.jar;C:\Users\andre\.m2\repository\org\ow2\asm\asm-util\9.2\asm-util-9.2.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-a64asm\1.0.0\jnr-a64asm-1.0.0.jar;C:\Users\andre\.m2\repository\com\github\jnr\jnr-x86asm\1.0.2\jnr-x86asm-1.0.2.jar;C:\Users\andre\.m2\repository\io\opentelemetry\opentelemetry-sdk-testing\1.36.0\opentelemetry-sdk-testing-1.36.0.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter\5.9.3\junit-jupiter-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.9.3\junit-jupiter-api-5.9.3.jar;C:\Users\andre\.m2\repository\org\opentest4j\opentest4j\1.2.0\opentest4j-1.2.0.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-commons\1.9.3\junit-platform-commons-1.9.3.jar;C:\Users\andre\.m2\repository\org\apiguardian\apiguardian-api\1.1.2\apiguardian-api-1.1.2.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-params\5.9.3\junit-jupiter-params-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.9.3\junit-jupiter-engine-5.9.3.jar;C:\Users\andre\.m2\repository\org\junit\platform\junit-platform-engine\1.9.3\junit-platform-engine-1.9.3.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-core\1.36\jmh-core-1.36.jar;C:\Users\andre\.m2\repository\net\sf\jopt-simple\jopt-simple\5.0.4\jopt-simple-5.0.4.jar;C:\Users\andre\.m2\repository\org\apache\commons\commons-math3\3.2\commons-math3-3.2.jar;C:\Users\andre\.m2\repository\org\openjdk\jmh\jmh-generator-annprocess\1.36\jmh-generator-annprocess-1.36.jar;"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -29,10 +29,9 @@
     <property name="basedir" value="D:\radar\test-code"/>
     <property name="java.vm.compressedOopsMode" value="Zero based"/>
     <property name="line.separator" value="&#10;"/>
-    <property name="checkstyle.skip" value="false"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire2504543341765951508\surefirebooter-20250925214233776_3.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\andre\AppData\Local\Temp\surefire5203370389983097382\surefirebooter-20250926062406473_3.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="25+36-3489"/>
@@ -43,7 +42,6 @@
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="file.encoding" value="UTF-8"/>
     <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
-    <property name="skipTests" value="false"/>
     <property name="localRepository" value="C:\Users\andre\.m2\repository"/>
     <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
     <property name="java.io.tmpdir" value="C:\Users\andre\AppData\Local\Temp\"/>
@@ -53,7 +51,6 @@
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
     <property name="sun.os.patch.level" value=""/>
     <property name="native.encoding" value="Cp1252"/>
-    <property name="spotbugs.skip" value="false"/>
     <property name="java.library.path" value="C:\Windows\System32\Npcap;C:\Windows\System32"/>
     <property name="java.vm.info" value="mixed mode, sharing"/>
     <property name="stderr.encoding" value="Cp1252"/>
@@ -64,18 +61,18 @@
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
     <property name="java.class.version" value="69.0"/>
   </properties>
-  <testcase name="customBpfWithoutEnableFlagIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.022">
-    <system-out><![CDATA[2025-09-25T21:42:35.489-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: bpf requires --enable-bpf acknowledgement 
+  <testcase name="customBpfWithoutEnableFlagIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.017">
+    <system-out><![CDATA[2025-09-26T06:24:08.289-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: bpf requires --enable-bpf acknowledgement 
 ]]></system-out>
   </testcase>
-  <testcase name="snapOutOfRangeIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.007">
-    <system-out><![CDATA[2025-09-25T21:42:35.498-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: snap must be between 64 and 262144 (was 1) 
+  <testcase name="snapOutOfRangeIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.005">
+    <system-out><![CDATA[2025-09-26T06:24:08.296-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: snap must be between 64 and 262144 (was 1) 
 ]]></system-out>
   </testcase>
-  <testcase name="invalidKafkaBootstrapIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.006">
-    <system-out><![CDATA[2025-09-25T21:42:35.505-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: host:port must use HOST:PORT format 
+  <testcase name="invalidKafkaBootstrapIsRejected" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.005">
+    <system-out><![CDATA[2025-09-26T06:24:08.301-03:00 [main] ERROR ca.gc.cra.radar.api.CaptureCli - Invalid capture arguments: host:port must use HOST:PORT format 
 ]]></system-out>
   </testcase>
-  <testcase name="customBpfWithEnableFlagAllowedOnDryRun" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.02"/>
-  <testcase name="dryRunDoesNotCreateOutputDirectories" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.008"/>
+  <testcase name="customBpfWithEnableFlagAllowedOnDryRun" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.019"/>
+  <testcase name="dryRunDoesNotCreateOutputDirectories" classname="ca.gc.cra.radar.api.CaptureCliTest" time="0.011"/>
 </testsuite>

@@ -12,16 +12,21 @@ import ca.gc.cra.radar.domain.msg.MessagePair;
 import ca.gc.cra.radar.domain.net.RawFrame;
 import ca.gc.cra.radar.domain.net.TcpSegment;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import ca.gc.cra.radar.infrastructure.exec.ExecutorFactories;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +51,12 @@ public final class LiveProcessingUseCase {
       Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
   private static final int DEFAULT_QUEUE_CAPACITY = DEFAULT_PERSISTENCE_WORKERS * 128;
   private static final int PERSIST_BATCH_SIZE = 32;
+  private static final Duration PERSISTENCE_SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
+  private static final long ENQUEUE_MAX_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+  private static final long ENQUEUE_BACKOFF_NANOS = TimeUnit.MICROSECONDS.toNanos(200);
+  private static final long WORKER_IDLE_POLL_MILLIS = 25L;
+  private static final int SATURATION_LOG_THRESHOLD = 1_000;
+
 
   private final PacketSource packetSource;
   private final FrameDecoder frameDecoder;
@@ -57,10 +68,10 @@ public final class LiveProcessingUseCase {
 
   private final int persistenceWorkerCount;
   private final BlockingQueue<PersistTask> persistenceQueue;
-  private final List<Thread> persistenceWorkers = new ArrayList<>();
   private final AtomicReference<Exception> persistenceFailure = new AtomicReference<>();
   private final AtomicReference<Thread> runThread = new AtomicReference<>();
   private final AtomicInteger queueHighWaterMark = new AtomicInteger();
+  private final AtomicInteger enqueueDropLogLimiter = new AtomicInteger();
   private final LongAdder enqueueWaitNanos = new LongAdder();
   private final LongAdder enqueueSamples = new LongAdder();
   private final LongAdder persistNanos = new LongAdder();
@@ -68,7 +79,10 @@ public final class LiveProcessingUseCase {
   private final AtomicLong enqueueEmaNanos = new AtomicLong(Double.doubleToRawLongBits(0d));
   private final AtomicLong persistEmaNanos = new AtomicLong(Double.doubleToRawLongBits(0d));
   private final String workerThreadPrefix;
+  private final AtomicBoolean persistenceStopRequested = new AtomicBoolean();
+  private final UncaughtExceptionHandler persistenceUncaughtHandler;
 
+  private volatile ExecutorService persistenceExecutor;
   private boolean workersStarted;
 
   /**
@@ -184,6 +198,7 @@ public final class LiveProcessingUseCase {
     this.persistenceWorkerCount = this.persistenceSettings.workers();
     this.persistenceQueue = createQueue(this.persistenceSettings);
     this.workerThreadPrefix = "live-persist-" + Integer.toHexString(System.identityHashCode(this));
+    this.persistenceUncaughtHandler = this::handlePersistenceCrash;
     this.flowEngine =
         new FlowProcessingEngine(
             "live",
@@ -270,7 +285,8 @@ public final class LiveProcessingUseCase {
               Thread.currentThread().interrupt();
               break;
             } catch (IllegalStateException halted) {
-              primaryFailure = persistenceFailure.get();
+              persistenceFailure.compareAndSet(null, halted);
+              primaryFailure = halted;
               break;
             }
           }
@@ -340,64 +356,66 @@ public final class LiveProcessingUseCase {
     workersStarted = true;
     persistenceFailure.set(null);
     queueHighWaterMark.set(0);
+    enqueueDropLogLimiter.set(0);
+    persistenceStopRequested.set(false);
+    persistenceQueue.clear();
+
+    persistenceExecutor =
+        ExecutorFactories.newPersistencePool(
+            persistenceWorkerCount, workerThreadPrefix, persistenceUncaughtHandler);
 
     for (int i = 0; i < persistenceWorkerCount; i++) {
-      Thread worker =
-          new Thread(
-              () -> {
-                var batch = new ArrayList<PersistTask>(PERSIST_BATCH_SIZE);
-                while (true) {
-                  PersistTask task;
-                  try {
-                    task = persistenceQueue.take();
-                  } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                  if (task.poison) {
-                    break;
-                  }
-                  if (!persistTask(task)) {
-                    break;
-                  }
-                  int drained = persistenceQueue.drainTo(batch, PERSIST_BATCH_SIZE);
-                  if (drained > 0) {
-                    boolean stopping = false;
-                    int requeue = 0;
-                    for (PersistTask next : batch) {
-                      if (next.poison) {
-                        if (!stopping) {
-                          stopping = true;
-                        } else {
-                          requeue++;
-                        }
-                        continue;
-                      }
-                      if (!persistTask(next)) {
-                        stopping = true;
-                        break;
-                      }
-                    }
-                    batch.clear();
-                    for (int j = 0; j < requeue; j++) {
-                      persistenceQueue.offer(PersistTask.POISON);
-                    }
-                    if (stopping) {
-                      break;
-                    }
-                  }
-                }
-              },
-              workerThreadPrefix + "-" + i);
-      worker.setDaemon(true);
-      worker.start();
-      persistenceWorkers.add(worker);
+      persistenceExecutor.execute(new PersistenceWorker());
     }
+
     log.info(
         "Started {} persistence workers with {} queue capacity {}",
         persistenceWorkerCount,
         persistenceSettings.queueType(),
         persistenceSettings.queueCapacity());
+    metrics.observe("live.persist.worker.active", persistenceWorkerCount);
+  }
+
+  private final class PersistenceWorker implements Runnable {
+    @Override
+    public void run() {
+      var batch = new ArrayList<PersistTask>(PERSIST_BATCH_SIZE);
+      try {
+        while (true) {
+          if (persistenceStopRequested.get() && persistenceQueue.isEmpty()) {
+            break;
+          }
+          PersistTask task = persistenceQueue.poll(WORKER_IDLE_POLL_MILLIS, TimeUnit.MILLISECONDS);
+          if (task == null) {
+            continue;
+          }
+          if (!persistTask(task)) {
+            break;
+          }
+          int drained = persistenceQueue.drainTo(batch, PERSIST_BATCH_SIZE);
+          if (drained > 0) {
+            for (PersistTask next : batch) {
+              if (!persistTask(next)) {
+                return;
+              }
+            }
+            batch.clear();
+          }
+        }
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        if (!persistenceStopRequested.get()) {
+          metrics.increment("live.persist.worker.interrupted");
+        }
+      } catch (Throwable unexpected) {
+        metrics.increment("live.persist.worker.uncaught");
+        Exception failure =
+            unexpected instanceof Exception ex
+                ? ex
+                : new RuntimeException("Persistence worker failure", unexpected);
+        signalPersistenceFailure(failure);
+      }
+    }
   }
 
   private boolean persistTask(PersistTask task) {
@@ -408,6 +426,7 @@ public final class LiveProcessingUseCase {
       metrics.increment("live.pairs.persisted");
       return true;
     } catch (Exception ex) {
+      metrics.increment("live.persist.worker.uncaught");
       signalPersistenceFailure(ex);
       return false;
     }
@@ -420,17 +439,40 @@ public final class LiveProcessingUseCase {
       throw new IllegalStateException("Persistence already failed", failure);
     }
     long startNanos = System.nanoTime();
-    try {
-      persistenceQueue.put(task);
-    } catch (InterruptedException ie) {
-      metrics.increment("live.persist.enqueue.interrupted");
-      throw ie;
-    }
-    recordEnqueueMetrics(System.nanoTime() - startNanos);
-    metrics.increment("live.persist.enqueued");
-    failure = persistenceFailure.get();
-    if (failure != null) {
-      throw new IllegalStateException("Persistence failed during enqueue", failure);
+    long deadline = startNanos + ENQUEUE_MAX_WAIT_NANOS;
+    while (true) {
+      if (persistenceStopRequested.get()) {
+        metrics.increment("live.persist.enqueue.dropped");
+        throw new IllegalStateException("Persistence shutting down");
+      }
+      if (persistenceQueue.offer(task)) {
+        recordEnqueueMetrics(System.nanoTime() - startNanos);
+        metrics.increment("live.persist.enqueued");
+        Exception postFailure = persistenceFailure.get();
+        if (postFailure != null) {
+          throw new IllegalStateException("Persistence failed during enqueue", postFailure);
+        }
+        return;
+      }
+      if (System.nanoTime() >= deadline) {
+        metrics.increment("live.persist.enqueue.dropped");
+        persistenceStopRequested.set(true);
+        IllegalStateException saturation = new IllegalStateException("Persistence queue saturated");
+        persistenceFailure.compareAndSet(null, saturation);
+        logQueueSaturation(System.nanoTime() - startNanos);
+        throw saturation;
+      }
+      metrics.increment("live.persist.enqueue.retry");
+      try {
+        TimeUnit.NANOSECONDS.sleep(ENQUEUE_BACKOFF_NANOS);
+      } catch (InterruptedException ie) {
+        metrics.increment("live.persist.enqueue.interrupted");
+        throw ie;
+      }
+      Exception interimFailure = persistenceFailure.get();
+      if (interimFailure != null) {
+        throw new IllegalStateException("Persistence failed during enqueue", interimFailure);
+      }
     }
   }
 
@@ -448,30 +490,53 @@ public final class LiveProcessingUseCase {
       return;
     }
 
-    log.info("Signalling persistence workers to stop");
+    persistenceStopRequested.set(true);
+    log.info("Stopping persistence workers");
 
-    for (int i = 0; i < persistenceWorkerCount; i++) {
+    ExecutorService executor = persistenceExecutor;
+    if (executor != null) {
+      executor.shutdown();
+      boolean terminated = false;
       try {
-        persistenceQueue.put(PersistTask.POISON);
+        terminated =
+            executor.awaitTermination(
+                PERSISTENCE_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        if (!terminated) {
+          metrics.increment("live.persist.shutdown.force");
+          log.warn(
+              "Persistence workers active after {} ms; invoking shutdownNow",
+              PERSISTENCE_SHUTDOWN_TIMEOUT.toMillis());
+          executor.shutdownNow();
+          terminated =
+              executor.awaitTermination(
+                  PERSISTENCE_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        }
       } catch (InterruptedException ie) {
+        metrics.increment("live.persist.shutdown.interrupted");
         Thread.currentThread().interrupt();
-        break;
+        executor.shutdownNow();
+      }
+      if (!terminated) {
+        log.error("Persistence workers failed to terminate cleanly");
       }
     }
 
-    for (Thread worker : persistenceWorkers) {
-      try {
-        worker.join(TimeUnit.SECONDS.toMillis(5));
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-        break;
-      }
-    }
-    log.info("Persistence workers joined");
-    persistenceWorkers.clear();
+    persistenceExecutor = null;
     persistenceQueue.clear();
     workersStarted = false;
+    metrics.observe("live.persist.worker.active", 0);
     metrics.observe("live.persist.queue.highWater", queueHighWaterMark.get());
+  }
+
+  private void logQueueSaturation(long waitNanos) {
+    int count = enqueueDropLogLimiter.incrementAndGet();
+    if (count == 1 || count % SATURATION_LOG_THRESHOLD == 0) {
+      long micros = TimeUnit.NANOSECONDS.toMicros(waitNanos);
+      log.warn("Persistence queue saturated after {} µs wait (capacity={}, workers={})", micros, persistenceSettings.queueCapacity(), persistenceWorkerCount);
+      if (count >= SATURATION_LOG_THRESHOLD * 100) {
+        enqueueDropLogLimiter.set(0);
+      }
+    }
   }
 
   private void recordEnqueueMetrics(long waitNanos) {
@@ -520,10 +585,23 @@ public final class LiveProcessingUseCase {
     return Math.round(Double.longBitsToDouble(emaBits.get()));
   }
 
+  private void handlePersistenceCrash(Thread thread, Throwable throwable) {
+    metrics.increment("live.persist.worker.uncaught");
+    Exception failure =
+        throwable instanceof Exception ex ? ex : new RuntimeException("Persistence worker crash", throwable);
+    log.error("Persistence worker {} terminated via uncaught exception", thread.getName(), throwable);
+    signalPersistenceFailure(failure);
+  }
+
   private void signalPersistenceFailure(Exception ex) {
     metrics.increment("live.persist.error");
     if (persistenceFailure.compareAndSet(null, ex)) {
+      persistenceStopRequested.set(true);
       log.error("Persistence worker {} failed", Thread.currentThread().getName(), ex);
+      ExecutorService executor = persistenceExecutor;
+      if (executor != null) {
+        executor.shutdown();
+      }
       Thread runner = runThread.get();
       if (runner != null) {
         runner.interrupt();
@@ -570,18 +648,14 @@ public final class LiveProcessingUseCase {
   }
 
   private static final class PersistTask {
-    private static final PersistTask POISON = new PersistTask(null, true);
-
     private final MessagePair pair;
-    private final boolean poison;
 
-    private PersistTask(MessagePair pair, boolean poison) {
+    private PersistTask(MessagePair pair) {
       this.pair = pair;
-      this.poison = poison;
     }
 
     static PersistTask payload(MessagePair pair) {
-      return new PersistTask(Objects.requireNonNull(pair, "pair"), false);
+      return new PersistTask(Objects.requireNonNull(pair, "pair"));
     }
   }
 }

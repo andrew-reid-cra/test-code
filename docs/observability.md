@@ -122,6 +122,32 @@ All processes **must** initialize an OTel `Resource` with:
 
 ---
 
+
+### 2.3.1 Live Persistence Executor (LiveProcessingUseCase)
+**Counters**
+- live.persist.enqueued (1)  - message pairs handed to the executor
+- live.persist.enqueue.retry (1)  - retries attempted while the queue was saturated
+- live.persist.enqueue.dropped (1)  - pairs dropped after exceeding enqueue timeout
+- live.persist.error (1)  - persistence failures surfaced to the coordinator
+- live.persist.worker.uncaught (1)  - worker-level failures (caught or uncaught)
+- live.persist.worker.interrupted (1)  - interruptions observed outside graceful shutdown
+- live.persist.shutdown.force (1)  - forced executor shutdowns
+- live.persist.shutdown.interrupted (1)  - interruptions while awaiting graceful stop
+
+**Observable Gauges**
+- live.persist.worker.active (1)  - active executor threads
+- live.persist.queue.depth (1)  - current bounded queue depth
+
+**Histograms**
+- live.persist.latencyNanos (ns)  - persistence latency
+- live.persist.enqueue.waitNanos (ns)  - enqueue wait time
+
+**Notes**
+- Metrics share the 
+adar.metric.key attribute so dashboards can differentiate live persistence from offline assemble sinks.
+- Saturation events also emit WARN logs summarizing queue depth and retry counts.
+
+
 ## 3) Java Implementation Patterns
 
 ### 3.1 Bootstrapping the OTel SDK (OTLP)

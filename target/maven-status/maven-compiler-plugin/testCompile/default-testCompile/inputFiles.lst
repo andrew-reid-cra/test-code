@@ -29,6 +29,7 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\PayloadFlowAssemblerAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\config\CaptureConfigTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\config\PosterConfigTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\LiveProcessingUseCasePersistenceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\FrameDecoderLibpcapTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\LiveProcessingUseCaseConcurrencyTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapterTest.java

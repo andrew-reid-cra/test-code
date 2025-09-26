@@ -41,11 +41,13 @@ public final class Tn3270PairingEngineAdapter implements PairingEngine, AutoClos
       return Optional.empty();
     }
     MessageType type = Objects.requireNonNull(event.type(), "event.type");
-    return switch (type) {
-      case REQUEST -> onRequest(event);
-      case RESPONSE -> onResponse(event);
-      default -> Optional.empty();
-    };
+    if (type == MessageType.REQUEST) {
+      return onRequest(event);
+    }
+    if (type == MessageType.RESPONSE) {
+      return onResponse(event);
+    }
+    return Optional.empty();
   }
 
   private Optional<MessagePair> onRequest(MessageEvent request) {

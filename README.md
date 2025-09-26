@@ -178,6 +178,13 @@ one disables emission.
 | live.persist.error | Counter | Persistence failures in live mode |
 | live.persist.queue.depth | Histogram | Persist queue depth snapshots |
 | live.persist.latencyNanos | Histogram | Persistence latency samples (nanoseconds) |
+| live.persist.worker.active | Gauge | Active persistence worker threads |
+| live.persist.enqueue.retry | Counter | Persistence enqueue retries under saturation |
+| live.persist.enqueue.dropped | Counter | Pairs dropped after enqueue timeout |
+| live.persist.worker.uncaught | Counter | Persistence worker failures surfaced to the coordinator |
+| live.persist.worker.interrupted | Counter | Worker interruptions outside graceful shutdown |
+| live.persist.shutdown.force | Counter | Forced persistence executor shutdowns |
+| live.persist.shutdown.interrupted | Counter | Interrupts observed while awaiting executor shutdown |
 | http.flowAssembler.bytes / 	n3270.flowAssembler.bytes | Histogram | Bytes emitted per reconstructed payload |
 | protocol.http.bytes / protocol.tn3270.bytes | Histogram | Protocol-level payload volume |
 | ssemble.flowAssembler.contiguous / .buffered / .duplicate | Counters | Flow assembler behaviour per segment |

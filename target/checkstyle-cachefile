@@ -1,4 +1,4 @@
-#Thu Sep 25 21:42:38 ADT 2025
+#Fri Sep 26 06:24:12 ADT 2025
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPersistenceAdapter.java=1758419850453
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\HttpKafkaPosterPipeline.java=1758419883039
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\adapter\\kafka\\KafkaPosterOutputAdapter.java=1758419603883
@@ -23,7 +23,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\api\\tools\\package-
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\package-info.java=1758409495215
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\AssembleUseCase.java=1758476908526
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\FlowProcessingEngine.java=1758419984419
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\LiveProcessingUseCase.java=1758587648744
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\LiveProcessingUseCase.java=1758852118815
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\PosterUseCase.java=1758476720691
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\SegmentCaptureUseCase.java=1758568397273
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\application\\pipeline\\package-info.java=1758472413179
@@ -48,7 +48,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\AssembleConf
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CaptureConfig.java=1758573771156
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CapturePropertiesLoader.java=1758409495228
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CaptureProtocol.java=1758573697616
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CompositionRoot.java=1758847340673
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\CompositionRoot.java=1758847420324
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\Config.java=1758500529596
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\ConfigLoader.java=1758409495230
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\config\\IoMode.java=1758409495230
@@ -85,6 +85,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\capt
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\capture\\libpcap\\cstruct\\TimeVal.java=1758409786951
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\capture\\package-info.java=1758472413180
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\detect\\DefaultProtocolDetector.java=1758421494028
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\exec\\ExecutorFactories.java=1758851877037
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\NoOpMetricsAdapter.java=1758420963313
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\OpenTelemetryBootstrap.java=1758845277214
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\metrics\\OpenTelemetryMetricsAdapter.java=1758844488887
@@ -119,7 +120,7 @@ D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\prot
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270FlowAssemblerAdapter.java=1758420450768
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270MessageReconstructor.java=1758490515323
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270Metrics.java=1758391261486
-D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270PairingEngineAdapter.java=1758421494036
+D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270PairingEngineAdapter.java=1758852234976
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270ProtocolModule.java=1758420790246
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\Tn3270Signature.java=1758391261489
 D\:\\radar\\test-code\\src\\main\\java\\ca\\gc\\cra\\radar\\infrastructure\\protocol\\tn3270\\package-info.java=1758472413181
