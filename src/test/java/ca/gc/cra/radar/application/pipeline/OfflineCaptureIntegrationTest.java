@@ -12,7 +12,7 @@ import ca.gc.cra.radar.config.Config;
 import ca.gc.cra.radar.infrastructure.metrics.NoOpMetricsAdapter;
 import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
 import ca.gc.cra.radar.infrastructure.persistence.segment.SegmentFileSinkAdapter;
-import ca.gc.cra.radar.capture.pcap.PcapFilePacketSource;
+import ca.gc.cra.radar.infrastructure.capture.file.pcap.PcapFilePacketSource;
 import ca.gc.cra.radar.testutil.PcapFixtures;
 import java.nio.file.Files;
 import java.nio.file.Path;

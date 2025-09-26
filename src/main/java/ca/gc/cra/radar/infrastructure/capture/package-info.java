@@ -1,9 +1,11 @@
 /**
- * Capture adapters backed by libpcap and supporting safe defaults for RADAR ingestion.
- * <p>Implementations expose BPF gating, dry-run execution, and defensive resource handling to
- * prevent NIC lockups when the CLI exits unexpectedly.</p>
- * <p>All classes are single-threaded; callers control scheduling and should invoke
- * {@link ca.gc.cra.radar.application.port.PacketSource#close()} during shutdown.</p>
+ * Capture adapters bridging RADAR's packet-source ports to infrastructure implementations.
+ * <p>Subpackages organise adapters by execution mode: {@code live} sniffers drive privileged
+ * interface capture while {@code file} readers replay offline traces for deterministic testing
+ * and investigations. Shared transport-specific infrastructure (for example libpcap bindings)
+ * resides under {@code pcap}.</p>
+ * <p>All adapters honour {@link ca.gc.cra.radar.application.port.PacketSource} contracts,
+ * propagate OpenTelemetry metrics, and remain single-threaded; callers own lifecycle management.</p>
  *
  * @since RADAR 0.1-doc
  */

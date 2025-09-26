@@ -532,7 +532,7 @@ public final class LiveProcessingUseCase {
     int count = enqueueDropLogLimiter.incrementAndGet();
     if (count == 1 || count % SATURATION_LOG_THRESHOLD == 0) {
       long micros = TimeUnit.NANOSECONDS.toMicros(waitNanos);
-      log.warn("Persistence queue saturated after {} µs wait (capacity={}, workers={})", micros, persistenceSettings.queueCapacity(), persistenceWorkerCount);
+      log.warn("Persistence queue saturated after {} ?s wait (capacity={}, workers={})", micros, persistenceSettings.queueCapacity(), persistenceWorkerCount);
       if (count >= SATURATION_LOG_THRESHOLD * 100) {
         enqueueDropLogLimiter.set(0);
       }

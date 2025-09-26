@@ -11,14 +11,10 @@ ca\gc\cra\radar\testutil\PcapFixtures$StubPcap.class
 ca\gc\cra\radar\e2e\EndToEndPcapIT.class
 ca\gc\cra\radar\infrastructure\poster\HttpPosterPipelineTest$PosterOutputPortRejecting.class
 ca\gc\cra\radar\infrastructure\poster\Tn3270PosterPipelineTest$PosterOutputPortRejecting.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakeHandle$StepType.class
 ca\gc\cra\radar\config\PosterConfigTest.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest.class
 ca\gc\cra\radar\testutil\PcapFixtures$StubHandle.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakeHandle$Frame.class
 ca\gc\cra\radar\api\AssembleCliTest.class
 ca\gc\cra\radar\domain\msg\TransactionIdTest.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakePcap.class
 ca\gc\cra\radar\infrastructure\persistence\tn3270\Tn3270SegmentSinkPersistenceAdapterTest.class
 ca\gc\cra\radar\application\pipeline\PosterUseCaseTest$FailingPipeline.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest$RecordingMetrics.class
@@ -50,7 +46,6 @@ ca\gc\cra\radar\domain\net\TcpSegmentTest.class
 ca\gc\cra\radar\adapter\kafka\KafkaPosterOutputAdapterTest.class
 ca\gc\cra\radar\application\pipeline\PosterUseCaseTest.class
 ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructorTest.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakeHandle.class
 ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapterTest.class
 ca\gc\cra\radar\domain\flow\FlowDirectionServiceTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest$ExhaustingPacketSource.class
@@ -62,8 +57,6 @@ ca\gc\cra\radar\api\PosterCliTest.class
 ca\gc\cra\radar\infrastructure\protocol\tn3270\Tn3270MessageReconstructorTest.class
 ca\gc\cra\radar\application\port\poster\PosterReportTest.class
 ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest.class
-ca\gc\cra\radar\capture\pcap\PcapFilePacketSourceTest.class
-ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest$FakeHandle$Step.class
 ca\gc\cra\radar\e2e\EndToEndPcapIT$ProtocolPaths.class
 ca\gc\cra\radar\infrastructure\persistence\SegmentIoAdapterTest.class
 ca\gc\cra\radar\validation\NetTest.class

@@ -1,7 +1,7 @@
-# RADAR Detailed Notes
+﻿# RADAR Detailed Notes
 
 ## Capture Layer
-- PcapPacketSource opens a libpcap handle (via infrastructure.capture.libpcap) and emits RawFrame objects.
+- PcapPacketSource opens a libpcap handle (via infrastructure.capture.pcap.libpcap) and emits RawFrame objects.
 - Frames are decoded into TCP segments; SegmentIoAdapter.Writer persists them to SegmentBinIO files so assembling can run offline.
 
 ## Flow Processing

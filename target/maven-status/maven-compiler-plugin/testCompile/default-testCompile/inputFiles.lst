@@ -2,10 +2,10 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\port\poster\PosterR
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\AssembleCliTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\SegmentKafkaSinkAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPersistenceAdapterTest.java
-D:\radar\test-code\src\test\java\ca\gc\cra\radar\capture\pcap\PcapFilePacketSourceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssemblerTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\net\TcpSegmentTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\testutil\PcapFixtures.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\live\pcap\PcapPacketSourceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\poster\HttpPosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\config\ConfigLoaderTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\LiveProcessingUseCaseTest.java
@@ -15,9 +15,9 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\validation\NetTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\capture\SegmentRecordTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\e2e\EndToEndPcapIT.java
-D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\PcapPacketSourceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\SegmentCaptureUseCaseTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\validation\StringsTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\file\pcap\PcapFilePacketSourceTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\config\AssembleConfigTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\OfflineCaptureIntegrationTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\net\ByteStreamTest.java

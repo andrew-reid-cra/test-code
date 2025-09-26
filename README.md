@@ -1,17 +1,26 @@
+﻿## Package Layout
+- `ca.gc.cra.radar.domain` - domain model and invariants; pure Java.
+- `ca.gc.cra.radar.application` - use cases and ports coordinating the pipeline.
+- `ca.gc.cra.radar.infrastructure.capture.live` - real-time sniffing adapters; ...live.pcap wraps libpcap.
+- `ca.gc.cra.radar.infrastructure.capture.file` - offline replay adapters; ...file.pcap reuses libpcap for .pcap/.pcapng traces.
+- `ca.gc.cra.radar.infrastructure.capture.pcap` - shared libpcap bindings leveraged by both capture modes.
+
+Why: placing live and offline adapters under a unified infrastructure hierarchy clarifies Hexagonal boundaries and simplifies wiring for new capture strategies.
+
 # RADAR Capture Pipeline
 
 RADAR ingests raw packets, reassembles TCP flows, and emits readable HTTP and TN3270 conversations. The architecture follows a hexagonal pattern: adapters expose packet capture, flow assembly, protocol modules, pairing engines, and persistence sinks through small ports so each stage stays testable.
 
 ## Pipeline At A Glance
-- **capture** � wraps libpcap (via JNR) or Kafka to gather TCP segments.
-- **assemble** � reorders TCP, detects HTTP/TN3270, reconstructs protocol messages, and persists per-protocol outputs.
-- **poster** � consumes the assembled outputs (files or Kafka) and renders human-readable reports.
+- **capture** ï¿½ wraps libpcap (via JNR) or Kafka to gather TCP segments.
+- **assemble** ï¿½ reorders TCP, detects HTTP/TN3270, reconstructs protocol messages, and persists per-protocol outputs.
+- **poster** ï¿½ consumes the assembled outputs (files or Kafka) and renders human-readable reports.
 
 ## Key Concepts
-- **SegmentBin format** � rotating `.segbin` files hold length-prefixed segment records (timestamp, flow tuple, flags, payload).
-- **ReorderingFlowAssembler** � buffers out-of-order TCP data per direction, trims retransmissions, and emits contiguous byte streams as soon as gaps fill.
-- **Protocol modules** � HTTP and TN3270 reconstructors plug into the flow engine; pairing engines correlate reconstructed messages into `MessagePair`s for persistence.
-- **Persistence** � HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode).
+- **SegmentBin format** ï¿½ rotating `.segbin` files hold length-prefixed segment records (timestamp, flow tuple, flags, payload).
+- **ReorderingFlowAssembler** ï¿½ buffers out-of-order TCP data per direction, trims retransmissions, and emits contiguous byte streams as soon as gaps fill.
+- **Protocol modules** ï¿½ HTTP and TN3270 reconstructors plug into the flow engine; pairing engines correlate reconstructed messages into `MessagePair`s for persistence.
+- **Persistence** ï¿½ HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode).
 
 ## CLI Quickstart
 All CLIs accept `key=value` arguments. The executable entry point is `ca.gc.cra.radar.api.Main`; the examples below assume the project has been built (`mvn -q -DskipTests package`). Replace `target/RADAR-0.1.0-SNAPSHOT.jar` with the actual jar name produced on your machine.
@@ -23,7 +32,7 @@ JAR=target/RADAR-0.1.0-SNAPSHOT.jar
 ```
 
 ### Minimal smoke (default FILE mode)
-The commands below run end-to-end with empty inputs to verify wiring � each stage succeeds and produces the expected directory structure.
+The commands below run end-to-end with empty inputs to verify wiring ï¿½ each stage succeeds and produces the expected directory structure.
 
 ```bash
 # 1) assemble an empty capture directory (creates http/ outputs by default)
@@ -219,3 +228,6 @@ RADAR targets Java 17+ and Maven. Run `mvn verify` for a full build; `mvn -q -Ds
 - Extend `ReorderingFlowAssembler` or add adapters for new protocols by wiring a reconstructor and pairing engine into `CompositionRoot`.
 - Implement additional `PersistencePort`/poster adapters if you need alternate storage or reporting formats.
 - Review the test suite under `src/test/java` for examples of stubbing packet sources, Kafka adapters, and poster outputs.
+
+
+

@@ -1,7 +1,7 @@
 package ca.gc.cra.radar.testutil;
 
-import ca.gc.cra.radar.infrastructure.capture.libpcap.Pcap;
-import ca.gc.cra.radar.infrastructure.capture.libpcap.PcapHandle;
+import ca.gc.cra.radar.infrastructure.capture.pcap.libpcap.Pcap;
+import ca.gc.cra.radar.infrastructure.capture.pcap.libpcap.PcapHandle;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
