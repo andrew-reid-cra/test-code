@@ -40,6 +40,10 @@ import org.slf4j.MDC;
  * Executes live packet capture and protocol reconstruction, persisting message pairs in real time.
  * <p>The pipeline decouples capture from persistence via a bounded worker pool so back-pressure is
  * handled gracefully. Instances are not reusable; invoke {@link #run()} at most once.</p>
+ * <p>The persistence stage runs on an ExecutorService-backed worker pool (threads named
+ * <code>live-persist-</code>) with a dedicated uncaught-exception handler. Failures propagate
+ * immediately across the pipeline while the non-daemon threads guarantee reliable shutdown
+ * semantics.</p>
  *
  * @since RADAR 0.1-doc
  */
@@ -407,13 +411,6 @@ public final class LiveProcessingUseCase {
         if (!persistenceStopRequested.get()) {
           metrics.increment("live.persist.worker.interrupted");
         }
-      } catch (Throwable unexpected) {
-        metrics.increment("live.persist.worker.uncaught");
-        Exception failure =
-            unexpected instanceof Exception ex
-                ? ex
-                : new RuntimeException("Persistence worker failure", unexpected);
-        signalPersistenceFailure(failure);
       }
     }
   }
@@ -504,7 +501,7 @@ public final class LiveProcessingUseCase {
         if (!terminated) {
           metrics.increment("live.persist.shutdown.force");
           log.warn(
-              "Persistence workers active after {} ms; invoking shutdownNow",
+              "Persistence workers active after {} ms; forcing shutdown",
               PERSISTENCE_SHUTDOWN_TIMEOUT.toMillis());
           executor.shutdownNow();
           terminated =
@@ -514,7 +511,6 @@ public final class LiveProcessingUseCase {
       } catch (InterruptedException ie) {
         metrics.increment("live.persist.shutdown.interrupted");
         Thread.currentThread().interrupt();
-        executor.shutdownNow();
       }
       if (!terminated) {
         log.error("Persistence workers failed to terminate cleanly");
@@ -589,7 +585,7 @@ public final class LiveProcessingUseCase {
     metrics.increment("live.persist.worker.uncaught");
     Exception failure =
         throwable instanceof Exception ex ? ex : new RuntimeException("Persistence worker crash", throwable);
-    log.error("Persistence worker {} terminated via uncaught exception", thread.getName(), throwable);
+    log.error("Persistence worker {} threw an uncaught exception", thread.getName(), throwable);
     signalPersistenceFailure(failure);
   }
 

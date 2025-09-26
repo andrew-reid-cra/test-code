@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Added
+- test(pipeline): cover persistence failure, back-pressure, and executor shutdown scenarios in live processing tests.
 - feat(observability): replace noop metrics with OpenTelemetry adapter, CLI configuration, and unit tests.
 - feat(capture): add offline PCAP/PCAPNG ingest that shares the live segment pipeline.
 - feat(capture): apply BPF filtering and snaplen controls to file-backed packet sources.
@@ -17,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - build(site): Maven site/reporting configuration with Javadoc, Surefire, Jacoco, and Checkstyle outputs.
 
 ### Changed
+- refactor(pipeline): replace manual persistence workers with an ExecutorService, uncaught handler, and bounded shutdown logic.
+- docs(pipeline): document persistence thread pool tuning in README and package overview; live CLI lists persistWorkers/persistQueueCapacity flags.
 - docs(javadoc): refreshed public API comments, added package overviews, and pruned references to retired assembler shims.
 - build(jacoco): constrained coverage collection to project packages to avoid JDK instrumentation issues.
 

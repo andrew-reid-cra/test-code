@@ -1,8 +1,0 @@
-# E2E Summary
-timestamp=20250924-180252-251
-dir=D:\radar\test-code\target\e2e\20250924-180252-251\http\cap-20250924-180252-251
-dir=D:\radar\test-code\target\e2e\20250924-180252-251\http\asm-20250924-180252-251\http
-dir=D:\radar\test-code\target\e2e\20250924-180252-251\http\post-20250924-180252-251\http
-captureSegbinCount=1
-assembleHttpCount=2
-posterHttpCount=2

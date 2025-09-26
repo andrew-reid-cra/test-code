@@ -21,7 +21,8 @@ public final class LiveCli {
   private static final Logger log = LoggerFactory.getLogger(LiveCli.class);
   private static final String SUMMARY_USAGE =
       "usage: live iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
-          + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [--enable-bpf --bpf='expr'] "
+          + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [persistWorkers=1-32] "
+          + "[persistQueueCapacity=N] [persistQueueType=ARRAY|LINKED] [--enable-bpf --bpf='expr'] "
           + "[--dry-run] [--allow-overwrite] [metricsExporter=otlp|none] [otelEndpoint=URL] "
           + "[otelResourceAttributes=K=V,...]";
   private static final String HELP_TEXT = """
@@ -34,6 +35,9 @@ public final class LiveCli {
         iface=NAME                Network interface to capture from
 
       Optional (validated):
+        persistWorkers=1-32      Persistence worker thread count (default scales with CPU cores)
+        persistQueueCapacity=N    Bounded hand-off queue size (>= persistWorkers; default persistWorkers*128)
+        persistQueueType=ARRAY|LINKED  Queue implementation; ARRAY favours cache locality
         out=PATH                  Segment output directory (default ~/.radar/out/capture/segments)
         out=kafka:TOPIC           Stream segments to Kafka topic (sanitized [A-Za-z0-9._-])
         ioMode=FILE|KAFKA         FILE writes under ~/.radar/out; KAFKA requires kafkaBootstrap

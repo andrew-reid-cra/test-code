@@ -20,7 +20,7 @@ RADAR ingests raw packets, reassembles TCP flows, and emits readable HTTP and TN
 - **SegmentBin format** ï¿½ rotating `.segbin` files hold length-prefixed segment records (timestamp, flow tuple, flags, payload).
 - **ReorderingFlowAssembler** ï¿½ buffers out-of-order TCP data per direction, trims retransmissions, and emits contiguous byte streams as soon as gaps fill.
 - **Protocol modules** ï¿½ HTTP and TN3270 reconstructors plug into the flow engine; pairing engines correlate reconstructed messages into `MessagePair`s for persistence.
-- **Persistence** ï¿½ HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode).
+- **Persistence** ï¿½ HTTP and TN3270 adapters either stream bytes into blob/index files (`FILE` mode) or publish structured events to Kafka (`KAFKA` mode). Live capture persistence now runs on a fixed thread pool (threads named `live-persist-*`) with tunable `persistenceWorkers` and `persistenceQueueCapacity` settings exposed on the CLI.
 
 ## CLI Quickstart
 All CLIs accept `key=value` arguments. The executable entry point is `ca.gc.cra.radar.api.Main`; the examples below assume the project has been built (`mvn -q -DskipTests package`). Replace `target/RADAR-0.1.0-SNAPSHOT.jar` with the actual jar name produced on your machine.
@@ -202,6 +202,11 @@ Metrics are recorded as long counters and histograms; durations remain in nanose
 instruments attach the attribute 
 adar.metric.key=<original-key> so dashboards can group
 metrics without depending on sanitized instrument names.
+
+### Persistence Tuning
+- `persistWorkers` controls the size of the live persistence executor. Threads are named `live-persist-*`; increase the count when sinks can consume more throughput, or lower it if CPU pressure appears.
+- `persistQueueCapacity` bounds the cross-thread hand-off. Increase the queue when sinks are bursty, and watch `live.persist.queue.highWater` and `live.persist.enqueue.retry` while tuning.
+- Metrics such as `live.persist.worker.active`, `live.persist.queue.highWater`, and `live.persist.enqueue.waitEmaNanos` expose executor health for dashboards and alerts.
 
 ## Output Layout
 ```

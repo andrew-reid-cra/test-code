@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.application.pipeline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,8 +34,12 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -91,7 +96,6 @@ final class LiveProcessingUseCaseTest {
               }
             },
             "live-processing-test");
-    worker.setDaemon(true);
 
     try {
       worker.start();
@@ -120,6 +124,172 @@ final class LiveProcessingUseCaseTest {
       worker.join(2000);
     }
   }
+
+  @Test
+  void persistenceFailureSignalsMetricsAndFailsRun() throws Exception {
+    byte[] requestBytes = "GET / HTTP/1.1\r\n".getBytes(StandardCharsets.US_ASCII);
+    byte[] responseBytes = "HTTP/1.1 500 Internal Server Error\r\n".getBytes(StandardCharsets.US_ASCII);
+
+    FiveTuple clientToServer = new FiveTuple("10.0.0.1", 1234, "10.0.0.2", 80, "TCP");
+    FiveTuple serverToClient = new FiveTuple("10.0.0.2", 80, "10.0.0.1", 1234, "TCP");
+
+    TcpSegment requestSegment =
+        new TcpSegment(clientToServer, 1L, true, requestBytes, false, false, false, false, true, 10L);
+    TcpSegment responseSegment =
+        new TcpSegment(serverToClient, 2L, false, responseBytes, true, false, false, false, true, 20L);
+
+    StubPacketSource packetSource =
+        new StubPacketSource(List.of(new RawFrame(new byte[0], 0), new RawFrame(new byte[0], 1)));
+    StubFrameDecoder frameDecoder = new StubFrameDecoder(List.of(requestSegment, responseSegment));
+    FlowAssembler flowAssembler = new EchoFlowAssembler();
+
+    Set<ProtocolId> enabledProtocols = Set.of(ProtocolId.HTTP);
+    ProtocolDetector detector = new StubProtocolDetector();
+
+    Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories =
+        Map.of(ProtocolId.HTTP, StubMessageReconstructor::new);
+    Map<ProtocolId, Supplier<PairingEngine>> pairingFactories =
+        Map.of(ProtocolId.HTTP, StubPairingEngine::new);
+
+    RecordingMetrics metrics = new RecordingMetrics();
+    FailingPersistence persistence = new FailingPersistence();
+
+    LiveProcessingUseCase useCase =
+        new LiveProcessingUseCase(
+            packetSource,
+            frameDecoder,
+            flowAssembler,
+            detector,
+            reconstructorFactories,
+            pairingFactories,
+            persistence,
+            metrics,
+            enabledProtocols,
+            2,
+            4);
+
+    CountDownLatch finished = new CountDownLatch(1);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+
+    Thread worker =
+        new Thread(
+            () -> {
+              try {
+                useCase.run();
+              } catch (Throwable t) {
+                failure.set(t);
+              } finally {
+                finished.countDown();
+              }
+            },
+            "live-processing-failure");
+
+    try {
+      worker.start();
+      assertTrue(finished.await(5, TimeUnit.SECONDS), "pipeline should terminate on failure");
+
+      Throwable thrown = failure.get();
+      assertNotNull(thrown, "run() should surface the persistence failure");
+      assertTrue(thrown instanceof IllegalStateException);
+      assertEquals("Simulated persistence failure", thrown.getMessage());
+      assertEquals(1, metrics.count("live.persist.error"));
+      assertEquals(1, metrics.count("live.persist.worker.uncaught"));
+      assertEquals(1, persistence.attempts());
+    } finally {
+      worker.interrupt();
+      worker.join(2000);
+    }
+  }
+
+  @Test
+  void slowPersistenceRaisesQueueMetrics() throws Exception {
+    byte[] payload = "PING".getBytes(StandardCharsets.US_ASCII);
+
+    FiveTuple clientToServer = new FiveTuple("10.0.0.10", 4000, "10.0.0.20", 80, "TCP");
+    FiveTuple serverToClient = new FiveTuple("10.0.0.20", 80, "10.0.0.10", 4000, "TCP");
+
+    List<RawFrame> frames =
+        List.of(
+            new RawFrame(new byte[0], 0),
+            new RawFrame(new byte[0], 1),
+            new RawFrame(new byte[0], 2),
+            new RawFrame(new byte[0], 3),
+            new RawFrame(new byte[0], 4),
+            new RawFrame(new byte[0], 5));
+
+    List<TcpSegment> segments =
+        List.of(
+            new TcpSegment(clientToServer, 1L, true, payload, false, false, false, false, true, 10L),
+            new TcpSegment(serverToClient, 2L, false, payload, true, false, false, false, true, 20L),
+            new TcpSegment(clientToServer, 3L, true, payload, false, false, false, false, true, 30L),
+            new TcpSegment(serverToClient, 4L, false, payload, true, false, false, false, true, 40L),
+            new TcpSegment(clientToServer, 5L, true, payload, false, false, false, false, true, 50L),
+            new TcpSegment(serverToClient, 6L, false, payload, true, false, false, false, true, 60L));
+
+    StubPacketSource packetSource = new StubPacketSource(frames);
+    StubFrameDecoder frameDecoder = new StubFrameDecoder(segments);
+    FlowAssembler flowAssembler = new EchoFlowAssembler();
+
+    Set<ProtocolId> enabledProtocols = Set.of(ProtocolId.HTTP);
+    ProtocolDetector detector = new StubProtocolDetector();
+
+    Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories =
+        Map.of(ProtocolId.HTTP, StubMessageReconstructor::new);
+    Map<ProtocolId, Supplier<PairingEngine>> pairingFactories =
+        Map.of(ProtocolId.HTTP, StubPairingEngine::new);
+
+    RecordingMetrics metrics = new RecordingMetrics();
+    RecordingPersistence persistence = new RecordingPersistence(5L);
+
+    LiveProcessingUseCase useCase =
+        new LiveProcessingUseCase(
+            packetSource,
+            frameDecoder,
+            flowAssembler,
+            detector,
+            reconstructorFactories,
+            pairingFactories,
+            persistence,
+            metrics,
+            enabledProtocols,
+            1,
+            2);
+
+    Thread worker =
+        new Thread(
+            () -> {
+              try {
+                useCase.run();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            },
+            "live-processing-backpressure");
+
+    try {
+      worker.start();
+      assertTrue(persistence.awaitPairs(3, 5, TimeUnit.SECONDS), "expected three persisted pairs");
+
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+      while (metrics.observed("live.persist.queue.highWater").isEmpty() && System.nanoTime() < deadline) {
+        Thread.sleep(10L);
+      }
+
+      List<Long> highWaterSamples = metrics.observed("live.persist.queue.highWater");
+      assertFalse(highWaterSamples.isEmpty(), "expected queue high water metric");
+      long maxDepth = highWaterSamples.get(highWaterSamples.size() - 1);
+      assertTrue(maxDepth >= 2, "high water mark should reach queue capacity");
+
+      assertEquals(0, metrics.count("live.persist.enqueue.dropped"));
+    } finally {
+      worker.interrupt();
+      worker.join(2000);
+    }
+
+    assertFalse(worker.isAlive(), "persistence thread should terminate after interrupt");
+  }
+
+
 
   @Test
   void processesMultiplePairsWithBoundedQueue() throws Exception {
@@ -184,7 +354,6 @@ final class LiveProcessingUseCaseTest {
               }
             },
             "live-processing-test-parallel");
-    worker.setDaemon(true);
 
     try {
       worker.start();
@@ -309,6 +478,48 @@ final class LiveProcessingUseCaseTest {
       MessagePair pair = new MessagePair(pending, event);
       pending = null;
       return Optional.of(pair);
+    }
+  }
+
+  private static final class RecordingMetrics implements MetricsPort {
+    private final Map<String, AtomicInteger> counters = new ConcurrentHashMap<>();
+    private final Map<String, CopyOnWriteArrayList<Long>> observations = new ConcurrentHashMap<>();
+
+    @Override
+    public void increment(String key) {
+      counters.computeIfAbsent(key, k -> new AtomicInteger()).incrementAndGet();
+    }
+
+    @Override
+    public void observe(String key, long value) {
+      observations.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(value);
+    }
+
+    int count(String key) {
+      AtomicInteger counter = counters.get(key);
+      return counter == null ? 0 : counter.get();
+    }
+
+    List<Long> observed(String key) {
+      CopyOnWriteArrayList<Long> values = observations.get(key);
+      return values == null ? List.of() : new ArrayList<>(values);
+    }
+  }
+
+  private static final class FailingPersistence implements PersistencePort {
+    private final AtomicInteger attempts = new AtomicInteger();
+
+    @Override
+    public void persist(MessagePair pair) {
+      attempts.incrementAndGet();
+      throw new IllegalStateException("Simulated persistence failure");
+    }
+
+    @Override
+    public void close() {}
+
+    int attempts() {
+      return attempts.get();
     }
   }
 

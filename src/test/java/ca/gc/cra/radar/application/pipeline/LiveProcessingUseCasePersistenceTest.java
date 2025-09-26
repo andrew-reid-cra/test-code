@@ -77,6 +77,24 @@ class LiveProcessingUseCasePersistenceTest {
   }
 
   @Test
+  void executorStopsAfterShutdown() throws Exception {
+    CountingPersistence persistence = new CountingPersistence();
+    useCase = newUseCase(2, 8, persistence, metrics);
+
+    LiveReflection.start(useCase);
+    LiveReflection.enqueue(useCase, samplePair(0));
+    ExecutorService executor = LiveReflection.executor(useCase);
+    assertNotNull(executor, "persistence executor should be available");
+
+    LiveReflection.shutdown(useCase);
+
+    assertTrue(executor.isShutdown(), "persistence executor should shut down");
+    assertTrue(
+        executor.awaitTermination(2, TimeUnit.SECONDS),
+        "persistence executor should terminate cleanly");
+  }
+
+  @Test
   void backpressureDropsIncrementMetric() throws Exception {
     SlowPersistence persistence = new SlowPersistence(75);
     useCase = newUseCase(1, 1, persistence, metrics);
