@@ -1,4 +1,4 @@
-package ca.gc.cra.radar.validation;
+﻿package ca.gc.cra.radar.validation;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -6,7 +6,24 @@ import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 
 /**
- * Network validation helpers for host:port inputs.
+ * <strong>What:</strong> Network endpoint validation utilities for RADAR CLI and adapter configuration.
+ * <p><strong>Why:</strong> Prevents malformed host:port pairs from reaching capture adapters and sink clients,
+ * avoiding obscure connection failures at runtime.
+ * <p><strong>Role:</strong> Domain support invoked while wiring adapters prior to capture → assemble → sink operations.
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Normalize and validate hostnames, IPv4, and IPv6 literals.</li>
+ *   <li>Enforce port ranges compatible with TCP listeners (1-65535).</li>
+ *   <li>Produce consistent error messaging for CLI feedback.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Immutable and safe for concurrent calls.</p>
+ * <p><strong>Performance:</strong> O(n) string parsing with cached {@link Pattern} instances.</p>
+ * <p><strong>Observability:</strong> No direct metrics; violations surface as {@link IllegalArgumentException}s.</p>
+ *
+ * @implNote IPv6 addresses must be wrapped in {@code [ ]} to disambiguate the trailing port delimiter.
+ * @since 0.1.0
+ * @see Numbers
+ * @see Strings
  */
 public final class Net {
   private static final Pattern HOST_PATTERN = Pattern.compile(
@@ -18,10 +35,15 @@ public final class Net {
   }
 
   /**
-   * Validates host:port strings supporting hostnames, IPv4, and IPv6 literals.
+   * Validates a host:port string supporting hostnames, IPv4, and IPv6 literals.
    *
-   * @param value candidate host:port
-   * @return normalized host:port string
+   * @param value candidate host:port string provided via CLI or configuration; must be non-null/non-blank
+   * @return normalized host:port pair using bracketed IPv6 literals when applicable
+   * @throws IllegalArgumentException if the host or port component is invalid or out of range
+   *
+   * <p><strong>Concurrency:</strong> Thread-safe; operates solely on locals.</p>
+   * <p><strong>Performance:</strong> Performs a single pass over the input and reuses compiled regex patterns.</p>
+   * <p><strong>Observability:</strong> Does not emit metrics; caller should surface exceptions to users.</p>
    */
   public static String validateHostPort(String value) {
     String sanitized = Strings.requireNonBlank("host:port", value);

@@ -1,4 +1,4 @@
-package ca.gc.cra.radar.validation;
+﻿package ca.gc.cra.radar.validation;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -7,7 +7,26 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 
 /**
- * Path validation helpers to guard CLI/config supplied directories.
+ * <strong>What:</strong> Filesystem validation utilities for RADAR CLI and configuration flows.
+ * <p><strong>Why:</strong> Ensures capture, assemble, and sink components write only to sanctioned,
+ * writable directories and avoids accidental data loss.
+ * <p><strong>Role:</strong> Domain support utilities executed before adapters open PCAP files or
+ * persistence sinks.</p>
+ * <p><strong>Responsibilities:</strong>
+ * <ul>
+ *   <li>Normalize user-provided paths to real, canonical directories.</li>
+ *   <li>Enforce base-directory sandboxes to protect privileged capture outputs.</li>
+ *   <li>Guard against reuse of populated directories unless explicitly approved.</li>
+ * </ul>
+ * <p><strong>Thread-safety:</strong> Stateless methods; concurrency limited by underlying filesystem semantics.</p>
+ * <p><strong>Performance:</strong> Bounded filesystem metadata checks; no long-lived resources beyond directory handles.</p>
+ * <p><strong>Observability:</strong> Emits no metrics or logs; callers surface validation exceptions.</p>
+ *
+ * @implNote All filesystem checks use {@link LinkOption#NOFOLLOW_LINKS} to avoid accidental symlink traversal when
+ * validating capture output targets.
+ * @since 0.1.0
+ * @see Strings
+ * @see Numbers
  */
 public final class Paths {
   private Paths() {
@@ -15,23 +34,33 @@ public final class Paths {
   }
 
   /**
-   * Validates a directory path ensuring it is writable and safe to use.
+   * Validates a writable directory without enforcing a base path constraint.
    *
-   * @param path candidate path
-   * @return canonical path when available, otherwise absolute normalized path
+   * @param path candidate directory for capture or sink output; must not be {@code null}
+   * @return canonical directory path when available, otherwise the absolute normalized path
+   * @throws IllegalArgumentException if the directory is missing, not writable, or contains entries
+   *
+   * <p><strong>Concurrency:</strong> Thread-safe; relies on atomic filesystem metadata lookups.</p>
+   * <p><strong>Performance:</strong> Executes a handful of {@link Files} checks; no iteration unless verifying emptiness.</p>
+   * <p><strong>Observability:</strong> No logging; callers should translate exceptions into CLI guidance.</p>
    */
   public static Path validateWritableDir(Path path) {
     return validateWritableDir(path, null, false, false);
   }
 
   /**
-   * Validates a directory path ensuring it stays within an allowed base directory.
+   * Validates a writable directory, optionally enforcing a base sandbox and creating the directory if missing.
    *
-   * @param path candidate path
-   * @param allowedBase optional base directory constraint
-   * @param createIfMissing whether the directory should be created when missing
-   * @param allowReuse when {@code false}, non-empty directories are rejected
-   * @return canonical path when available, otherwise absolute normalized path
+   * @param path candidate directory for capture artifacts; must not be {@code null}
+   * @param allowedBase optional base directory; when non-null, {@code path} must reside within it
+   * @param createIfMissing whether to create the directory (and parents) when absent
+   * @param allowReuse when {@code false}, existing non-empty directories are rejected to avoid overwriting
+   * @return canonical directory path when available, otherwise the absolute normalized path
+   * @throws IllegalArgumentException if the path escapes {@code allowedBase}, is non-writable, or creation fails
+   *
+   * <p><strong>Concurrency:</strong> Safe for concurrent invocations; filesystem state may change between checks.</p>
+   * <p><strong>Performance:</strong> Performs {@code O(depth)} canonicalization and bounded directory scans.</p>
+   * <p><strong>Observability:</strong> Emits no metrics; exception messages include offending paths.</p>
    */
   public static Path validateWritableDir(Path path, Path allowedBase, boolean createIfMissing, boolean allowReuse) {
     if (path == null) {
@@ -140,5 +169,3 @@ public final class Paths {
     return false;
   }
 }
-
-
