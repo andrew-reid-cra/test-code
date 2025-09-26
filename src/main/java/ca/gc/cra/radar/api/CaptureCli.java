@@ -25,7 +25,8 @@ public final class CaptureCli {
   private static final String SUMMARY_USAGE =
       "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
           + "[protocol=GENERIC|TN3270] [snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
-          + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite]";
+          + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite] "
+          + "[metricsExporter=otlp|none] [otelEndpoint=URL] [otelResourceAttributes=K=V,...]";
   private static final String HELP_TEXT = """
       RADAR capture pipeline
 
@@ -52,6 +53,9 @@ public final class CaptureCli {
         --bpf="expr"               Printable ASCII (<=1024 bytes); rejects ';' and ''
         --dry-run                 Validate inputs and print the plan without capturing
         --allow-overwrite         Permit writing into non-empty output directories
+        metricsExporter=otlp|none   Configure metrics exporter (default otlp)
+        otelEndpoint=URL            OTLP metrics endpoint when exporter=otlp
+        otelResourceAttributes=K=V  Comma-separated OTel resource attributes
         --verbose                 Enable DEBUG logging for troubleshooting
         --help                    Show this message
 
@@ -104,6 +108,8 @@ public final class CaptureCli {
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
+    TelemetryConfigurator.configureMetrics(kv);
+
     if (enableBpfFlag) {
       kv.put("enableBpf", "true");
     }

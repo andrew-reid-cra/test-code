@@ -24,7 +24,8 @@ public final class PosterCli {
   private static final String SUMMARY_USAGE =
       "usage: poster [httpIn=PATH|kafka:TOPIC] [tnIn=PATH|kafka:TOPIC] "
           + "[httpOut=PATH] [tnOut=PATH] [ioMode=FILE|KAFKA] [posterOutMode=FILE|KAFKA] "
-          + "[kafkaBootstrap=HOST:PORT] [decode=none|transfer|all] [--dry-run] [--allow-overwrite]";
+          + "[kafkaBootstrap=HOST:PORT] [decode=none|transfer|all] [--dry-run] [--allow-overwrite] "
+          + "[metricsExporter=otlp|none] [otelEndpoint=URL] [otelResourceAttributes=K=V,...]";
   private static final String HELP_TEXT = """
       RADAR poster pipeline
 
@@ -44,6 +45,9 @@ public final class PosterCli {
         ioMode=FILE|KAFKA         FILE reads directories; KAFKA requires kafkaBootstrap
         kafkaBootstrap=HOST:PORT  Validated host/port for Kafka inputs/outputs
         decode=none|transfer|all  Poster decoding behaviour (default none)
+        metricsExporter=otlp|none  Configure metrics exporter (default otlp)
+        otelEndpoint=URL           OTLP metrics endpoint when exporter=otlp
+        otelResourceAttributes=K=V Comma-separated OTel resource attributes
         --dry-run                 Validate inputs and print plan without rendering
         --allow-overwrite         Permit writing into non-empty output directories
         --verbose                 Enable DEBUG logging
@@ -95,6 +99,8 @@ public final class PosterCli {
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
+
+    TelemetryConfigurator.configureMetrics(kv);
 
     PosterConfig config;
     try {

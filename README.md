@@ -153,6 +153,40 @@ Notes:
 - `kafkaBootstrap` is mandatory whenever `ioMode=KAFKA` or `posterOutMode=KAFKA` is used.
 - When running capture in FILE mode you need libpcap and appropriate privileges; assemble/poster can operate purely on files.
 
+## Metrics & Telemetry
+RADAR publishes OpenTelemetry metrics using the OTLP exporter by default. Every CLI now accepts
+metricsExporter, otelEndpoint, and otelResourceAttributes arguments (or the equivalent
+environment variables) so operators can redirect metrics without code changes.
+
+### Configuration quick reference
+- metricsExporter=otlp|none (env: OTEL_METRICS_EXPORTER) toggles the exporter; 
+one disables emission.
+- otelEndpoint=http://collector:4317 (env: OTEL_EXPORTER_OTLP_ENDPOINT) overrides the OTLP target.
+- otelResourceAttributes=service.name=radar,deployment.environment=prod (env: OTEL_RESOURCE_ATTRIBUTES)
+  adds comma-separated resource attributes. Defaults include service.name=radar,
+  service.namespace=ca.gc.cra, and the detected host as service.instance.id.
+- CLI flags map directly to System.setProperty(...), so JVM-wide OpenTelemetry conventions still apply.
+
+### Metric catalogue (partial)
+| Metric name | Instrument | Source |
+| --- | --- | --- |
+| capture.segment.persisted | Counter | Segment capture persistence success count |
+| capture.segment.skipped.decode | Counter | Segments discarded because decoder disabled |
+| capture.segment.skipped.pureAck | Counter | TCP ACK-only segments ignored |
+| ssemble.pairs.persisted | Counter | Message pairs written during offline assemble |
+| live.pairs.persisted | Counter | Pairs persisted during live processing |
+| live.persist.error | Counter | Persistence failures in live mode |
+| live.persist.queue.depth | Histogram | Persist queue depth snapshots |
+| live.persist.latencyNanos | Histogram | Persistence latency samples (nanoseconds) |
+| http.flowAssembler.bytes / 	n3270.flowAssembler.bytes | Histogram | Bytes emitted per reconstructed payload |
+| protocol.http.bytes / protocol.tn3270.bytes | Histogram | Protocol-level payload volume |
+| ssemble.flowAssembler.contiguous / .buffered / .duplicate | Counters | Flow assembler behaviour per segment |
+
+Metrics are recorded as long counters and histograms; durations remain in nanoseconds. All
+instruments attach the attribute 
+adar.metric.key=<original-key> so dashboards can group
+metrics without depending on sanitized instrument names.
+
 ## Output Layout
 ```
 cap-out/                # raw segment files (*.segbin)

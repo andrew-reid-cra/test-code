@@ -8,6 +8,7 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\ConfigLoader.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentReader.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\util\MessagePairer.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\persistence\io\BlobWriter.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\metrics\OpenTelemetryMetricsAdapter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\buffer\BufferPool.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\net\ReorderingFlowAssembler.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\FlowAssembler.java
@@ -41,12 +42,14 @@ D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\tn3270\
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\poster\PosterOutputPort.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\validation\Net.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\TelemetryConfigurator.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\detect\DefaultProtocolDetector.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\PosterCli.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\api\CliPrinter.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\IoMode.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\capture\libpcap\Pcap.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\config\CompositionRoot.java
+D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\metrics\OpenTelemetryBootstrap.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\infrastructure\poster\SegmentPosterProcessor.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\application\port\context\FlowContext.java
 D:\radar\test-code\src\main\java\ca\gc\cra\radar\domain\flow\FlowDirectionService.java

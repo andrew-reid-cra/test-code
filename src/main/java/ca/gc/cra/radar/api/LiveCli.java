@@ -22,7 +22,8 @@ public final class LiveCli {
   private static final String SUMMARY_USAGE =
       "usage: live iface=<nic> [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
           + "[snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [--enable-bpf --bpf='expr'] "
-          + "[--dry-run] [--allow-overwrite]";
+          + "[--dry-run] [--allow-overwrite] [metricsExporter=otlp|none] [otelEndpoint=URL] "
+          + "[otelResourceAttributes=K=V,...]";
   private static final String HELP_TEXT = """
       RADAR live processing pipeline
 
@@ -44,6 +45,9 @@ public final class LiveCli {
         --bpf="expr"               Printable ASCII <=1024 bytes; ';' and '`' rejected
         --dry-run                 Validate inputs and print plan without processing
         --allow-overwrite         Permit writing into non-empty output directories
+        metricsExporter=otlp|none   Configure metrics exporter (default otlp)
+        otelEndpoint=URL            OTLP metrics endpoint when exporter=otlp
+        otelResourceAttributes=K=V  Comma-separated OTel resource attributes
         --verbose                 Enable DEBUG logging for troubleshooting
         --help                    Show this message
       """;
@@ -89,6 +93,8 @@ public final class LiveCli {
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
+
+    TelemetryConfigurator.configureMetrics(kv);
     if (enableBpfFlag) {
       kv.put("enableBpf", "true");
     }

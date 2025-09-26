@@ -40,8 +40,10 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\flow\FlowDirectionServic
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\persistence\SegmentSinkAdapterNdjsonTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\KafkaPosterOutputAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\HttpKafkaPersistenceAdapterTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\metrics\OpenTelemetryMetricsAdapterCounterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\net\RawFrameTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\capture\DisabledPacketSourceTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\metrics\OpenTelemetryBootstrapNoopTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpMessageReconstructorTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\CaptureCliTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\domain\msg\TransactionIdTest.java
@@ -50,6 +52,7 @@ D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\PosterCliTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\KafkaSegmentReaderTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\adapter\kafka\Tn3270KafkaPosterPipelineTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\api\CliArgsParserTest.java
+D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\metrics\OpenTelemetryMetricsAdapterHistogramTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\infrastructure\protocol\http\HttpFlowAssemblerAdapterTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\application\pipeline\PosterUseCaseTest.java
 D:\radar\test-code\src\test\java\ca\gc\cra\radar\validation\PathsTest.java

@@ -157,6 +157,45 @@ All processes **must** initialize an OTel `Resource` with:
 ### 4.2 Integration/Perf Tests
 - Drive synthetic traffic through **Capture → Assembler → Sink** and validate:
 ...
+### 4.3 Local Collector Smoke Test
+- **Prerequisites:** download the OpenTelemetry Collector binary that matches your OS from the official releases page (https://github.com/open-telemetry/opentelemetry-collector-releases).
+- **Configuration:** save the following as `otel-local.yaml` to receive metrics from RADAR and log them locally:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+exporters:
+  logging:
+    loglevel: debug
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [logging]
+```
+
+- **Run the collector:**
+  ```bash
+  otelcol --config otel-local.yaml
+  ```
+- **Invoke RADAR with metrics enabled (choose the CLI under test):**
+  ```bash
+  java -cp target/RADAR-0.1.0-SNAPSHOT.jar \
+    ca.gc.cra.radar.api.Main capture \
+    iface=en0 metricsExporter=otlp \
+    otelEndpoint=http://localhost:4317 \
+    otelResourceAttributes=service.name=radar-capture,deployment.environment=dev
+  ```
+  - Alternate: export `OTEL_METRICS_EXPORTER`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `OTEL_RESOURCE_ATTRIBUTES` before invoking the CLI so every module shares the same config.
+- **Trigger activity:** replay a PCAP or run a short capture/assemble/poster cycle so counters and histograms emit at least once.
+- **Verify output:** the collector terminal should display metric points such as `capture.segment.persisted` or `live.persist.latencyNanos` with the `radar.metric.key` attribute and the expected resource attributes (`service.name`, `service.namespace`, etc.).
+- **Promote the setup:** once the smoke test passes, repoint `otelEndpoint` (or the `OTEL_EXPORTER_OTLP_ENDPOINT` env var) to your staging collector and repeat the validation.
+
+
+
 
 ---
 

@@ -21,7 +21,7 @@ import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.capture.PcapPacketSource;
 import ca.gc.cra.radar.capture.pcap.PcapFilePacketSource;
 import ca.gc.cra.radar.infrastructure.detect.DefaultProtocolDetector;
-import ca.gc.cra.radar.infrastructure.metrics.NoOpMetricsAdapter;
+import ca.gc.cra.radar.infrastructure.metrics.OpenTelemetryMetricsAdapter;
 import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
 import ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler;
 import ca.gc.cra.radar.infrastructure.persistence.NoOpPersistenceAdapter;
@@ -48,6 +48,7 @@ import java.util.function.Supplier;
  * stubbed use cases and will be populated with real wiring in subsequent steps.
  */
 public final class CompositionRoot {
+  private final MetricsPort metrics;
   private final Config config;
   private final CaptureConfig captureConfig;
 
@@ -69,8 +70,13 @@ public final class CompositionRoot {
    * @since RADAR 0.1-doc
    */
   public CompositionRoot(Config config, CaptureConfig captureConfig) {
+    this(config, captureConfig, new OpenTelemetryMetricsAdapter());
+  }
+
+  public CompositionRoot(Config config, CaptureConfig captureConfig, MetricsPort metricsPort) {
     this.config = Objects.requireNonNull(config, "config");
     this.captureConfig = Objects.requireNonNull(captureConfig, "captureConfig");
+    this.metrics = Objects.requireNonNull(metricsPort, "metricsPort");
   }
 
   /**
@@ -166,7 +172,7 @@ public final class CompositionRoot {
    * @since RADAR 0.1-doc
    */
   public MetricsPort metrics() {
-    return new NoOpMetricsAdapter();
+    return metrics;
   }
 
   /**

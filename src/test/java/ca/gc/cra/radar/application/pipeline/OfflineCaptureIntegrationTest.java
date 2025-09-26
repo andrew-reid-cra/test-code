@@ -53,7 +53,7 @@ class OfflineCaptureIntegrationTest {
         Map.entry("tnEnabled", "false"));
 
     AssembleConfig assembleConfig = AssembleConfig.fromMap(assembleArgs);
-    CompositionRoot assembleRoot = new CompositionRoot(Config.defaults(), CaptureConfig.defaults());
+    CompositionRoot assembleRoot = new CompositionRoot(Config.defaults(), CaptureConfig.defaults(), MetricsPort.NO_OP);
     AssembleUseCase assembleUseCase = assembleRoot.assembleUseCase(assembleConfig);
     assembleUseCase.run();
 
@@ -98,7 +98,7 @@ class OfflineCaptureIntegrationTest {
         Map.entry("tnEnabled", "true"));
 
     AssembleConfig assembleConfig = AssembleConfig.fromMap(assembleArgs);
-    CompositionRoot assembleRoot = new CompositionRoot(Config.defaults(), CaptureConfig.defaults());
+    CompositionRoot assembleRoot = new CompositionRoot(Config.defaults(), CaptureConfig.defaults(), MetricsPort.NO_OP);
     AssembleUseCase assembleUseCase = assembleRoot.assembleUseCase(assembleConfig);
     assembleUseCase.run();
 

@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Added
+- feat(observability): replace noop metrics with OpenTelemetry adapter, CLI configuration, and unit tests.
 - feat(capture): add offline PCAP/PCAPNG ingest that shares the live segment pipeline.
 - feat(capture): apply BPF filtering and snaplen controls to file-backed packet sources.
 - test(capture): cover offline capture with a bundled http_get.pcap fixture and compose smoke test.

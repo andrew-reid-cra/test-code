@@ -24,7 +24,8 @@ public final class AssembleCli {
   private static final String SUMMARY_USAGE =
       "usage: assemble in=PATH|in=kafka:TOPIC out=PATH [ioMode=FILE|KAFKA] "
           + "[httpOut=PATH] [tnOut=PATH] [httpEnabled=true|false] [tnEnabled=true|false] "
-          + "[kafkaBootstrap=HOST:PORT] [--dry-run] [--allow-overwrite]";
+          + "[kafkaBootstrap=HOST:PORT] [--dry-run] [--allow-overwrite] "
+          + "[metricsExporter=otlp|none] [otelEndpoint=URL] [otelResourceAttributes=K=V,...]";
   private static final String HELP_TEXT = """
       RADAR assemble pipeline
 
@@ -47,6 +48,9 @@ public final class AssembleCli {
         tnEnabled=true|false     Enable TN3270 reconstruction (default false)
         --dry-run                Validate inputs and print plan without assembling
         --allow-overwrite        Permit writing into non-empty output directories
+        metricsExporter=otlp|none  Configure metrics exporter (default otlp)
+        otelEndpoint=URL           OTLP metrics endpoint when exporter=otlp
+        otelResourceAttributes=K=V Comma-separated OTel resource attributes
         --verbose                Enable DEBUG logging
         --help                   Show this message
 
@@ -95,6 +99,8 @@ public final class AssembleCli {
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
+
+    TelemetryConfigurator.configureMetrics(kv);
 
     AssembleConfig config;
     try {
