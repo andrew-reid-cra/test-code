@@ -1,84 +1,81 @@
 # RADAR Developer Guide
 
-This guide complements the generated Javadoc (`mvn -DskipTests javadoc:javadoc`) and sketches the moving parts you need when evolving RADAR.
+## Onboarding
+- Install JDK 17 or newer (OpenJDK builds recommended) and ensure `JAVA_HOME` points to the distribution.
+- Install Maven 3.9+; verify with `mvn -version`.
+- Recommended IDE setup: IntelliJ IDEA or Eclipse with Google Java Format and Checkstyle plugins. Import the project as a Maven module.
+- Clone the repository and run `mvn -q -DskipTests=false verify` once to populate the local repository and generate initial reports.
 
-## Architecture Overview
-- **Hexagonal ports/adapters** – the `ca.gc.cra.radar.application.port` package defines the seams. Everything in `infrastructure` (libpcap, Kafka, files, poster adapters) is an adapter that can be swapped without touching the use cases.
-- **Pipelines** – `capture`, `assemble`, and `poster` are orchestrated by small use cases under `application.pipeline`. Each pipeline receives ports via the `CompositionRoot` so they stay unit-testable.
-- **Domain models** – immutable records such as `SegmentRecord`, `TcpSegment`, `ByteStream`, and `MessagePair` live in `ca.gc.cra.radar.domain`. They carry the canonical state between stages and are heavily documented.
+## Build and Test Workflow
+| Goal | Command | Notes |
+| --- | --- | --- |
+| Full verify (tests + quality gates) | `mvn -q -DskipTests=false verify` | Runs unit/integration tests, JaCoCo, SpotBugs, Checkstyle. |
+| Unit tests only | `mvn -q -pl :RADAR test` | Fast feedback on code changes (still JUnit 5). |
+| Integration/perf suites | `mvn -Pbenchmarks test` | Optional profile for hot-path benchmarks (if enabled). |
+| Generate Javadoc | `mvn -DskipTests=true javadoc:javadoc` | Output in `target/site/apidocs/index.html`. |
+| Coverage report | `target/site/jacoco/index.html` | Inspect before merging to keep coverage â‰¥80% overall, 100% for critical logic. |
 
-```
-                 +-------------------+            +------------------+
-raw packets ---> | capture use case  | --flows--> | assemble use case| --pairs--> poster
-                 +-------------------+            +------------------+
-        (PacketSource / FrameDecoder)    (FlowAssembler / ProtocolModule / Persistence)
-```
-
-## Key Components
-### Capture
-- `PacketSource` – abstraction over live packets (`PcapPacketSource`) or stream input (Kafka).
-- `FrameDecoder` – converts raw frames into `TcpSegment` objects (`FrameDecoderLibpcap`).
-- `SegmentPersistencePort` – capture outputs segments to files (`SegmentFileSinkAdapter`) or Kafka (`SegmentKafkaSinkAdapter`).
-
-### Assemble
-- `ReorderingFlowAssembler` – buffers TCP segments per direction, trimming retransmissions and emitting contiguous `ByteStream`s.
-- `ProtocolModule` – binds detection, reconstruction, and pairing for each protocol. HTTP and TN3270 ship with modules in `infrastructure.protocol.{http,tn3270}`.
-- `MessageReconstructor` – reconstructs protocol messages from byte streams (`HttpMessageReconstructor`, `Tn3270MessageReconstructor`).
-- `PairingEngine` – pairs request/response events (`HttpPairingEngineAdapter`, `Tn3270PairingEngineAdapter`).
-- `PersistencePort` – stores `MessagePair`s (file blob/index sinks or Kafka JSON events).
-
-### Poster
-- `PosterPipeline` – consumes assembled pairs (file/Kafka) and renders `PosterReport`s.
-- `SegmentPosterProcessor` – shared worker that reads blob/index formats and produces text reports.
-- `PosterOutputPort` – writes reports to files (`FilePosterOutputAdapter`) or publishes them (`KafkaPosterOutputAdapter`).
-
-## Protocol Details
-### HTTP
-- Flow assembler: `HttpFlowAssemblerAdapter` forwards non-empty payloads.
-- Reconstructor: `HttpMessageReconstructor` accumulates headers/bodies, handles `Content-Length`, and tags requests/responses with a FIFO transaction id.
-- Pairing: `HttpPairingEngineAdapter` assumes client -> request, server -> response.
-- Persistence: `HttpSegmentSinkPersistenceAdapter` (blob/index) and `HttpKafkaPersistenceAdapter` (JSON payloads).
-
-### TN3270
-- Flow assembler: `Tn3270FlowAssemblerAdapter` forwards raw Telnet bytes.
-- Reconstructor: `Tn3270MessageReconstructor` understands Telnet IAC/EOR negotiation, splits records, and tracks host-first ordering.
-- Pairing: `Tn3270PairingEngineAdapter` queues host responses until a terminal request arrives.
-- Persistence: `Tn3270SegmentSinkPersistenceAdapter` (blob/index) and `Tn3270KafkaPersistenceAdapter` (JSON payloads).
-
-## Extending with a New Protocol
-1. **Define identifiers** – add a `ProtocolId` entry and update enabled lists in `CompositionRoot`.
-2. **Flow assembler** – implement `FlowAssembler` if TCP reassembly needs different semantics.
-3. **Reconstructor** – implement `MessageReconstructor` to turn `ByteStream`s into protocol events.
-4. **Pairing** – implement `PairingEngine` if request/response correlation is non-trivial.
-5. **Persistence / poster** – add adapters that implement `PersistencePort` and optionally `PosterOutputPort`.
-6. **ProtocolModule** – wire detection, reconstructor, pairing, and default ports into a new module and register it in `CompositionRoot`.
-7. **Tests** – follow patterns in `src/test/java` (e.g., `HttpMessageReconstructorTest`, `Tn3270MessageReconstructorTest`).
-
-## CLI Configuration Cheat-Sheet
-| Pipeline | Key Args | Notes |
-|----------|----------|-------|
-| `capture` | `iface`, `ioMode`, `kafkaBootstrap`, `out`, `fileBase`, `rollMiB` | Use `ioMode=KAFKA` to stream segments directly to Kafka. |
-| `assemble` | `in`, `ioMode`, `httpEnabled`, `tnEnabled`, `kafka*Topic`, `out` | When `in` starts with `kafka:` the use case switches to Kafka mode automatically. |
-| `poster` | `httpIn`, `tnIn`, `posterOutMode`, `httpOut`, `tnOut`, `decode` | `decode=transfer` removes chunked framing; `decode=all` also decompresses bodies. |
-
-## Build & Quality Checks
-- `mvn verify` – full build and tests.
-- `mvn -DskipTests javadoc:javadoc` – regenerate HTML docs (output in `target/site/apidocs`).
-- `mvn -DskipTests checkstyle:check` – enforces public Javadoc coverage.
-
-## Directory Layout
+## Project Layout
 ```
 src/main/java/ca/gc/cra/radar/
-  api/            # CLI entrypoints
-  application/    # ports + pipelines
-  config/         # composition root & CLI config records
-  domain/         # immutable capture/protocol models
-  infrastructure/ # adapters for capture, protocol modules, persistence, poster, metrics, time
+  domain/          # Immutable models (SegmentRecord, TcpSegment, MessagePair)
+  application/     # Ports + pipeline use cases (capture, live, assemble, poster)
+  config/          # CLI configuration records and CompositionRoot wiring
+  infrastructure/  # Adapter implementations (capture, protocol, persistence, metrics)
+  adapter/         # External adapter integrations (Kafka pipelines)
+  api/             # CLI entrypoints, argument parsing, telemetry bootstrap
+  logging/         # Logging configuration helpers (Logback, MDC utilities)
+  validation/      # Shared validation utilities for CLI inputs
 ```
+Generated artefacts and Maven reports live under `target/`.
 
-## Useful Entry Points
-- `ca.gc.cra.radar.config.CompositionRoot` – wiring for all pipelines.
-- `ca.gc.cra.radar.application.pipeline.*` – orchestrators you can reuse in tests.
-- `docs/Javadoc` – run `mvn -DskipTests javadoc:javadoc` and open `target/site/apidocs/index.html`.
+## Coding Standards (Meta-Prompt Checklist)
+- Java SE 17+, Maven for builds, minimal dependencies.
+- Hexagonal architecture: keep business logic in domain/application; adapters implement ports.
+- Immutability by default, no global mutable state, no deprecated APIs.
+- SLF4J logging only; never use `System.out`. Include contextual fields (pipeline, flowId, protocol) via MDC where practical.
+- Concurrency via `java.util.concurrent`; avoid bare threads and blocking calls in hot loops.
+- Security: validate all inputs (`Strings`, `Numbers`, `Net` helpers), reject custom BPF without `--enable-bpf`, never log secrets.
+- Observability: wrap hot paths with OpenTelemetry spans, increment metrics via `MetricsPort`, and propagate trace context across executors.
 
-Happy tracing!
+## Adding Features
+### New Sink Adapter (PersistencePort)
+1. Define a class implementing `PersistencePort` (or `SegmentPersistencePort` for raw segments).
+2. Emit metrics (`metrics.increment/observe`) mirroring existing adapters (`live.persist.*`, protocol-specific counters).
+3. Ensure resources are closed in `close()` and `flush()` handles partial batches.
+4. Wire into `CompositionRoot` behind a config flag or mode.
+5. Add unit tests with fakes (see `SegmentIoAdapterTest`, `KafkaPosterOutputAdapterTest`).
+6. Document the adapter in module README and Telemetry Guide.
+
+### New Capture Strategy
+1. Implement `PacketSource` and, if necessary, a matching `FrameDecoder`.
+2. Reuse buffer pools (`BufferPools`) to minimise allocations; surface queue metrics.
+3. Register the adapter in `CompositionRoot` and expose CLI flags (update `CaptureConfig.fromMap`).
+4. Add realistic integration tests using canned pcaps or synthetic streams.
+5. Document CLI usage, metrics, and operational considerations.
+
+## Performance Tips
+- Reuse buffers via `infrastructure.buffer.BufferPool` and `PooledBufferedOutputStream`.
+- Batch persistence operations (`LiveProcessingUseCase` already groups up to 32 pairs; align new sinks with that convention).
+- Monitor `live.persist.latencyNanos` locally when experimenting; regression tests should assert no major regressions.
+- Keep critical loops allocation-free; prefer pre-sized collections and primitive arrays.
+
+## Observability
+- Central entry point for metrics: `MetricsPort` (OpenTelemetry adapter lives in `infrastructure.metrics`).
+- Wrap new code paths with spans using `OpenTelemetryBootstrap` helpers or manual instrumentation.
+- Unit tests can use in-memory metrics collectors (see `LiveProcessingUseCaseTest` usage of fake metrics adapters).
+- Update the Telemetry Guide with any new metric names or attributes.
+
+## Local Testing & Tooling
+- Use bundled fixtures in `src/test/resources` or your own pcaps via `capture pcapFile=... --dry-run` to validate configuration.
+- For end-to-end smoke tests: run `capture` (pcap), `assemble`, and `poster` against a temp directory; inspect counters and outputs.
+- Run `java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --help` for CLI summaries.
+
+## Pull Request Process
+1. Follow the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md).
+2. Link issues in commit messages or PR descriptions for traceability.
+3. Attach `mvn verify` output, coverage summaries, and relevant dashboards in the PR.
+4. Document telemetry changes and operational impacts in the Ops Runbook when applicable.
+
+Stay vigilant about throughput, observability, and security; every change should leave the codebase more maintainable than before.
+

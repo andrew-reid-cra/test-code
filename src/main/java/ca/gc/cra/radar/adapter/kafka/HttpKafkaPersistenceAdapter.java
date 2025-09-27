@@ -9,13 +9,13 @@ import ca.gc.cra.radar.domain.msg.TransactionId;
 import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import ca.gc.cra.radar.validation.Strings;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.StringTokenizer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -149,6 +149,167 @@ public final class HttpKafkaPersistenceAdapter implements PersistencePort {
     }
   }
 
+
+
+  private static MessageEvent filterHttp(MessageEvent event) {
+    if (event == null) {
+      return null;
+    }
+    if (event.protocol() != ProtocolId.HTTP || event.payload() == null) {
+      return null;
+    }
+    return event;
+  }
+
+  private static String resolveTxId(MessageEvent request, MessageEvent response) {
+    String id = metadataId(request);
+    if (id == null || id.isBlank()) {
+      id = metadataId(response);
+    }
+    if (id == null || id.isBlank()) {
+      id = TransactionId.newId();
+    }
+    return id;
+  }
+
+  private static String metadataId(MessageEvent event) {
+    if (event == null) {
+      return null;
+    }
+    MessageMetadata metadata = event.metadata();
+    return metadata == null ? null : metadata.transactionId();
+  }
+
+  private static Endpoints resolveEndpoints(MessageEvent request, MessageEvent response) {
+    if (request != null && request.payload() != null) {
+      return toEndpoints(request.payload(), true);
+    }
+    if (response != null && response.payload() != null) {
+      return toEndpoints(response.payload(), false);
+    }
+    return new Endpoints("0.0.0.0", 0, "0.0.0.0", 0);
+  }
+
+  private static Endpoints toEndpoints(ByteStream stream, boolean fromClient) {
+    FiveTuple flow = stream.flow();
+    if (fromClient) {
+      return new Endpoints(flow.srcIp(), flow.srcPort(), flow.dstIp(), flow.dstPort());
+    }
+    return new Endpoints(flow.dstIp(), flow.dstPort(), flow.srcIp(), flow.srcPort());
+  }
+
+  private static String buildPayload(
+      String txId,
+      long startTs,
+      long endTs,
+      Endpoints endpoints,
+      MessageEvent request,
+      MessageEvent response) {
+    StringBuilder sb = new StringBuilder(1024);
+    sb.append('{')
+        .append("\"protocol\":\"HTTP\"")
+        .append(",\"txId\":\"").append(escape(txId)).append('\"')
+        .append(",\"startTs\":").append(startTs)
+        .append(",\"endTs\":").append(endTs)
+        .append(",\"client\":{")
+        .append("\"ip\":\"").append(escape(endpoints.clientIp())).append('\"')
+        .append(",\"port\":").append(endpoints.clientPort())
+        .append('}')
+        .append(",\"server\":{")
+        .append("\"ip\":\"").append(escape(endpoints.serverIp())).append('\"')
+        .append(",\"port\":").append(endpoints.serverPort())
+        .append('}')
+        .append(",\"request\":");
+    appendHttpMessage(sb, request);
+    sb.append(",\"response\":");
+    appendHttpMessage(sb, response);
+    sb.append('}');
+    return sb.toString();
+  }
+
+  private static void appendHttpMessage(StringBuilder sb, MessageEvent event) {
+    if (event == null) {
+      sb.append("null");
+      return;
+    }
+    ByteStream payload = event.payload();
+    byte[] data = payload.data() != null ? payload.data() : new byte[0];
+    HttpParts parts = HttpParts.from(data);
+    sb.append('{')
+        .append("\"timestamp\":").append(payload.timestampMicros())
+        .append(",\"direction\":\"")
+        .append(event.type() == MessageType.REQUEST ? "REQUEST" : "RESPONSE")
+        .append('\"')
+        .append(",\"length\":").append(data.length)
+        .append(",\"firstLine\":\"").append(escape(parts.firstLine())).append('\"')
+        .append(",\"headers\":\"").append(escape(parts.headers())).append('\"')
+        .append(",\"bodyB64\":\"").append(parts.bodyB64()).append('\"');
+    String metadataTx = metadataId(event);
+    if (metadataTx != null && !metadataTx.isBlank()) {
+      sb.append(",\"metadataTxId\":\"").append(escape(metadataTx)).append('\"');
+    }
+    appendAttributes(sb, event.metadata());
+    sb.append('}');
+  }
+
+  private static void appendAttributes(StringBuilder sb, MessageMetadata metadata) {
+    Map<String, String> attributes = metadata != null ? metadata.attributes() : Map.of();
+    boolean any = false;
+    for (Map.Entry<String, String> entry : attributes.entrySet()) {
+      String key = entry.getKey();
+      String value = entry.getValue();
+      if (key == null || value == null) {
+        continue;
+      }
+      if (!any) {
+        sb.append(",\"attributes\":{");
+        any = true;
+      } else {
+        sb.append(',');
+      }
+      sb.append('\"').append(escape(key)).append('\"')
+          .append(':')
+          .append('\"').append(escape(value)).append('\"');
+    }
+    if (any) {
+      sb.append('}');
+    }
+  }
+
+
+
+
+
+
+
+
+
+private static String escape(String value) {
+  if (value == null) {
+    return "";
+  }
+  StringBuilder sb = new StringBuilder(value.length());
+  for (int i = 0; i < value.length(); i++) {
+    char c = value.charAt(i);
+    if (c == 92 || c == 34) {
+      sb.append((char) 92).append(c);
+    } else if (c == 10) {
+      sb.append("\n");
+    } else if (c == 13) {
+      sb.append("\r");
+    } else if (c == 9) {
+      sb.append("\t");
+    } else {
+      sb.append(c);
+    }
+  }
+  return sb.toString();
+}
+
+private static String sanitizeTopic(String topic) {
+    return Strings.sanitizeTopic("httpKafkaTopic", topic);
+  }
+
   private static Producer<String, byte[]> createProducer(String bootstrapServers) {
     Objects.requireNonNull(bootstrapServers, "bootstrapServers");
     String trimmed = bootstrapServers.trim();
@@ -211,6 +372,7 @@ public final class HttpKafkaPersistenceAdapter implements PersistencePort {
     }
   }
 }
+
 
 
 

@@ -113,7 +113,19 @@ public final class LiveProcessingUseCase {
    * <p><strong>Concurrency:</strong> Invoke during single-threaded bootstrap before {@link #run()}.</p>
    * <p><strong>Performance:</strong> Allows callers to tune worker count and queue capacity to match sink throughput.</p>
    * <p><strong>Observability:</strong> Runtime metrics reflect the provided settings (queue depth, wait time).</p>
-   */  public LiveProcessingUseCase(      PacketSource packetSource,      FrameDecoder frameDecoder,      FlowAssembler flowAssembler,      ProtocolDetector protocolDetector,      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,      PersistencePort persistence,      MetricsPort metrics,      Set<ProtocolId> enabledProtocols,      int persistenceWorkers,      int persistenceQueueCapacity) {
+   */
+  public LiveProcessingUseCase(
+      PacketSource packetSource,
+      FrameDecoder frameDecoder,
+      FlowAssembler flowAssembler,
+      ProtocolDetector protocolDetector,
+      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
+      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
+      PersistencePort persistence,
+      MetricsPort metrics,
+      Set<ProtocolId> enabledProtocols,
+      int persistenceWorkers,
+      int persistenceQueueCapacity) {
     this(
         packetSource,
         frameDecoder,
@@ -126,6 +138,7 @@ public final class LiveProcessingUseCase {
         enabledProtocols,
         new PersistenceSettings(persistenceWorkers, persistenceQueueCapacity, QueueType.ARRAY));
   }
+
 
   /**
    * Creates the live processing pipeline with explicit persistence tuning.
@@ -626,6 +639,7 @@ public final class LiveProcessingUseCase {
     }
   }
 }
+
 
 
 
