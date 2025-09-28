@@ -7,16 +7,16 @@ required to ship changes safely.
 
 RADAR is organised into ports-and-adapters modules:
 
-- `ca.gc.cra.radar.api` ? CLI entry points and argument parsing.
-- `ca.gc.cra.radar.application` ? use cases (`SegmentCaptureUseCase`, `AssembleUseCase`,
+- `ca.gc.cra.radar.api` -> CLI entry points and argument parsing.
+- `ca.gc.cra.radar.application` -> use cases (`SegmentCaptureUseCase`, `AssembleUseCase`,
   `PosterUseCase`) and orchestration utilities.
-- `ca.gc.cra.radar.config` ? immutable configuration records consumed by the CLIs.
-- `ca.gc.cra.radar.domain` ? protocol-agnostic models (segments, flows, protocol IDs, bytes).
-- `ca.gc.cra.radar.infrastructure` ? adapters for capture (libpcap), protocol detectors,
+- `ca.gc.cra.radar.config` -> immutable configuration records consumed by the CLIs.
+- `ca.gc.cra.radar.domain` -> protocol-agnostic models (segments, flows, protocol IDs, bytes).
+- `ca.gc.cra.radar.infrastructure` -> adapters for capture (libpcap), protocol detectors,
   persistence (filesystem/Kafka), poster rendering, and time/metrics ports.
-- `ca.gc.cra.radar.adapter.kafka` ? Kafka-specific reader/writer adapters for the pipelines.
+- `ca.gc.cra.radar.adapter.kafka` -> Kafka-specific reader/writer adapters for the pipelines.
 
-Data flows follow capture ? assemble ? poster. Capture emits `SegmentRecord`s, assemble converts
+Data flows follow capture -> assemble -> poster. Capture emits `SegmentRecord`s, assemble converts
 segments into protocol `MessagePair`s, poster renders human-readable reports or publishes them to
 Kafka.
 
