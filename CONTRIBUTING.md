@@ -20,15 +20,15 @@ Thank you for investing in RADAR. The project powers mission-critical capture pi
 
 ## Pull Request Checklist
 Verify every item before requesting review:
-- **Tests** ? JUnit 5 unit, integration, and performance tests added or updated. Critical logic stays at 100% coverage, overall coverage remains ?80%. Attach JaCoCo evidence when coverage moves.
-- **Telemetry** ? Metrics, spans, and logs updated for new behaviour. Unit tests assert metric emission via in-memory adapters where feasible.
-- **Performance** ? Audit allocations, buffer reuse, batching, and hot loops. No new blocking calls in hot paths; executor sizing documented.
-- **Security** ? Validate all inputs, scrub secrets, honour OWASP and CERT Java guidelines. Never log payloads or credentials.
-- **Documentation** ? Update README files (root + modules), architecture diagrams, guides, and inline Javadoc for every new public type or method.
-- **Javadoc** ? Run mvn -DskipTests=true javadoc:javadoc to ensure public APIs are documented without warnings.
-- **Changelog** ? Add an [Unreleased] entry in [CHANGELOG.md](CHANGELOG.md) describing what changed and why.
-- **Observability** ? Confirm OpenTelemetry bootstrap succeeds (metricsExporter/env vars). Update dashboards or alert runbooks when metric names or semantics move.
-- **Build** ? Run mvn -q -DskipTests=false verify locally and confirm quality gates (Checkstyle, SpotBugs, Jacoco, Surefire/Failsafe) pass.
+- **Tests** - JUnit 5 unit, integration, and performance tests added or updated. Critical logic stays at 100% coverage, overall coverage remains -80%. Attach JaCoCo evidence when coverage moves.
+- **Telemetry** - Metrics, spans, and logs updated for new behaviour. Unit tests assert metric emission via in-memory adapters where feasible.
+- **Performance** - Audit allocations, buffer reuse, batching, and hot loops. No new blocking calls in hot paths; executor sizing documented.
+- **Security** - Validate all inputs, scrub secrets, honour OWASP and CERT Java guidelines. Never log payloads or credentials.
+- **Documentation** - Update README files (root + modules), architecture diagrams, guides, and inline Javadoc for every new public type or method.
+- **Javadoc** - Run mvn -DskipTests=true javadoc:javadoc to ensure public APIs are documented without warnings.
+- **Changelog** - Add an [Unreleased] entry in [CHANGELOG.md](CHANGELOG.md) describing what changed and why.
+- **Observability** - Confirm OpenTelemetry bootstrap succeeds (metricsExporter/env vars). Update dashboards or alert runbooks when metric names or semantics move.
+- **Build** - Run mvn -q -DskipTests=false verify locally and confirm quality gates (Checkstyle, SpotBugs, Jacoco, Surefire/Failsafe) pass.
 
 ## Coding Standards
 - Java SE 17+ (future-safe up to Java 25); Maven for build orchestration and dependency management.
@@ -43,7 +43,7 @@ Verify every item before requesting review:
 | --- | --- | --- |
 | Full build + tests + reports | mvn -q -DskipTests=false verify | Runs unit/integration tests, Checkstyle, SpotBugs, Jacoco, Surefire, Failsafe, Site reports. |
 | Javadoc | mvn -DskipTests=true javadoc:javadoc | Ensures all public APIs are documented; review warnings as failures. |
-| Coverage report | 	arget/site/jacoco/index.html | Keep overall ?80% and critical logic at 100%; link in PR. |
+| Coverage report | 	arget/site/jacoco/index.html | Keep overall -80% and critical logic at 100%; link in PR. |
 | Benchmarks (optional) | mvn -Pbenchmarks test | Run before landing hot-path optimizations. |
 
 ## Getting Help
@@ -52,3 +52,4 @@ Verify every item before requesting review:
 - Escalate security or privacy concerns privately to maintainers; do not include sensitive captures in public issues.
 
 Deliver every contribution with production posture: more secure, more observable, more maintainable.
+

@@ -46,3 +46,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Removed
 - Legacy adapters and deprecated wiring replaced by the new capture/assembler implementation.
 
+

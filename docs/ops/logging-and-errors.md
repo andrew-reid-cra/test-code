@@ -1,13 +1,13 @@
-﻿# Logging and Error Handling
+# Logging and Error Handling
 
 RADAR CLIs and pipelines now rely on SLF4J with a logback backend. This section explains how to
 interpret logs, adjust verbosity, and understand the unified exit codes.
 
 ## Log levels
-- **ERROR** – unrecoverable failures; stack traces included. Indicates the CLI will exit with a non-zero code.
-- **WARN** – recoverable issues (e.g., dropped frames) that deserve attention but do not stop processing.
-- **INFO** – lifecycle milestones and high-level progress (startup, shutdown, counts, resource closures).
-- **DEBUG** – verbose diagnostics (per-flow or per-segment information) useful during investigations.
+- **ERROR** - unrecoverable failures; stack traces included. Indicates the CLI will exit with a non-zero code.
+- **WARN** - recoverable issues (e.g., dropped frames) that deserve attention but do not stop processing.
+- **INFO** - lifecycle milestones and high-level progress (startup, shutdown, counts, resource closures).
+- **DEBUG** - verbose diagnostics (per-flow or per-segment information) useful during investigations.
 
 Log entries include mapped diagnostic context (MDC) keys such as `pipeline`, `protocol`, or `flowId`
 when available to simplify correlation across threads.
@@ -47,3 +47,4 @@ Use these codes in scripts or orchestration tooling to branch on failure modes.
 
 Use `--help` on any CLI for full usage guidance. Combine the log outputs with the exit codes above to
 determine next steps (e.g., retry, inspect configuration, capture diagnostics).
+
