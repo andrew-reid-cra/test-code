@@ -11,45 +11,153 @@ Inputs are network interfaces or `.pcap/.pcapng` files; outputs are rotated segm
 | Profile | Use Case | Recommended Resources |
 | --- | --- | --- |
 | Offline replay | Regression tests and investigations using archived pcaps. | 4 vCPU, 8 GiB RAM, SSD storage for segments and pairs. |
-| Live capture (file sink) | On-device capture with file persistence. | >=8 vCPU, 16 GiB RAM, NVMe sized for retention window. |
+| Live capture (file sink) | On-device capture with file persistence. | >=8 vCPU, 16 GiB RAM, NVMe sized for the retention window. |
 | Live capture (Kafka sink) | Publish live pairs/events to Kafka. | >=8 vCPU, 16 GiB RAM, provisioned Kafka cluster and network egress. |
 | Poster rendering | Generate human-readable reports from assembled pairs. | 4 vCPU, 8 GiB RAM, storage for rendered artefacts. |
 
 ## Configuration Reference
-| Setting | Description | How to Set | Default |
-| --- | --- | --- | --- |
-| `pcapFile` | Offline capture source. | CLI `pcapFile=/path/trace.pcap`. | unset |
-| `iface` | Live NIC to sniff. | CLI `iface=ens5`. | platform default (`eth0`) |
-| `out` | Output directory or `kafka:<topic>`. | CLI `out=/var/lib/radar/capture` or `out=kafka:radar.segments`. | `~/.radar/out/...` |
-| `ioMode` | `FILE` or `KAFKA` persistence mode. | CLI `ioMode=KAFKA`. | `FILE` |
-| `kafkaBootstrap` | Kafka bootstrap servers. | CLI `kafkaBootstrap=broker:9092`. | required when `ioMode=KAFKA` |
-| `persistWorkers` | Persistence executor thread count (live mode). | CLI `persistWorkers=8`. | `max(2, cores/2)` |
-| `persistQueueCapacity` | Queue depth feeding persistence workers. | CLI `persistQueueCapacity=2048`. | `persistWorkers * 128` |
-| `metricsExporter` | Metrics exporter (`otlp` or `none`). | CLI flag or `OTEL_METRICS_EXPORTER`. | `otlp` |
-| `otelEndpoint` | OTLP endpoint URL. | CLI `otelEndpoint=http://collector:4317` or `OTEL_EXPORTER_OTLP_ENDPOINT`. | unset |
-| `otelResourceAttributes` | Additional OTel resource attributes. | `OTEL_RESOURCE_ATTRIBUTES=service.name=radar,...`. | unset |
-| `--verbose` | Elevate logging to DEBUG. | CLI `--verbose`. | `INFO` |
-| `--dry-run` | Validate configuration without executing. | CLI `--dry-run`. | disabled |
+| Setting | Applies To | Description | How to Set | Default |
+| --- | --- | --- | --- | --- |
+| `pcapFile` | capture (offline) | Replay a PCAP/PCAPNG instead of listening to an interface. | CLI `pcapFile=/raid/traces/april12.pcap` | unset |
+| `iface` | capture, live | Network interface used for packet capture. | CLI `iface=ens5` | platform default (`eth0`) |
+| `ioMode` | capture, assemble, poster, live | Chooses directory (`FILE`) or Kafka (`KAFKA`) persistence. | CLI `ioMode=KAFKA` | `FILE` |
+| `out` | capture (FILE) | Directory that receives rotated segment binaries. | CLI `out=/var/lib/radar/capture/segments` | `~/.radar/out/...` |
+| `in` | assemble | Segment input directory or topic (`in=kafka:radar.capture.segments`). | CLI `in=/var/lib/radar/capture/segments` | required |
+| `httpOut` / `tnOut` | assemble, poster | Override default protocol directories when writing to files. | CLI `httpOut=/var/lib/radar/assemble/pairs/http` | derived under `out` |
+| `posterOutMode` | poster | Poster sink: `FILE` writes directories, `KAFKA` streams renders. | CLI `posterOutMode=KAFKA` | `FILE` |
+| `kafkaBootstrap` | any Kafka mode | Bootstrap servers for Kafka IO (comma-separated). | CLI `kafkaBootstrap=broker1:9092,broker2:9092` | required when Kafka used |
+| `kafkaTopicSegments` | capture (Kafka) | Topic that receives raw segments from capture. | CLI `kafkaTopicSegments=radar.capture.segments` | derived from `out` when prefixed with `kafka:` |
+| `kafkaSegmentsTopic` | assemble (Kafka) | Topic supplying captured segments to assemblers. | CLI `kafkaSegmentsTopic=radar.capture.segments` | derived from `in=` |
+| `kafkaHttpPairsTopic` | assemble, poster (Kafka) | Topic for HTTP message pairs. | CLI `kafkaHttpPairsTopic=radar.assemble.http` | sanitized from `out` |
+| `kafkaTnPairsTopic` | assemble, poster (Kafka) | Topic for TN3270 message pairs. | CLI `kafkaTnPairsTopic=radar.assemble.tn3270` | sanitized from `out` |
+| `kafkaHttpReportsTopic` | poster (Kafka) | Topic for rendered HTTP posters. | CLI `kafkaHttpReportsTopic=radar.poster.http` | required when `posterOutMode=KAFKA` |
+| `kafkaTnReportsTopic` | poster (Kafka) | Topic for rendered TN3270 posters. | CLI `kafkaTnReportsTopic=radar.poster.tn3270` | required when `posterOutMode=KAFKA` |
+| `rollMiB` | capture, live | File rotation threshold in MiB. Use higher values on NVMe. | CLI `rollMiB=1024` | `512` |
+| `snap` / `snaplen` | capture, live | Packet snap length in bytes; keep at 65535 for full payloads. | CLI `snap=65535` | `65535` |
+| `bufMb` | capture, live | Per-interface capture buffer in MiB. | CLI `bufMb=1024` | `256` |
+| `timeout` | capture, live | Poll timeout in milliseconds. Set `timeout=0` to busy-poll. | CLI `timeout=0` | `1000` |
+| `persistWorkers` | live | Persistence worker threads for the live pipeline. | CLI `persistWorkers=16` | `max(2, cores/2)` |
+| `persistQueueCapacity` | live | Queue depth feeding persistence workers. | CLI `persistQueueCapacity=4096` | `persistWorkers * 128` |
+| `persistQueueType` | live | Queue implementation (`ARRAY` or `LINKED`). | CLI `persistQueueType=ARRAY` | `ARRAY` |
+| `httpEnabled` / `tnEnabled` | assemble | Toggle protocol-specific reconstruction. | CLI `tnEnabled=true` | `http=true`, `tn=false` |
+| `tn3270.*` flags | assemble | Control TN3270 screen renders and redaction. | CLI `tn3270.emitScreenRenders=true` | defaults from config |
+| `decode` | poster | Poster decode mode (`none`, `transfer`, `all`). | CLI `decode=transfer` | `none` |
+| `--enable-bpf` / `--bpf` | capture, live | Allow custom BPF filters and set the expression. | Flags `--enable-bpf --bpf="tcp port 443"` | disabled |
+| `--allow-overwrite` | all | Permit writing into non-empty directories. | CLI `--allow-overwrite` | disabled |
+| `--dry-run` | all | Validate configuration without executing the pipeline. | CLI `--dry-run` | disabled |
+| `metricsExporter` | all | Metrics exporter (`otlp` or `none`). | CLI `metricsExporter=otlp` | `otlp` |
+| `otelEndpoint` | all | OTLP metrics endpoint URL. | CLI `otelEndpoint=http://collector:4317` | unset |
+| `otelResourceAttributes` | all | Additional OTel resource attributes. | `OTEL_RESOURCE_ATTRIBUTES=service.name=radar,...` | unset |
+| `--verbose` | all | Enable DEBUG logging for investigations. | CLI `--verbose` | `INFO` |
+
+
+## Pipeline Deployment Modes
+### File I/O (three-process mode)
+Use this mode when the capture host cannot run heavy assembly/poster workloads or when you need replayable artefacts that can be reprocessed later.
+
+```bash
+# 1. Capture segments to disk
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+  ioMode=FILE \
+  iface=ens5 \
+  out=/var/lib/radar/capture/segments \
+  rollMiB=1024 snap=65535 bufMb=1024 timeout=0 \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
+
+# 2. Assemble segments into message pairs
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
+  ioMode=FILE \
+  in=/var/lib/radar/capture/segments \
+  out=/var/lib/radar/assemble/pairs \
+  httpEnabled=true tnEnabled=true \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
+
+# 3. Poster renders for analysts
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster \
+  ioMode=FILE \
+  posterOutMode=FILE \
+  httpIn=/var/lib/radar/assemble/pairs/http \
+  httpOut=/var/lib/radar/poster/http \
+  tnIn=/var/lib/radar/assemble/pairs/tn3270 \
+  tnOut=/var/lib/radar/poster/tn3270 \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-poster,deployment.environment=prod
+```
+
+High-throughput notes:
+- `ioMode=FILE` on every process keeps intent explicit even when environment defaults change.
+- For sustained 30+ Gbps capture, start with `rollMiB=1024`, `bufMb=1024`, and `timeout=0`; pin capture threads to isolated CPUs and enable RSS on the NIC.
+- Keep capture, assemble, and poster directories on NVMe with >4 GB/s sustained writes; avoid NFS for hot paths.
+- Run assembler and poster on separate hosts or containers once CPU usage exceeds ~70% to prevent back-pressure on capture.
+- Use `--allow-overwrite` only for reprocessing and run `--dry-run` first to confirm directory wiring.
+
+### Kafka (three-process mode)
+Choose Kafka when multiple assemblers/posters need to consume the same traffic or when persistence should be remote.
+
+```bash
+# 1. Capture directly to Kafka topics
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+  ioMode=KAFKA \
+  iface=ens5 \
+  out=/var/lib/radar/capture/segments \
+  kafkaBootstrap=broker1:9092,broker2:9092 \
+  kafkaTopicSegments=radar.capture.segments \
+  rollMiB=512 snap=65535 bufMb=1024 timeout=0 \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
+
+# 2. Assemble from the Kafka segment stream
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
+  ioMode=KAFKA \
+  in=kafka:radar.capture.segments \
+  kafkaBootstrap=broker1:9092,broker2:9092 \
+  kafkaSegmentsTopic=radar.capture.segments \
+  kafkaHttpPairsTopic=radar.assemble.http \
+  kafkaTnPairsTopic=radar.assemble.tn3270 \
+  out=/var/lib/radar/assemble/pairs \
+  httpEnabled=true tnEnabled=true \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
+
+# 3. Poster pushes renders back to Kafka
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster \
+  ioMode=KAFKA \
+  posterOutMode=KAFKA \
+  kafkaBootstrap=broker1:9092,broker2:9092 \
+  httpIn=kafka:radar.assemble.http \
+  kafkaHttpReportsTopic=radar.poster.http \
+  tnIn=kafka:radar.assemble.tn3270 \
+  kafkaTnReportsTopic=radar.poster.tn3270 \
+  metricsExporter=otlp otelEndpoint=http://otel-collector:4317 \
+  otelResourceAttributes=service.name=radar-poster,deployment.environment=prod
+```
+
+High-throughput notes:
+- Pre-create topics with at least one partition per capture thread and configure retention/compaction to match compliance requirements.
+- Align Kafka producer properties such as `acks=all`, `linger.ms`, `batch.size`, and compression in `config/kafka.properties` to saturate brokers without overloading them.
+- Place brokers and capture hosts on the same low-latency network segment; reserve bandwidth headroom for telemetry and control traffic.
+- Monitor `capture.segment.persisted`, `assemble.pairs.persisted`, and poster render metrics to ensure downstream consumers keep up with capture volume.
+- When scaling beyond 30 Gbps, deploy multiple assemblers/posters in parallel and shard by topic partitions; keep consumer lag <1 second.
+
+### Process Flag Checklist
+- **Capture**: `iface`, `ioMode`, `out`, `kafkaBootstrap`, `kafkaTopicSegments`, `rollMiB`, `snap`, `bufMb`, `timeout`, `--enable-bpf`.
+- **Live**: `persistWorkers`, `persistQueueCapacity`, `persistQueueType`, `ioMode`, `out`/`kafkaTopicSegments`, `metricsExporter`, `otelEndpoint`.
+- **Assemble**: `ioMode`, `in`, `out`, `kafkaBootstrap`, `kafkaSegmentsTopic`, `kafkaHttpPairsTopic`, `kafkaTnPairsTopic`, `httpEnabled`, `tnEnabled`, `tn3270.*`.
+- **Poster**: `ioMode`, `posterOutMode`, `httpIn`, `tnIn`, `httpOut`, `tnOut`, `kafkaBootstrap`, `kafkaHttpReportsTopic`, `kafkaTnReportsTopic`, `decode`.
+- Provide `kafkaBootstrap` whenever any `kafka*` flag is set, and use `--dry-run` to validate topic wiring before going live.
 
 ## Startup Procedure
 1. Export telemetry environment variables if metrics must reach a central collector (see Telemetry Guide).
-2. Prepare output directories (create and set ownership) or confirm Kafka topics exist with required ACLs.
-3. Launch the desired CLI, for example:
-   ```bash
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar live \
-     iface=ens5 \
-     out=/var/lib/radar/live/pairs \
-     persistWorkers=8 \
-     persistQueueCapacity=2048 \
-     metricsExporter=otlp \
-     otelEndpoint=http://otel-collector:4317
-   ```
+2. Prepare the output directory hierarchy or verify Kafka topics and ACLs.
+3. Run the desired pipeline from the sections above. For live mode, start the `live` CLI with tuned flags.
 4. Tail logs for `Capture packet source started`, `Live pipeline completed`, and the absence of WARN/ERROR entries.
 
 ## Shutdown Procedure
-1. Send `SIGINT` (Ctrl+C) or `SIGTERM` to the JVM process.
-2. The live pipeline drains queues and stops workers; expect `Live pipeline flushed persistence queue` in logs.
-3. Monitor `live.persist.shutdown.force` and `live.persist.shutdown.interrupted`. Non-zero values indicate the drain timed out.
+1. Send `SIGINT` (Ctrl+C) or `SIGTERM` to each JVM process.
+2. Live pipelines drain the queue and stop workers; expect `Live pipeline flushed persistence queue` in logs.
+3. Monitor `live.persist.shutdown.force` and `live.persist.shutdown.interrupted`. Non-zero values mean the drain timed out.
 4. Confirm output directories contain only fully flushed files (no `.tmp` suffix) before removing storage.
 
 ## Health and Observability
@@ -70,6 +178,24 @@ Monitor via OpenTelemetry metrics:
 | `tn3270.events.render.count` | Counter | Increases with TN3270 host writes. | Flat during known TN3270 activity. |
 
 Logs include MDC fields such as `pipeline`, `flowId`, `protocol`, and `sink` for correlation across threads. Use dashboards to overlay queue depth, latency, and protocol volume trends.
+
+## Performance Tuning for 30+ Gbps
+| Process | Critical Flags | 30 Gbps Starting Point | Watch This |
+| --- | --- | --- | --- |
+| Capture (file or Kafka) | `snap`, `bufMb`, `rollMiB`, `timeout`, `kafkaTopicSegments` | `snap=65535`, `bufMb=1024`, `rollMiB=1024`, `timeout=0`, RSS enabled, CPU pinning per NIC queue | `capture.segment.persisted`, pcap drop counters, NIC driver stats |
+| Live pipeline | `persistWorkers`, `persistQueueCapacity`, `persistQueueType`, `ioMode`, `out`/`kafkaTopicSegments` | `persistWorkers` ~ physical cores, `persistQueueCapacity=persistWorkers*128`, `persistQueueType=ARRAY` | `live.persist.queue.depth`, `live.persist.enqueue.dropped`, GC pauses |
+| Assemble | `ioMode`, `kafkaSegmentsTopic`, `httpEnabled`, `tnEnabled`, `httpOut`/`tnOut` | Dedicated host with NVMe, run 1 instance per 8 vCPU, keep `tnEnabled` disabled if not needed | `assemble.pairs.persisted`, assembler runtime, consumer lag |
+| Poster | `posterOutMode`, `httpIn`/`tnIn`, `kafkaHttpReportsTopic`, `kafkaTnReportsTopic`, `decode` | Keep `decode=none` unless required, use Kafka output for shared consumers, ensure render directories on NVMe | Poster render latency metrics, topic lag |
+| Kafka adapters | `linger.ms`, `batch.size`, `compression.type`, `acks` | `linger.ms=5`, `batch.size=131072`, `compression=snappy`, `acks=all`, partition count >= worker count | Producer error rate, broker throttle/ISR metrics |
+| Host tuning | CPU pinning, NIC RSS/RPS, huge pages, IRQ affinity | Isolate capture cores, enable 8+ RX queues, reserve 75% memory for JVM heaps/buffers | CPU steal, `irqbalance`, memory pressure, disk latency |
+
+Additional guidance:
+- Enable NUMA-aware pinning (`taskset`, `numactl`) so capture threads and NIC interrupts share the same socket.
+- Disable NIC power-management, checksum offload anomalies, and set MTU 9000 when the network supports jumbo frames.
+- Pre-size JVM heaps (`-Xms` = `-Xmx`) and enable G1GC with `-XX:MaxGCPauseMillis=50`; consider `UseLargePages` on bare metal.
+- Keep write-ahead directories on NVMe or striped SSD arrays delivering >4 GB/s sustained throughput; monitor filesystem saturation.
+- Exercise the pipeline with replay tooling (e.g., `tcpreplay` or traffic generators) at 30-35 Gbps to validate headroom before onboarding production traffic.
+
 
 ## Runbook Scenarios
 ### Backpressure or Drops Rising
