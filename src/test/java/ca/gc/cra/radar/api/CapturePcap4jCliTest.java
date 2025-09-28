@@ -24,10 +24,15 @@ class CapturePcap4jCliTest {
 
   private ListAppender<ILoggingEvent> appender;
   private Logger logger;
+  private Level originalLevel;
+  private boolean originalAdditive;
 
   @BeforeEach
   void setUpLogger() {
     logger = (Logger) LoggerFactory.getLogger(CapturePcap4jCli.class);
+    originalLevel = logger.getLevel();
+    originalAdditive = logger.isAdditive();
+    logger.setAdditive(false);
     appender = new ListAppender<>();
     appender.start();
     logger.addAppender(appender);
@@ -37,6 +42,9 @@ class CapturePcap4jCliTest {
   void tearDownLogger() {
     if (logger != null && appender != null) {
       logger.detachAppender(appender);
+      appender.stop();
+      logger.setAdditive(originalAdditive);
+      logger.setLevel(originalLevel);
     }
     CliPrinter.clearTestWriter();
   }

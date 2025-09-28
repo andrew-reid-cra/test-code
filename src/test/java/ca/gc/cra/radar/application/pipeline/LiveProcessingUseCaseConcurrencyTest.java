@@ -19,6 +19,8 @@ import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.RawFrame;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Optional;
@@ -30,9 +32,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterAll;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Test;
 
 class LiveProcessingUseCaseConcurrencyTest {
+  private static final Logger LIVE_LOGGER =
+      (Logger) LoggerFactory.getLogger(LiveProcessingUseCase.class);
+  private static Level originalLevel;
+  private static boolean originalAdditive;
+
+  @BeforeAll
+  static void suppressLiveProcessingLogs() {
+    originalLevel = LIVE_LOGGER.getLevel();
+    originalAdditive = LIVE_LOGGER.isAdditive();
+    LIVE_LOGGER.setAdditive(false);
+    LIVE_LOGGER.setLevel(Level.OFF);
+  }
+
+  @AfterAll
+  static void restoreLiveProcessingLogs() {
+    LIVE_LOGGER.setLevel(originalLevel);
+    LIVE_LOGGER.setAdditive(originalAdditive);
+  }
+
   private LiveProcessingUseCase useCase;
   private CountingPersistence persistence;
 

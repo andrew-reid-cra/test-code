@@ -24,10 +24,15 @@ class CaptureCliTest {
 
   private ListAppender<ILoggingEvent> appender;
   private Logger logger;
+  private Level originalLevel;
+  private boolean originalAdditive;
 
   @BeforeEach
   void setUp() {
     logger = (Logger) LoggerFactory.getLogger(CaptureCli.class);
+    originalLevel = logger.getLevel();
+    originalAdditive = logger.isAdditive();
+    logger.setAdditive(false);
     appender = new ListAppender<>();
     appender.start();
     logger.addAppender(appender);
@@ -37,6 +42,9 @@ class CaptureCliTest {
   void tearDown() {
     if (logger != null && appender != null) {
       logger.detachAppender(appender);
+      appender.stop();
+      logger.setAdditive(originalAdditive);
+      logger.setLevel(originalLevel);
     }
     CliPrinter.clearTestWriter();
   }
@@ -143,5 +151,3 @@ class CaptureCliTest {
     return events.stream().anyMatch(event -> event.getFormattedMessage().contains(fragment));
   }
 }
-
-

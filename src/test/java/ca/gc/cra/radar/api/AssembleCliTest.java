@@ -23,10 +23,15 @@ class AssembleCliTest {
 
   private ListAppender<ILoggingEvent> appender;
   private Logger logger;
+  private Level originalLevel;
+  private boolean originalAdditive;
 
   @BeforeEach
   void setUp() {
     logger = (Logger) LoggerFactory.getLogger(AssembleCli.class);
+    originalLevel = logger.getLevel();
+    originalAdditive = logger.isAdditive();
+    logger.setAdditive(false);
     appender = new ListAppender<>();
     appender.start();
     logger.addAppender(appender);
@@ -36,6 +41,9 @@ class AssembleCliTest {
   void tearDown() {
     if (logger != null && appender != null) {
       logger.detachAppender(appender);
+      appender.stop();
+      logger.setAdditive(originalAdditive);
+      logger.setLevel(originalLevel);
     }
     CliPrinter.clearTestWriter();
   }

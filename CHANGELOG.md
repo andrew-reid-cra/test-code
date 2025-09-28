@@ -5,20 +5,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
+### Changed
+- Test harnesses mute CLI and pipeline loggers during validation runs to keep `mvn verify` output signal-only.
+
+## [0.3.0] - 2025-09-28
 ### Added
-- OpenTelemetry metrics adapter (MetricsPort implementation) with OTLP export enabled via environment variables or CLI flags.
-- Comprehensive operator and developer documentation suite (Ops Runbook, Developer Guide, Telemetry Guide, Upgrade Guide, refreshed README).
+- TN3270 screen capture and session monitoring with enriched metrics and event emission.
+- Flow assembler enhancements for TN3270 screen mapping and event attribution.
 
 ### Changed
-- Persistence workers migrated to an ExecutorService with uncaught handlers, graceful shutdown, and bounded queue backpressure (no poison pills).
-- Normalized package layout under ca.gc.cra.radar.infrastructure.capture.{live|file|pcap} and consolidated protocol/persistence adapters to clarify hexagonal boundaries.
-- Build tightened: mvn verify now runs Javadoc, Surefire, Failsafe, Jacoco, Checkstyle, and SpotBugs reports as part of the default pipeline.
+- Documentation suite refreshed and Javadoc coverage tightened across public APIs.
+
+## [0.2.0] - 2025-09-26
+### Added
+- Optional pcap4j-based capture path for JNI/JNA performance comparisons.
+- Live-processing test scenarios covering persistence failures, back-pressure, and executor shutdown edge cases.
+- OpenTelemetry metrics adapter with structured logging bootstrap.
+
+### Changed
+- Persistence workers now use an `ExecutorService` with bounded queues for graceful shutdown and back-pressure metrics.
+- Capture adapters reorganised under `infrastructure.capture.{live|file}` for clearer hexagonal boundaries.
+- CLI and configuration parsing consolidated with expanded validation and Javadoc coverage.
 
 ### Removed
-- Legacy and unused assemblers/interfaces (for example, LegacyHttpAssembler, NoOpFlowAssembler, ContextualFlowAssembler).
-
-### Fixed
-- Logging configuration relies exclusively on SLF4J/Logback; eliminated System.out usage and ensured telemetry boots before logging.
+- Legacy and unused assemblers plus no-op adapters that were superseded by the new pipeline.
 
 ## [0.1.0] - 2025-09-25
-- Initial baseline release (capture -> assemble -> sink pipeline with HTTP and TN3270 support).
+### Added
+- Initial baseline release delivering capture -> assemble -> sink pipelines for HTTP and TN3270 traffic.
+- Offline capture replay with seeded HTTP/TN3270 pcaps and cross-platform (Windows wpcap) support.
+- Poster pipelines, Kafka integration, and comprehensive unit tests across flow assemblers, persistence, and CLI layers.
+
+### Changed
+- Performance optimisations (buffer reuse, allocation reductions, throughput improvements) and security hardening of capture paths.
+- Logging standardised on SLF4J with structured context; CLI help updated with refactored configuration layout.
+
+### Fixed
+- End-to-end HTTP pipeline, JNI loader issues on Windows, and assorted logging defects identified during integration testing.
+
+### Removed
+- Legacy adapters and deprecated wiring replaced by the new capture/assembler implementation.
+

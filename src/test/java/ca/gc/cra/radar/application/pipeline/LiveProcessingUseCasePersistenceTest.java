@@ -18,6 +18,8 @@ import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.RawFrame;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -36,9 +38,31 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterAll;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Test;
 
 class LiveProcessingUseCasePersistenceTest {
+  private static final Logger LIVE_LOGGER =
+      (Logger) LoggerFactory.getLogger(LiveProcessingUseCase.class);
+  private static Level originalLevel;
+  private static boolean originalAdditive;
+
+  @BeforeAll
+  static void suppressLiveProcessingLogs() {
+    originalLevel = LIVE_LOGGER.getLevel();
+    originalAdditive = LIVE_LOGGER.isAdditive();
+    LIVE_LOGGER.setAdditive(false);
+    LIVE_LOGGER.setLevel(Level.OFF);
+  }
+
+  @AfterAll
+  static void restoreLiveProcessingLogs() {
+    LIVE_LOGGER.setLevel(originalLevel);
+    LIVE_LOGGER.setAdditive(originalAdditive);
+  }
+
 
   private RecordingMetrics metrics;
   private LiveProcessingUseCase useCase;

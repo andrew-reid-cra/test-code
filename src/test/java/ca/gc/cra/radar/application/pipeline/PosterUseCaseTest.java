@@ -21,10 +21,15 @@ import org.slf4j.LoggerFactory;
 class PosterUseCaseTest {
   private ListAppender<ILoggingEvent> appender;
   private Logger logger;
+  private Level originalLevel;
+  private boolean originalAdditive;
 
   @BeforeEach
   void setUp() {
     logger = (Logger) LoggerFactory.getLogger(PosterUseCase.class);
+    originalLevel = logger.getLevel();
+    originalAdditive = logger.isAdditive();
+    logger.setAdditive(false);
     appender = new ListAppender<>();
     appender.start();
     logger.addAppender(appender);
@@ -34,6 +39,9 @@ class PosterUseCaseTest {
   void tearDown() {
     if (logger != null && appender != null) {
       logger.detachAppender(appender);
+      appender.stop();
+      logger.setAdditive(originalAdditive);
+      logger.setLevel(originalLevel);
     }
   }
 
