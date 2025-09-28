@@ -45,7 +45,7 @@ RADAR enforces ports-and-adapters boundaries to keep the domain core independent
 ```mermaid
 flowchart TD
   CLI[Capture CLI] -->|config| CompositionRoot
-  CompositionRoot --> PcapJNI["PcapPacketSource\n(JNI)"]
+  CompositionRoot --> PcapJNI[PcapPacketSource (JNI)]
   PcapJNI --> FrameDecoderLibpcap[FrameDecoderLibpcap]
   FrameDecoderLibpcap --> CaptureUseCase
   CaptureUseCase --> SegmentSink["SegmentFileSinkAdapter / KafkaSink"]
@@ -57,19 +57,21 @@ flowchart TD
 flowchart TD
   CLI[Capture-pcap4j CLI] --> CompositionRoot
   CompositionRoot --> Pcap4j[Pcap4jPacketSource]
-  Pcap4j --> FrameDecoderLibpcap
+  Pcap4j --> FrameDecoderLibpcap[FrameDecoderLibpcap]
   FrameDecoderLibpcap --> CaptureUseCase
-  CaptureUseCase --> SegmentSink\n  CaptureUseCase --> Metrics
+  CaptureUseCase --> SegmentSink
+  CaptureUseCase --> Metrics
 ```
 
 ### Offline (pcap replay)
 ```mermaid
 flowchart TD
-  CLI["Capture CLI\n(pcapFile=...)"] --> CompositionRoot
+  CliOffline[Capture CLI (pcapFile=...)] --> CompositionRoot
   CompositionRoot --> PcapFileSource[PcapFilePacketSource]
   PcapFileSource --> FrameDecoderLibpcap
   FrameDecoderLibpcap --> CaptureUseCase
-  CaptureUseCase --> SegmentSink\n  CaptureUseCase --> Metrics
+  CaptureUseCase --> SegmentSink
+  CaptureUseCase --> Metrics
 ```
 
 ## Sink Pipelines
@@ -166,4 +168,7 @@ sequenceDiagram
 - **Buffer management** - Reuse infrastructure buffer pools when building adapters to minimise heap churn.
 
 Every extension must include unit tests, telemetry updates, and documentation changes (README, guides, diagrams) per the RADAR meta-prompt.
+
+
+
 
