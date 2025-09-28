@@ -66,7 +66,7 @@ flowchart TD
 ### Offline (pcap replay)
 ```mermaid
 flowchart TD
-  CliOffline[Capture CLI (pcapFile=...)] --> CompositionRoot
+  CliOffline[Capture CLI pcapFile=...] --> CompositionRoot
   CompositionRoot --> PcapFileSource[PcapFilePacketSource]
   PcapFileSource --> FrameDecoderLibpcap
   FrameDecoderLibpcap --> CaptureUseCase
