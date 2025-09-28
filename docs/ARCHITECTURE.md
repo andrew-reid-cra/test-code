@@ -45,7 +45,7 @@ RADAR enforces ports-and-adapters boundaries to keep the domain core independent
 ```mermaid
 flowchart TD
   CLI[Capture CLI] -->|config| CompositionRoot
-  CompositionRoot --> PcapJNI[PcapPacketSource (JNI)]
+  CompositionRoot --> PcapJNI[PcapPacketSource JNI]
   PcapJNI --> FrameDecoderLibpcap[FrameDecoderLibpcap]
   FrameDecoderLibpcap --> CaptureUseCase
   CaptureUseCase --> SegmentSink["SegmentFileSinkAdapter / KafkaSink"]
