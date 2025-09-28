@@ -3,9 +3,9 @@
 Thank you for investing in RADAR. The project powers mission-critical capture pipelines, so every change must preserve throughput, observability, and security.
 
 ## Branching and Commit Strategy
-- Develop on short-lived feature branches named eature/<slug> or ix/<issue>; keep main releasable at all times.
+- Develop on short-lived feature branches named Feature/<slug> or Fix/<issue>; keep main releasable at all times.
 - Rebase before opening a pull request to avoid merge commits in history.
-- Use [Conventional Commits](https://www.conventionalcommits.org/) with a clear scope when it adds value (eat(capture): ...).
+- Use [Conventional Commits](https://www.conventionalcommits.org/) with a clear scope when it adds value (Feat(capture): ...).
 - Commit message template (adapt the body to your change):
   `
   docs: add/update complete RADAR documentation suite (ops, dev, telemetry, upgrade)
@@ -34,7 +34,7 @@ Verify every item before requesting review:
 - Java SE 17+ (future-safe up to Java 25); Maven for build orchestration and dependency management.
 - Hexagonal architecture: domain/application stay framework-free; adapters implement ports for capture, protocols, sinks, telemetry.
 - Immutability and thread safety by default. No global mutable state, reflection hacks, or deprecated APIs.
-- SLF4J logging only; propagate MDC context (pipeline, lowId, sink, protocol). No System.out.
+- SLF4J logging only; propagate MDC context (pipeline, FlowId, sink, protocol). No System.out.
 - Concurrency uses java.util.concurrent abstractions. Avoid blocking calls in hot loops; document executor sizing choices.
 - Observability is mandatory: wrap hot paths with OpenTelemetry spans, emit metrics via MetricsPort, propagate trace context across executors.
 
