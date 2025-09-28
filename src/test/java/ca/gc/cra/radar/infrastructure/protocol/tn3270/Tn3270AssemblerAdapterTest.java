@@ -50,4 +50,21 @@ class Tn3270AssemblerAdapterTest {
       closed = true;
     }
   }
+
+  @Test
+  void onStructuredFieldPairEmitsEvents() throws Exception {
+    RecordingSink sink = new RecordingSink();
+    Tn3270AssemblerAdapter adapter =
+        new Tn3270AssemblerAdapter(sink, new TelnetNegotiationFilter(), Function.identity(), true, 1.0d);
+
+    adapter.onPair(Tn3270TestFixtures.messagePairWithStructuredField());
+
+    assertEquals(3, sink.events.size());
+    assertEquals(Tn3270EventType.SESSION_START, sink.events.get(0).type());
+    assertEquals(Tn3270EventType.SCREEN_RENDER, sink.events.get(1).type());
+    assertEquals(Tn3270EventType.USER_SUBMIT, sink.events.get(2).type());
+    assertTrue(sink.events.get(1).screen().plainText().contains("SIN:"));
+
+    adapter.close();
+  }
 }

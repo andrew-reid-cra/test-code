@@ -27,6 +27,10 @@ public final class Tn3270Parser {
   private static final int ORDER_IC = 0x13;
   private static final int ORDER_SF = 0x1D;
 
+  private static final int SFID_READ_BUFFER = 0x02;
+  private static final int SFID_READ_PARTITION = 0x04;
+  private static final int SFID_QUERY_REPLY = 0x81;
+
   private Tn3270Parser() {}
 
   /**
@@ -55,47 +59,16 @@ public final class Tn3270Parser {
       return buildSnapshot(state);
     }
 
-    int wcc = data.get() & 0xFF; // currently unused except for TODO hooks
-    if (command == CMD_ERASE_WRITE || (wcc & 0x40) != 0) {
-      state.clear();
+    int wcc = data.get() & 0xFF;
+    if (command == CMD_WRITE_STRUCTURED_FIELD) {
+      handleStructuredFields(data, state, wcc);
     } else {
-      state.resetFields();
-    }
-
-    int address = 0;
-    while (data.hasRemaining()) {
-      int next = data.get() & 0xFF;
-      switch (next) {
-        case ORDER_SBA -> {
-          if (data.remaining() < 2) {
-            data.position(data.limit());
-            break;
-          }
-          address = decodeAddress(data.get() & 0xFF, data.get() & 0xFF);
-        }
-        case ORDER_SF -> {
-          if (!data.hasRemaining()) {
-            break;
-          }
-          byte attribute = data.get();
-          state.startField(address, attribute);
-          state.buffer()[normalize(address, state)] = attribute;
-          address = advance(address, state);
-        }
-        case ORDER_IC -> state.setCursorAddress(address);
-        case ORDER_EUA -> {
-          if (data.remaining() < 2) {
-            break;
-          }
-          int target = decodeAddress(data.get() & 0xFF, data.get() & 0xFF);
-          clearRegion(state, address, target);
-          address = target;
-        }
-        default -> {
-          state.buffer()[normalize(address, state)] = (byte) next;
-          address = advance(address, state);
-        }
+      if (command == CMD_ERASE_WRITE || (wcc & 0x40) != 0) {
+        state.clear();
+      } else {
+        state.resetFields();
       }
+      processOrders(data, state, 0);
     }
 
     state.finalizeFields();
@@ -104,6 +77,73 @@ public final class Tn3270Parser {
     String hash = computeScreenHash(snapshot);
     state.lastScreenHash(hash);
     return snapshot;
+  }
+
+  private static void handleStructuredFields(ByteBuffer data, Tn3270SessionState state, int wcc) {
+    if ((wcc & 0x40) != 0) {
+      state.clear();
+    }
+    while (data.remaining() >= 3) {
+      int lengthHigh = data.get() & 0xFF;
+      int lengthLow = data.get() & 0xFF;
+      int length = (lengthHigh << 8) | lengthLow;
+      if (length < 3 || length - 2 > data.remaining()) {
+        data.position(data.limit());
+        break;
+      }
+      int sfid = data.get() & 0xFF;
+      int payloadLength = length - 3;
+      ByteBuffer payload = data.slice();
+      payload.limit(payloadLength);
+      data.position(data.position() + payloadLength);
+      switch (sfid) {
+        case SFID_READ_BUFFER -> processReadBuffer(payload, state);
+        case SFID_READ_PARTITION -> processReadPartition(payload, state);
+        case SFID_QUERY_REPLY -> processQueryReply(payload, state);
+        default -> {
+          // TODO: add support for additional structured fields (e.g., Bind Image, Read MDT).
+        }
+      }
+    }
+  }
+
+  private static void processReadBuffer(ByteBuffer payload, Tn3270SessionState state) {
+    processStructuredField(payload, state, true);
+  }
+
+  private static void processReadPartition(ByteBuffer payload, Tn3270SessionState state) {
+    processStructuredField(payload, state, false);
+  }
+
+  private static void processQueryReply(ByteBuffer payload, Tn3270SessionState state) {
+    if (payload.remaining() < 3) {
+      return;
+    }
+    int partitionId = payload.get() & 0xFF;
+    int rows = payload.get() & 0xFF;
+    int cols = payload.get() & 0xFF;
+    state.configurePartition(partitionId, rows, cols, false, 0, null);
+    state.resetFields();
+  }
+
+  private static void processStructuredField(
+      ByteBuffer payload, Tn3270SessionState state, boolean defaultClear) {
+    if (payload.remaining() < 4) {
+      return;
+    }
+    int partitionId = payload.get() & 0xFF;
+    int flags = payload.get() & 0xFF;
+    int rows = payload.get() & 0xFF;
+    int cols = payload.get() & 0xFF;
+
+    boolean clear = defaultClear || (flags & 0x40) != 0;
+    state.configurePartition(partitionId, rows, cols, clear, flags, null);
+    state.resetFields();
+
+    if (!payload.hasRemaining()) {
+      return;
+    }
+    processOrders(payload, state, 0);
   }
 
   /**
@@ -170,27 +210,59 @@ public final class Tn3270Parser {
   /** Submit result bundling AID and input map. */
   public record SubmitResult(AidKey aid, Map<String, String> inputs) {}
 
-  private static int normalize(int address, Tn3270SessionState state) {
-    int size = state.rows() * state.cols();
-    int normalized = address % size;
-    return normalized < 0 ? normalized + size : normalized;
+  private static void processOrders(ByteBuffer data, Tn3270SessionState state, int startAddress) {
+    int address = startAddress;
+    while (data.hasRemaining()) {
+      int next = data.get() & 0xFF;
+      switch (next) {
+        case ORDER_SBA -> {
+          if (data.remaining() < 2) {
+            data.position(data.limit());
+            return;
+          }
+          address = decodeAddress(data.get() & 0xFF, data.get() & 0xFF);
+        }
+        case ORDER_SF -> {
+          if (!data.hasRemaining()) {
+            return;
+          }
+          byte attribute = data.get();
+          state.startField(address, attribute);
+          state.buffer()[state.normalize(address)] = attribute;
+          address = advance(address, state);
+        }
+        case ORDER_IC -> state.setCursorAddress(address);
+        case ORDER_EUA -> {
+          if (data.remaining() < 2) {
+            return;
+          }
+          int target = decodeAddress(data.get() & 0xFF, data.get() & 0xFF);
+          clearRegion(state, address, target);
+          address = target;
+        }
+        default -> {
+          state.buffer()[state.normalize(address)] = (byte) next;
+          address = advance(address, state);
+        }
+      }
+    }
   }
 
   private static int advance(int address, Tn3270SessionState state) {
-    return normalize(address + 1, state);
+    return state.normalize(address + 1);
   }
 
   private static void clearRegion(Tn3270SessionState state, int start, int target) {
-    int current = normalize(start, state);
-    int end = normalize(target, state);
+    int current = state.normalize(start);
+    int end = state.normalize(target);
     int size = state.rows() * state.cols();
-    if (start == target) {
+    if (start == target || size == 0) {
       return;
     }
     int steps = (end >= current) ? end - current : (size - current) + end;
     byte[] buffer = state.buffer();
     for (int i = 0; i < steps; i++) {
-      buffer[(current + i) % size] = EBCDIC_SPACE;
+      buffer[state.normalize(current + i)] = EBCDIC_SPACE;
     }
   }
 
@@ -335,6 +407,4 @@ public final class Tn3270Parser {
     return Tn3270Hashes.murmur128Hex(sb.toString());
   }
 }
-
-
 

@@ -74,7 +74,7 @@ public final class CompositionRoot {
   private final MetricsPort metrics;
   private static final String DEFAULT_TN3270_USER_TOPIC = "radar.tn3270.user-actions.v1";
   private static final String DEFAULT_TN3270_RENDER_TOPIC = "radar.tn3270.screen-renders.v1";
-  private static final String DEFAULT_TN3270_REDACTION_POLICY = "(?i)^(SIN)$";
+  private static final String DEFAULT_TN3270_REDACTION_POLICY = "";
 
   private final Config config;
   private final CaptureConfig captureConfig;

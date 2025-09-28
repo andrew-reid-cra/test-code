@@ -27,7 +27,7 @@ RADAR captures TCP traffic, reconstructs protocol conversations (HTTP, TN3270), 
 | `persistQueueType` | Queue implementation (`ARRAY` or `LINKED`). | CLI `persistQueueType=ARRAY`. | `ARRAY` |
 | `tn3270.emitScreenRenders` | Emit TN3270 `SCREEN_RENDER` events. | CLI `tn3270.emitScreenRenders=true`. | `false` |
 | `tn3270.screenRenderSampleRate` | Fraction (0.0-1.0) of renders to emit when enabled. | CLI `tn3270.screenRenderSampleRate=0.25`. | `0.0` |
-| `tn3270.redaction.policy` | Regex of TN3270 field labels to redact before emission. | CLI `tn3270.redaction.policy=(?i)^(SIN|ACC)$`. | `(?i)^(SIN)$` |
+| `tn3270.redaction.policy` | Regex of TN3270 field labels to redact before emission. | CLI `tn3270.redaction.policy=<future consideration>`. | `<empty>` |
 
 ## Startup
 1. Export telemetry environment variables if centralised metrics are required (see Telemetry Guide).
