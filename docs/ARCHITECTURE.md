@@ -44,7 +44,7 @@ RADAR enforces ports-and-adapters boundaries to keep the domain core independent
 ### Live (JNI / libpcap)
 ```mermaid
 flowchart TD
-  CLI[Capture CLI] -->|config| CompositionRoot
+  CLI[Capture CLI] --> CompositionRoot
   CompositionRoot --> PcapJNI[PcapPacketSource JNI]
   PcapJNI --> FrameDecoderLibpcap[FrameDecoderLibpcap]
   FrameDecoderLibpcap --> CaptureUseCase
