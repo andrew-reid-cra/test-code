@@ -1,52 +1,54 @@
 # RADAR Upgrade Guide
 
 ## Versioning Policy
-RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain bug fixes only, minor releases introduce backward-compatible features, and major releases may include breaking API changes. Every release updates [CHANGELOG.md](../CHANGELOG.md).
+RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain bug fixes only, minor releases add backward-compatible features, and major releases may introduce breaking API changes. Each release updates [CHANGELOG.md](../CHANGELOG.md) and tags the repository.
 
 ## Breaking Changes by Version
 ### Unreleased
-- Capture and persistence adapters moved under `ca.gc.cra.radar.infrastructure.capture` and `ca.gc.cra.radar.infrastructure.persistence` to clarify hexagonal boundaries.
-- Live persistence workers now use a managed `ExecutorService`; any code depending on manual thread management must migrate to the new configuration knobs (`persistWorkers`, `persistQueueCapacity`).
-- Legacy assemblers (`LegacyHttpAssembler`, `NoOpFlowAssembler`, `ContextualFlowAssembler`) were deleted. Integrations must bind to `FlowProcessingEngine` via registered `ProtocolModule`s.
-- OpenTelemetry replaces the previous no-op metrics implementation. Pipelines require exporter configuration (`metricsExporter=otlp` or environment variables).
+- Capture adapters consolidated under ca.gc.cra.radar.infrastructure.capture.{live|file|pcap}; update imports if you referenced legacy capture.* packages.
+- Persistence workers transitioned to an executor with bounded queues; manual thread management hooks were removed.
+- OpenTelemetry replaced the no-op metrics implementation. Pipelines require configuring exporters (metricsExporter=otlp or environment variables).
+- Legacy assemblers (LegacyHttpAssembler, NoOpFlowAssembler, ContextualFlowAssembler) removed; integrate through FlowProcessingEngine with protocol modules.
 
 ### 0.1.0
-- Initial baseline release of the capture → assemble → sink pipeline with HTTP and TN3270 support.
+- Initial baseline release with capture ? assemble ? sink pipeline supporting HTTP and TN3270.
 
 ## Migration Steps
-1. **Update Dependencies**: Pull the latest `main` branch and ensure `pom.xml` aligns with the new release tag.
-2. **Adopt New Packages**: Update imports to the new infrastructure locations listed below.
-3. **Review Configuration**: Replace deprecated CLI flags with the new `persistWorkers`/`persistQueueCapacity` options if you previously tuned persistence threads manually.
-4. **Telemetry**: Configure OTLP exporters (env vars or CLI) and update dashboards to consume `radar.metric.key` attributes.
-5. **Regenerate Docs/Code**: Run `mvn -q -DskipTests=false verify` followed by `mvn -DskipTests=true javadoc:javadoc` to confirm API docs build cleanly.
-6. **Functional Smoke Test**: Execute an end-to-end pipeline on representative traffic:
-   ```bash
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture      pcapFile=/path/to/sample.pcap out=./out --allow-overwrite
+1. **Sync Dependencies** ? Pull the latest main and align your fork with the release tag.
+2. **Update Imports** ? Adjust source code to the new package layout using the mapping table below.
+3. **Review Configuration** ? Replace custom persistence threading with persistWorkers / persistQueueCapacity flags.
+4. **Telemetry** ? Configure OTLP exporters (environment variables or CLI flags) and update dashboards to consume the adar.metric.key attribute.
+5. **Rebuild Documentation** ? Run mvn -q -DskipTests=false verify and mvn -DskipTests=true javadoc:javadoc to confirm site/javadoc still succeed.
+6. **Smoke Test** ? Execute an end-to-end workflow on representative traffic:
+   `ash
+   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture pcapFile=/path/sample.pcap out=./out --allow-overwrite
    java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble in=./out out=./pairs
    java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster httpIn=./pairs/http httpOut=./reports/http
-   ```
-   Validate metrics and outputs before promoting to higher environments.
+   `
+   Validate metrics (capture.segment.persisted, ssemble.pairs.persisted), logs, and outputs before promoting.
 
 ## Package and API Mapping
 | Legacy location | Replacement |
 | --- | --- |
-| `ca.gc.cra.radar.capture.live.*` | `ca.gc.cra.radar.infrastructure.capture.live.*` (libpcap and pcap4j packet sources). |
-| `ca.gc.cra.radar.capture.file.*` | `ca.gc.cra.radar.infrastructure.capture.file.*` (pcap replay). |
-| `ca.gc.cra.radar.capture.pcap.*` | `ca.gc.cra.radar.infrastructure.capture.pcap.*` (shared JNI bindings). |
-| `ca.gc.cra.radar.assembler.LegacyHttpAssembler` | Use `ca.gc.cra.radar.infrastructure.protocol.http.HttpFlowAssemblerAdapter` + reconstructor/pairing factories. |
-| `ca.gc.cra.radar.assembler.NoOpFlowAssembler` | Replaced by `ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler`. |
-| Manual persistence threads | Configure `LiveProcessingUseCase` via `persistWorkers` and `persistQueueCapacity` (executor-managed). |
+| ca.gc.cra.radar.capture.live.* | ca.gc.cra.radar.infrastructure.capture.live.* |
+| ca.gc.cra.radar.capture.file.* | ca.gc.cra.radar.infrastructure.capture.file.* |
+| ca.gc.cra.radar.capture.pcap.* | ca.gc.cra.radar.infrastructure.capture.pcap.* |
+| ca.gc.cra.radar.assembler.LegacyHttpAssembler | ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler + HTTP protocol module wiring |
+| ca.gc.cra.radar.assembler.NoOpFlowAssembler | ca.gc.cra.radar.infrastructure.net.ReorderingFlowAssembler |
+| Manual persistence threads | Configure LiveProcessingUseCase via persistWorkers / persistQueueCapacity |
+| Custom metrics adapters | Implement MetricsPort and register via CompositionRoot if OTLP is unsuitable |
 
-## Metrics Changes
-- Metric emission now flows through `MetricsPort` → OpenTelemetry. The new adapter sanitizes instrument names and attaches `radar.metric.key`. Update any downstream dashboards to rely on that attribute instead of legacy metric names.
-- Legacy log-only signals for persistence shutdown have been promoted to metrics (`live.persist.shutdown.force`, `live.persist.shutdown.interrupted`). Ensure alert rules monitor the metrics rather than parsing logs.
+## Metric Changes
+- Metrics now flow through MetricsPort and OpenTelemetryMetricsAdapter, which sanitizes instrument names and attaches adar.metric.key.
+- Persistence shutdown signals moved from logs to metrics (live.persist.shutdown.force, live.persist.shutdown.interrupted). Update alerts accordingly.
+- Flow assembly namespaces standardised to live.* and ssemble.* prefixes followed by .segment.accepted, .protocol.*, .pairs.generated.
 
 ## Validation Checklist After Upgrade
-- [ ] `mvn -q -DskipTests=false verify` passes with coverage thresholds intact.
-- [ ] Integration tests replaying canonical pcaps succeed and produce outputs identical (or intentionally changed) compared to baseline snapshots.
-- [ ] OpenTelemetry collector receives core metrics (`capture.segment.persisted`, `live.persist.queue.highWater`, `assemble.pairs.persisted`).
-- [ ] Operators updated runbooks (see [docs/OPS_RUNBOOK.md](OPS_RUNBOOK.md)) and telemetry dashboards.
-- [ ] CHANGELOG entry reflects new features and breaking changes for the release.
+- [ ] mvn -q -DskipTests=false verify passes (tests, Checkstyle, SpotBugs, JaCoCo).
+- [ ] mvn -DskipTests=true javadoc:javadoc succeeds without warnings.
+- [ ] End-to-end replay and live smoke tests produce expected outputs and metrics.
+- [ ] Dashboards track new metrics (capture.segment.persisted, live.persist.queue.depth, protocol.http.bytes).
+- [ ] Operators reviewed updated runbooks and telemetry docs; alerts reflect new metric names.
+- [ ] [CHANGELOG.md](../CHANGELOG.md) includes entries for your changes.
 
-Report any regressions promptly; breaking changes require explicit documentation and migration aids in this guide.
-
+Report regressions with sample pcaps, logs, and metric snapshots (with secrets removed). Coordinate with maintainers on breaking change mitigations.

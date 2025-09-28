@@ -1,81 +1,90 @@
 # RADAR Developer Guide
 
 ## Onboarding
-- Install JDK 17 or newer (OpenJDK builds recommended) and ensure `JAVA_HOME` points to the distribution.
-- Install Maven 3.9+; verify with `mvn -version`.
-- Recommended IDE setup: IntelliJ IDEA or Eclipse with Google Java Format and Checkstyle plugins. Import the project as a Maven module.
-- Clone the repository and run `mvn -q -DskipTests=false verify` once to populate the local repository and generate initial reports.
+- Install OpenJDK 17 or newer (validated up to Java 21) and set JAVA_HOME.
+- Install Maven 3.9+; verify with mvn -version.
+- Recommended IDEs: IntelliJ IDEA or Eclipse with Google Java Format, Checkstyle, and SpotBugs plugins.
+- Clone the repository, import as a Maven project, and run mvn -q -DskipTests=false verify once to prime the local repository.
 
 ## Build and Test Workflow
 | Goal | Command | Notes |
 | --- | --- | --- |
-| Full verify (tests + quality gates) | `mvn -q -DskipTests=false verify` | Runs unit/integration tests, JaCoCo, SpotBugs, Checkstyle. |
-| Unit tests only | `mvn -q -pl :RADAR test` | Fast feedback on code changes (still JUnit 5). |
-| Integration/perf suites | `mvn -Pbenchmarks test` | Optional profile for hot-path benchmarks (if enabled). |
-| Generate Javadoc | `mvn -DskipTests=true javadoc:javadoc` | Output in `target/site/apidocs/index.html`. |
-| Coverage report | `target/site/jacoco/index.html` | Inspect before merging to keep coverage ≥80% overall, 100% for critical logic. |
+| Full build, tests, reports | mvn -q -DskipTests=false verify | Runs unit + integration tests, JaCoCo, Checkstyle, SpotBugs, Surefire/Failsafe, Site reports. |
+| Unit tests only | mvn -q -pl :RADAR test | Faster feedback for incremental changes. |
+| Integration or perf suites | mvn -Pbenchmarks test | Optional profile for JMH and integration benchmarks. |
+| Javadoc | mvn -DskipTests=true javadoc:javadoc | Verifies every public API has Javadoc and no warnings are introduced. |
+| Coverage report | 	arget/site/jacoco/index.html | Keep overall ?80% and critical logic (capture/live/assembler) at 100%. |
 
 ## Project Layout
-```
+`
 src/main/java/ca/gc/cra/radar/
-  domain/          # Immutable models (SegmentRecord, TcpSegment, MessagePair)
-  application/     # Ports + pipeline use cases (capture, live, assemble, poster)
+  domain/          # Immutable models and protocol-neutral logic
+  application/     # Use cases + ports (capture, live, assemble, poster, telemetry)
   config/          # CLI configuration records and CompositionRoot wiring
-  infrastructure/  # Adapter implementations (capture, protocol, persistence, metrics)
-  adapter/         # External adapter integrations (Kafka pipelines)
-  api/             # CLI entrypoints, argument parsing, telemetry bootstrap
-  logging/         # Logging configuration helpers (Logback, MDC utilities)
-  validation/      # Shared validation utilities for CLI inputs
-```
-Generated artefacts and Maven reports live under `target/`.
+  infrastructure/  # Adapters: capture, protocol modules, persistence, metrics
+  adapter/         # Externalized adapters (Kafka)
+  api/             # CLI entry points, argument parsing, telemetry bootstrap
+  logging/         # Logging configuration helpers, MDC utilities
+  validation/      # Shared validators for CLI/user inputs
+`
+Module-level README files live beside their packages and document responsibilities and metrics.
 
-## Coding Standards (Meta-Prompt Checklist)
-- Java SE 17+, Maven for builds, minimal dependencies.
-- Hexagonal architecture: keep business logic in domain/application; adapters implement ports.
-- Immutability by default, no global mutable state, no deprecated APIs.
-- SLF4J logging only; never use `System.out`. Include contextual fields (pipeline, flowId, protocol) via MDC where practical.
-- Concurrency via `java.util.concurrent`; avoid bare threads and blocking calls in hot loops.
-- Security: validate all inputs (`Strings`, `Numbers`, `Net` helpers), reject custom BPF without `--enable-bpf`, never log secrets.
-- Observability: wrap hot paths with OpenTelemetry spans, increment metrics via `MetricsPort`, and propagate trace context across executors.
+## Coding Standards (Meta-Prompt Highlights)
+- Java SE 17+, Maven build, minimal dependencies. Prepare code for future Java LTS versions.
+- Hexagonal boundaries: domain/application stay pure; adapters implement ports; no business logic leaks into infrastructure.
+- Immutability by default, defensive copies at module boundaries, thread-safe designs.
+- SLF4J logging only. Populate MDC fields (pipeline, lowId, protocol, sink) for structured logs. Never use System.out or System.err for application logs.
+- Concurrency via java.util.concurrent executors, queues, and atomics. No blocking calls inside hot loops; document executor sizing choices.
+- Observability is non-negotiable: wrap hot paths in spans, emit metrics via MetricsPort, propagate context across executors.
+- Security: validate every input, reject unsafe BPF expressions, never log secrets. Follow OWASP and CERT Java guidance.
 
 ## Adding Features
 ### New Sink Adapter (PersistencePort)
-1. Define a class implementing `PersistencePort` (or `SegmentPersistencePort` for raw segments).
-2. Emit metrics (`metrics.increment/observe`) mirroring existing adapters (`live.persist.*`, protocol-specific counters).
-3. Ensure resources are closed in `close()` and `flush()` handles partial batches.
-4. Wire into `CompositionRoot` behind a config flag or mode.
-5. Add unit tests with fakes (see `SegmentIoAdapterTest`, `KafkaPosterOutputAdapterTest`).
-6. Document the adapter in module README and Telemetry Guide.
+1. Implement PersistencePort or SegmentPersistencePort; honour batching semantics (batches of up to 32 pairs).
+2. Emit metrics consistent with existing namespaces (live.persist.*, ssemble.pairs.*, protocol-specific counters) and add unit tests for failures.
+3. Provide graceful shutdown (close, lush) and structured logging with MDC context.
+4. Wire the adapter through CompositionRoot behind configuration switches.
+5. Update module README, Telemetry Guide, and Ops Runbook with usage and observability notes.
 
 ### New Capture Strategy
-1. Implement `PacketSource` and, if necessary, a matching `FrameDecoder`.
-2. Reuse buffer pools (`BufferPools`) to minimise allocations; surface queue metrics.
-3. Register the adapter in `CompositionRoot` and expose CLI flags (update `CaptureConfig.fromMap`).
-4. Add realistic integration tests using canned pcaps or synthetic streams.
-5. Document CLI usage, metrics, and operational considerations.
+1. Implement PacketSource and, if needed, a matching FrameDecoder.
+2. Reuse buffer pools (infrastructure.net.BufferPools) to avoid heap churn.
+3. Integrate via CaptureConfig/CompositionRoot and expose CLI flags with validation in alidation helpers.
+4. Add integration tests using pcaps or synthetic frames and ensure telemetry covers errors and throughput.
+5. Document new flags in README, Runbook, and Telemetry Guide.
+
+### New Protocol Module
+1. Add a ProtocolId and update CompositionRoot factories for reconstructor and pairing engine suppliers.
+2. Implement ProtocolModule, MessageReconstructor, and PairingEngine, emitting protocol-specific metrics.
+3. Extend TN3270-like assembler patterns if out-of-band enrichment is required.
+4. Update architecture diagrams, telemetry tables, and module README with the new flow.
 
 ## Performance Tips
-- Reuse buffers via `infrastructure.buffer.BufferPool` and `PooledBufferedOutputStream`.
-- Batch persistence operations (`LiveProcessingUseCase` already groups up to 32 pairs; align new sinks with that convention).
-- Monitor `live.persist.latencyNanos` locally when experimenting; regression tests should assert no major regressions.
-- Keep critical loops allocation-free; prefer pre-sized collections and primitive arrays.
+- Monitor live.persist.queue.depth and live.persist.latencyNanos during local tests; regressions need investigations.
+- Reuse buffers and avoid per-segment allocations. Prefer primitive arrays and pooled ByteBuffers.
+- Keep hot loops branch-light; precompute constants and reuse StringBuilder or ByteArrayOutputStream when possible.
+- Profile with perf, sync-profiler, or JMH suites before landing optimizations.
 
 ## Observability
-- Central entry point for metrics: `MetricsPort` (OpenTelemetry adapter lives in `infrastructure.metrics`).
-- Wrap new code paths with spans using `OpenTelemetryBootstrap` helpers or manual instrumentation.
-- Unit tests can use in-memory metrics collectors (see `LiveProcessingUseCaseTest` usage of fake metrics adapters).
-- Update the Telemetry Guide with any new metric names or attributes.
+- Default metrics path: MetricsPort -> OpenTelemetryMetricsAdapter -> OTLP exporter. All metrics carry the adar.metric.key attribute.
+- Wrap new code paths with spans via OpenTelemetryBootstrap or manual tracer usage; propagate Context across executors.
+- Unit tests can inject fakes (TestMetricsAdapter, FakeTelemetry) to assert increments/observations.
+- Update [docs/TELEMETRY_GUIDE.md](TELEMETRY_GUIDE.md) whenever metric names/units change.
 
-## Local Testing & Tooling
-- Use bundled fixtures in `src/test/resources` or your own pcaps via `capture pcapFile=... --dry-run` to validate configuration.
-- For end-to-end smoke tests: run `capture` (pcap), `assemble`, and `poster` against a temp directory; inspect counters and outputs.
-- Run `java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --help` for CLI summaries.
+## Local Testing and Tooling
+- Use sample pcaps under src/test/resources or supply your own via capture pcapFile=... --dry-run to validate configs.
+- End-to-end smoke test:
+  `ash
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture pcapFile=fixtures/http_get.pcap out=./tmp/capture --allow-overwrite
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble in=./tmp/capture out=./tmp/pairs
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster httpIn=./tmp/pairs/http httpOut=./tmp/reports/http
+  `
+- Generate site reports (mvn site) and Javadoc before releasing.
 
 ## Pull Request Process
 1. Follow the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md).
-2. Link issues in commit messages or PR descriptions for traceability.
-3. Attach `mvn verify` output, coverage summaries, and relevant dashboards in the PR.
-4. Document telemetry changes and operational impacts in the Ops Runbook when applicable.
+2. Reference issues or tickets in the PR description and include relevant dashboards or benchmark deltas.
+3. Document telemetry or operational impacts in the Ops Runbook and Telemetry Guide.
+4. Request review only after mvn verify passes and documentation updates are committed.
 
-Stay vigilant about throughput, observability, and security; every change should leave the codebase more maintainable than before.
-
+Ship every change with production discipline: more secure, more observable, more maintainable.

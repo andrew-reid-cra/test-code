@@ -1,76 +1,108 @@
 # RADAR
 
 ## Overview
-RADAR is a high-throughput Java SE application that captures TCP traffic, reassembles flows, and renders protocol conversations using a hexagonal (ports and adapters) architecture. The domain core remains pure Java while adapters handle capture, protocol modules, persistence sinks, and telemetry so the pipeline scales to sustained 40 Gbps workloads.
+RADAR is a high-performance Java SE pipeline that captures TCP traffic, reassembles protocol conversations, and streams the results to file or Kafka sinks. The codebase follows a strict hexagonal architecture: the domain core stays pure Java, application use cases drive the capture ? assemble ? sink stages, and adapters integrate capture libraries, persistence layers, and telemetry without leaking implementation details back into the core. The pipeline is tuned for sustained 40 Gbps workloads with predictable latency, defensive validation, and comprehensive instrumentation.
 
 ## Key Features
-- Hexagonal ports/adapters keep capture, assemble, and sink pipelines decoupled and testable.
-- Capture to sink orchestration tuned for 40 Gbps targets with bounded queues and backpressure-aware retry loops.
-- Buffer pooling and streaming IO adapters minimise allocations and GC pressure across hot paths.
-- Executor-based persistence layer with tunable worker count and queue capacity for live processing.
-- OpenTelemetry metrics, traces, and logs emitted consistently across capture, assemble, and poster stages.
-- Pluggable sinks: file-based segment/blob outputs and Kafka topic adapters for downstream analytics.
-- Hardened input validation, fail-fast error handling, and structured SLF4J logging (no System.out).
+- Ports-and-adapters design across domain, application, and adapter packages for clean extensibility.
+- Capture to sink throughput engineered for 40 Gbps using bounded queues, worker pools, and buffer reuse.
+- Executor-based persistence with tunable worker and queue sizing plus graceful shutdown semantics.
+- OpenTelemetry instrumentation out of the box (metrics, spans, logs) with OTLP export and keyed attributes.
+- Pluggable sinks: rotating segment files, HTTP/TN3270 pair writers, and Kafka producers for downstream analytics.
+- Hardened validation, fail-fast error handling, SLF4J logging, and zero System.out usage.
+- Module README files, guides, and runbooks aligned with the RADAR meta-prompt for fast onboarding.
 
 ## Quick Start
-```bash
-# build
+`ash
+# build (tests, coverage, quality gates)
 mvn -q -DskipTests=false verify
 
 # run (offline pcap -> file sink)
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture   pcapFile=/path/to/input.pcap   out=/tmp/radar-out   --allow-overwrite
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+  pcapFile=/path/to/input.pcap \
+  out=/tmp/radar/out \
+  persistWorkers=6 \
+  persistQueueCapacity=768
 
 # enable metrics (OTLP)
 export OTEL_METRICS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_RESOURCE_ATTRIBUTES=service.name=radar,deployment.environment=dev
-```
-Replace the jar name if your Maven build produces a different classifier.
+`
+Adjust the jar name if your Maven build produces a different classifier or version suffix.
 
 ## Configs & CLI Flags
 | Flag | Applies | Description | Default |
 | --- | --- | --- | --- |
-| `pcapFile` | `capture` | Absolute path to a pcap/pcapng file replayed instead of live capture. | unset |
-| `iface` | `capture`, `live` | Network interface to sniff when `pcapFile` is not provided. | `eth0` |
-| `out` | `capture`, `live` | Directory for rotated `.segbin` segment files (FILE mode). | `~/.radar/out/capture/segments` |
-| `persistWorkers` | `live` | Number of persistence executor threads. | `min(4, max(1, cores/2))` |
-| `persistQueueCapacity` | `live` | Bounded queue capacity feeding persistence workers. | `persistWorkers * 64` |
-| `metricsExporter` | all CLIs | `otlp` enables OpenTelemetry export, `none` disables metric emission. | `otlp` |
-| `otelEndpoint` | all CLIs | OTLP endpoint override for metrics export. | unset (collector default) |
-| `otelResourceAttributes` | all CLIs | Comma-delimited resource attributes forwarded to OTel. | unset |
-| `--verbose` | all CLIs | Elevates logging to DEBUG before dispatching the subcommand. | INFO |
+| pcapFile | capture | Absolute path to a pcap/pcapng file for offline replay. | unset |
+| iface | capture, live | Network interface to sniff when pcapFile is not provided. | platform default (eth0) |
+| out | capture, live, assemble, poster | Target directory for segments, message pairs, or reports. Prefix with kafka: to use Kafka topics. | varies per command (see CLI help) |
+| ioMode | capture, live | FILE writes rotating .segbin files; KAFKA streams to Kafka (kafkaBootstrap required). | FILE |
+| persistWorkers | live | Number of persistence executor threads. | max(2, cores/2) |
+| persistQueueCapacity | live | Bounded queue depth feeding persistence workers. | persistWorkers * 128 |
+| metricsExporter | all CLIs | otlp to emit OpenTelemetry metrics, 
+one to disable emission. | otlp |
+| otelEndpoint | all CLIs | OTLP metrics endpoint override (http[s]://host:4317). | unset |
+| otelResourceAttributes | all CLIs | Comma-separated key=value pairs applied to OTEL resource attributes. | unset |
+| kafkaBootstrap | capture, live, poster | Comma-separated Kafka bootstrap servers when using Kafka sinks. | required for Kafka mode |
+| --verbose | all CLIs | Raises logging to DEBUG before dispatching the subcommand. | INFO |
+| --dry-run | capture, assemble | Validate configuration and print the execution plan without running the pipeline. | disabled |
+
+Additional flags are documented in the command-specific help (java -jar ... capture --help, etc.).
 
 ## Architecture at a Glance
-```mermaid
+`mermaid
 flowchart LR
-  subgraph Capture
-    PS[PacketSource]
-    FD[FrameDecoder]
+  subgraph Domain
+    DomainModels[Domain Models]
+    FlowServices[Flow Services]
   end
-  subgraph Assemble
-    FE[FlowProcessingEngine]
+  subgraph Application
+    CaptureUseCase[SegmentCaptureUseCase]
+    LiveUseCase[LiveProcessingUseCase]
+    AssembleUseCase[AssembleUseCase]
+    PosterUseCase[PosterUseCase]
   end
-  subgraph Sink
-    PW[Persistence Workers]
-    SA[PersistenceAdapter]
+  subgraph Ports
+    PacketSource[PacketSource]
+    FrameDecoder[FrameDecoder]
+    FlowAssembler[FlowAssembler]
+    ProtocolDetector[ProtocolDetector]
+    PersistencePort[PersistencePort]
+    MetricsPort[MetricsPort]
   end
-  PS --> FD --> FE --> PW --> SA
-  FE --> Poster[Poster Pipelines]
-```
-Read the full design, package map, and extensibility notes in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+  subgraph Adapters
+    CaptureAdapters[libpcap / pcap4j / file replay]
+    ProtocolAdapters[HTTP & TN3270 modules]
+    PersistenceAdapters[File & Kafka sinks]
+    TelemetryAdapters[OpenTelemetry]
+  end
+  PacketSource --> CaptureUseCase
+  CaptureUseCase --> PersistenceAdapters
+  CaptureUseCase --> LiveUseCase
+  LiveUseCase --> PersistenceAdapters
+  LiveUseCase --> ProtocolAdapters
+  AssembleUseCase --> ProtocolAdapters
+  PosterUseCase --> PersistenceAdapters
+  CaptureAdapters --> PacketSource
+  ProtocolAdapters --> FlowAssembler
+  FlowAssembler --> AssembleUseCase
+  MetricsPort --> TelemetryAdapters
+`
+Read the full design, package map, and pipeline breakdown in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Telemetry
-OpenTelemetry spans the entire pipeline. Metrics such as `capture.segment.persisted`, `assemble.pairs.persisted`, `live.persist.queue.highWater`, and `protocol.http.bytes` are emitted via the `MetricsPort` abstraction, and OTLP export is enabled by default. See [docs/TELEMETRY_GUIDE.md](docs/TELEMETRY_GUIDE.md) for enablement steps, metric catalogues, and alerting guidance.
+All pipelines emit OpenTelemetry metrics, spans, and logs through the MetricsPort abstraction and shared OTel bootstrap. Core metrics include capture.segment.persisted, live.persist.queue.depth, live.persist.latencyNanos, ssemble.pairs.persisted, and protocol histograms such as protocol.http.bytes. Enable OTLP exporters via environment variables or CLI flags and consult [docs/TELEMETRY_GUIDE.md](docs/TELEMETRY_GUIDE.md) for catalogues, dashboards, and test guidance.
 
-## Documentation
-- [docs/OPS_RUNBOOK.md](docs/OPS_RUNBOOK.md) — operational procedures, tuning, and troubleshooting.
-- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) — onboarding, coding standards, and extension recipes.
-- [docs/TELEMETRY_GUIDE.md](docs/TELEMETRY_GUIDE.md) — metric catalogue, collector setup, and validation.
-- [docs/UPGRADE_GUIDE.md](docs/UPGRADE_GUIDE.md) — versioning policy, breaking changes, and migration steps.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — hexagonal layout, data flow, and diagrams.
-- [CHANGELOG.md](CHANGELOG.md) — release history following Keep a Changelog.
-- [CONTRIBUTING.md](CONTRIBUTING.md) — pull-request checklist and contribution standards.
+## Documentation Index
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ? Hexagonal architecture, module map, diagrams, extensibility points.
+- [docs/OPS_RUNBOOK.md](docs/OPS_RUNBOOK.md) ? Operational procedures, deployment profiles, troubleshooting playbooks.
+- [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) ? Onboarding, coding standards, extension recipes.
+- [docs/TELEMETRY_GUIDE.md](docs/TELEMETRY_GUIDE.md) ? Metric catalogue, enablement, dashboard guidelines.
+- [docs/UPGRADE_GUIDE.md](docs/UPGRADE_GUIDE.md) ? Versioning, breaking changes, migration steps.
+- [CHANGELOG.md](CHANGELOG.md) ? Release history in Keep a Changelog format.
+- [CONTRIBUTING.md](CONTRIBUTING.md) ? Branching model, PR checklist, quality gates.
+- Module READMEs under src/main/java/ca/gc/cra/radar/**/README.md document package-level responsibilities.
 
 ## Support and Security
-Report defects or security findings through the issue tracker with sanitized logs and without attaching packet payloads or secrets. Configuration secrets (Kafka credentials, collector endpoints) must be provided via environment variables or secret stores; never commit them to the repository or include them in issues.
-
+Open issues in the tracker with sanitized logs, redacted payloads, and configuration snippets only?never share live packet captures or secrets. Security concerns should be escalated privately to maintainers. Configure credentials (Kafka, collectors, storage) through environment variables or secret stores rather than hardcoding them in configuration files or documentation.

@@ -6,24 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Added
-- OpenTelemetry metrics adapter (`MetricsPort` implementation) with OTLP configuration surfaced across all CLIs.
-- Offline pcap/pcapng ingest that reuses the live segment pipeline, pcap4j-backed capture mode, and supporting regression tests.
-- Operator/developer documentation suite (Ops Runbook, Developer Guide, Telemetry Guide, Upgrade Guide, refreshed README).
+- OpenTelemetry metrics adapter (MetricsPort implementation) with OTLP export enabled via environment variables or CLI flags.
+- Comprehensive operator and developer documentation suite (Ops Runbook, Developer Guide, Telemetry Guide, Upgrade Guide, refreshed README).
 
 ### Changed
-- Persistence workers migrated to an `ExecutorService` with uncaught handlers, graceful shutdown, and bounded queue backpressure (no poison pills).
-- Normalized package layout under `infrastructure.capture.{live|file}`, protocol adapters, and persistence sinks for clearer ports/adapters boundaries.
-- Build tightened: Maven site enables Javadoc, Surefire, Jacoco, Checkstyle, and SpotBugs reports for every `mvn verify` run.
-
-### Deprecated
-- External adapters must now implement the core `FlowAssembler` contract; contextual overloads remain deprecated pending removal.
+- Persistence workers migrated to an ExecutorService with uncaught handlers, graceful shutdown, and bounded queue backpressure (no poison pills).
+- Normalized package layout under ca.gc.cra.radar.infrastructure.capture.{live|file|pcap} and consolidated protocol/persistence adapters to clarify hexagonal boundaries.
+- Build tightened: mvn verify now runs Javadoc, Surefire, Failsafe, Jacoco, Checkstyle, and SpotBugs reports as part of the default pipeline.
 
 ### Removed
-- Legacy/unused assemblers and interfaces (for example, `LegacyHttpAssembler`, `NoOpFlowAssembler`, `ContextualFlowAssembler`).
+- Legacy and unused assemblers/interfaces (for example, LegacyHttpAssembler, NoOpFlowAssembler, ContextualFlowAssembler).
 
 ### Fixed
-- Logging configuration clarified to rely exclusively on SLF4J/Logback; eliminated `System.out` usage and ensured telemetry boot before logging.
+- Logging configuration relies exclusively on SLF4J/Logback; eliminated System.out usage and ensured telemetry boots before logging.
 
 ## [0.1.0] - 2025-09-25
 - Initial baseline release (capture -> assemble -> sink pipeline with HTTP and TN3270 support).
-

@@ -1,32 +1,31 @@
 # RADAR API / CLI Layer
 
 ## Purpose
-Provides the command-line interface (`ca.gc.cra.radar.api.Main`) that dispatches to capture, live, assemble, poster, and utility subcommands. Handles argument parsing, telemetry bootstrap, and logging configuration before delegating to application use cases.
+Exposes command-line entry points (ca.gc.cra.radar.api.Main) that dispatch to capture, live, assemble, poster, and utility subcommands. Handles argument parsing, telemetry bootstrap, and logging configuration before delegating to application use cases.
 
 ## Subcommands
-- `capture` — Offline or live capture to segments (`CaptureCli`).
-- `capture-pcap4j` — Alternate capture path using pcap4j for benchmarking (`CapturePcap4jCli`).
-- `live` — Full capture + assemble + persist pipeline (`LiveCli`).
-- `assemble` — Offline reassembly of stored segments (`AssembleCli`).
-- `poster` — Render assembled conversations (`PosterCli`).
-- `segbingrep` — Search `.segbin` payloads for byte sequences (`tools.SegbinGrepCli`).
+- capture ? Offline or live capture to segments (CaptureCli).
+- capture-pcap4j ? Alternate capture path using pcap4j for benchmarking (CapturePcap4jCli).
+- live ? Full capture + assemble + persist pipeline (LiveCli).
+- ssemble ? Offline reassembly of stored segments (AssembleCli).
+- poster ? Render assembled conversations (PosterCli).
+- segbingrep ? Search .segbin payloads for byte sequences (	ools.SegbinGrepCli).
 
 ## Responsibilities
-- Parse `key=value` CLI arguments and flags (`CliArgsParser`, `CliInput`).
-- Validate inputs and print helpful usage messages.
-- Configure OpenTelemetry exporters via `TelemetryConfigurator`.
-- Enable DEBUG logging with `--verbose` via `LoggingConfigurator`.
-- Exit with explicit codes (`ExitCode`).
+- Parse key=value arguments and flags via CliInput/CliArgsParser.
+- Validate inputs and print helpful usage/syntax messages.
+- Configure OpenTelemetry exporters via TelemetryConfigurator.
+- Enable DEBUG logging with --verbose through LoggingConfigurator.
+- Exit with explicit, documented codes (ExitCode).
 
 ## Metrics
-The CLI layer configures exporters but does not emit metrics directly; downstream use cases use `MetricsPort`. When adding new subcommands, ensure telemetry configuration remains consistent.
+The CLI layer configures exporters but does not emit metrics directly; downstream use cases rely on MetricsPort. New subcommands must keep telemetry configuration consistent.
 
 ## Testing
-- CLI behaviour is covered by tests under `src/test/java/ca/gc/cra/radar/api/**` (argument parsing, error handling, dry run flows).
-- Tests should assert exit codes, validate summary usage output, and confirm telemetry properties are set when metrics options are supplied.
+- CLI behaviour is covered by tests under src/test/java/ca/gc/cra/radar/api/** (argument parsing, dry run flows, exit codes).
+- Tests assert usage text, error handling, and telemetry configuration when metrics options are supplied.
 
 ## Extending
-- Add new subcommands by updating `Main` and providing a dedicated `*Cli` class.
-- Keep CLI usage strings concise and document new options in `README.md` and `docs/OPS_RUNBOOK.md`.
-- Maintain Javadoc for all public methods to satisfy documentation quality gates.
-
+- Add new subcommands by updating Main and providing a dedicated *Cli implementation.
+- Document new options in the root README and Ops Runbook.
+- Maintain Javadoc for public types/methods to keep Javadoc builds warning-free.

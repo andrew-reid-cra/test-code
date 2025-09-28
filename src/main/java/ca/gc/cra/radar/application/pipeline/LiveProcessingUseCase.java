@@ -117,6 +117,21 @@ public final class LiveProcessingUseCase {
    * <p><strong>Performance:</strong> Allows callers to tune worker count and queue capacity to match sink throughput.</p>
    * <p><strong>Observability:</strong> Runtime metrics reflect the provided settings (queue depth, wait time).</p>
    */
+  /**
+   * Convenience constructor for live pipelines that do not require TN3270 screen enrichment.
+   *
+   * @param packetSource source of raw frames
+   * @param frameDecoder converts frames to TCP segments
+   * @param flowAssembler orders TCP bytes per flow
+   * @param protocolDetector detects protocols for new flows
+   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
+   * @param pairingFactories factories that convert message events to {@link MessagePair}s
+   * @param persistence sink for emitting message pairs immediately
+   * @param metrics metrics sink updated for capture, decode, and pairing events
+   * @param enabledProtocols subset of protocols to process; others are ignored
+   * @param persistenceWorkers number of persistence worker threads
+   * @param persistenceQueueCapacity queue capacity feeding persistence workers
+   */
   public LiveProcessingUseCase(
       PacketSource packetSource,
       FrameDecoder frameDecoder,
@@ -143,6 +158,22 @@ public final class LiveProcessingUseCase {
         new PersistenceSettings(persistenceWorkers, persistenceQueueCapacity, QueueType.ARRAY));
   }
 
+  /**
+   * Convenience constructor for live pipelines that include TN3270 enrichment.
+   *
+   * @param packetSource source of raw frames
+   * @param frameDecoder converts frames to TCP segments
+   * @param flowAssembler orders TCP bytes per flow
+   * @param protocolDetector detects protocols for new flows
+   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
+   * @param pairingFactories factories that convert message events to {@link MessagePair}s
+   * @param persistence sink for emitting message pairs immediately
+   * @param tnAssembler TN3270 assembler used for host screen enrichment
+   * @param metrics metrics sink updated for capture, decode, and pairing events
+   * @param enabledProtocols subset of protocols to process; others are ignored
+   * @param persistenceWorkers number of persistence worker threads
+   * @param persistenceQueueCapacity queue capacity feeding persistence workers
+   */
   public LiveProcessingUseCase(
       PacketSource packetSource,
       FrameDecoder frameDecoder,
@@ -211,6 +242,21 @@ public final class LiveProcessingUseCase {
         persistenceSettings);
   }
 
+  /**
+   * Creates the live processing pipeline with TN3270 enrichment and persistence tuning.
+   *
+   * @param packetSource source of raw frames
+   * @param frameDecoder converts frames to TCP segments
+   * @param flowAssembler orders TCP bytes per flow
+   * @param protocolDetector detects protocols for new flows
+   * @param reconstructorFactories factories for protocol-specific byte-to-message handlers
+   * @param pairingFactories factories that convert message events to {@link MessagePair}s
+   * @param persistence sink for emitting message pairs immediately
+   * @param tnAssembler TN3270 assembler used for host screen enrichment
+   * @param metrics metrics sink updated for capture, decode, and pairing events
+   * @param enabledProtocols subset of protocols to process; others are ignored
+   * @param persistenceSettings tuning parameters for worker count and queue behaviour
+   */
   public LiveProcessingUseCase(
       PacketSource packetSource,
       FrameDecoder frameDecoder,
