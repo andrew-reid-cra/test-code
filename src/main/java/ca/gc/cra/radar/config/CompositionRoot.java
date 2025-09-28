@@ -12,6 +12,10 @@ import ca.gc.cra.radar.application.port.PersistencePort;
 import ca.gc.cra.radar.application.port.ProtocolDetector;
 import ca.gc.cra.radar.application.port.ProtocolModule;
 import ca.gc.cra.radar.application.port.SegmentPersistencePort;
+import ca.gc.cra.radar.application.port.Tn3270AssemblerPort;
+import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270AssemblerAdapter;
+import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270KafkaPoster;
+import ca.gc.cra.radar.infrastructure.protocol.tn3270.TelnetNegotiationFilter;
 import ca.gc.cra.radar.adapter.kafka.HttpKafkaPersistenceAdapter;
 import ca.gc.cra.radar.adapter.kafka.KafkaSegmentReader;
 import ca.gc.cra.radar.adapter.kafka.KafkaSegmentRecordReaderAdapter;
@@ -40,8 +44,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.function.Function;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * <strong>What:</strong> Central composition root that wires RADAR use cases to concrete adapters.
@@ -65,6 +72,10 @@ import java.util.function.Supplier;
  */
 public final class CompositionRoot {
   private final MetricsPort metrics;
+  private static final String DEFAULT_TN3270_USER_TOPIC = "radar.tn3270.user-actions.v1";
+  private static final String DEFAULT_TN3270_RENDER_TOPIC = "radar.tn3270.screen-renders.v1";
+  private static final String DEFAULT_TN3270_REDACTION_POLICY = "(?i)^(SIN)$";
+
   private final Config config;
   private final CaptureConfig captureConfig;
 
@@ -183,6 +194,12 @@ public final class CompositionRoot {
             captureConfig.persistenceWorkers(),
             captureConfig.persistenceQueueCapacity(),
             mapQueueType(captureConfig.persistenceQueueType()));
+    PersistencePort persistencePort = messagePersistence();
+    Tn3270AssemblerPort tnAssembler = createTnAssembler(
+        captureConfig.kafkaBootstrap(),
+        captureConfig.tn3270EmitScreenRenders(),
+        captureConfig.tn3270ScreenRenderSampleRate(),
+        captureConfig.tn3270RedactionPolicy());
     return new LiveProcessingUseCase(
         newPacketSource(),
         new FrameDecoderLibpcap(),
@@ -190,7 +207,8 @@ public final class CompositionRoot {
         protocolDetector(),
         reconstructorFactories(clockPort, metricsPort),
         pairingFactories(),
-        messagePersistence(),
+        persistencePort,
+        tnAssembler,
         metricsPort,
         config.enabledProtocols(),
         persistenceSettings);
@@ -213,13 +231,21 @@ public final class CompositionRoot {
     MetricsPort metricsPort = metrics();
     ClockPort clockPort = clock();
     Set<ProtocolId> enabled = enabledProtocolsForAssemble(assembleConfig);
+    PersistencePort persistencePort = messagePersistence(assembleConfig);
+    String bootstrap = assembleConfig.kafkaBootstrap().orElse(null);
+    Tn3270AssemblerPort tnAssembler = createTnAssembler(
+        bootstrap,
+        assembleConfig.tn3270EmitScreenRenders(),
+        assembleConfig.tn3270ScreenRenderSampleRate(),
+        assembleConfig.tn3270RedactionPolicy());
     return new AssembleUseCase(
         assembleConfig,
         new ReorderingFlowAssembler(metricsPort, "assemble.flowAssembler"),
         protocolDetector(),
         reconstructorFactories(clockPort, metricsPort),
         pairingFactories(),
-        messagePersistence(assembleConfig),
+        persistencePort,
+        tnAssembler,
         metricsPort,
         enabled,
         buildSegmentReaderFactory());
@@ -310,6 +336,79 @@ public final class CompositionRoot {
    * <p><strong>Performance:</strong> Composes decorator chain of per-protocol sinks.</p>
    * <p><strong>Observability:</strong> Downstream adapters emit protocol-specific metrics.</p>
    */
+  private PersistencePort messagePersistence() {
+    return buildFilePersistence(
+        captureConfig.httpOutputDirectory(),
+        captureConfig.tn3270OutputDirectory(),
+        true,
+        true);
+  }
+
+  private Tn3270AssemblerPort createTnAssembler(
+      String bootstrap,
+      boolean emitScreenRenders,
+      double screenRenderSampleRate,
+      String redactionPolicy) {
+    if (bootstrap == null) {
+      return null;
+    }
+    String trimmed = bootstrap.trim();
+    if (trimmed.isEmpty()) {
+      return null;
+    }
+    double rate = Math.max(0d, Math.min(1d, screenRenderSampleRate));
+    String effectivePolicy = (redactionPolicy == null || redactionPolicy.isBlank())
+        ? DEFAULT_TN3270_REDACTION_POLICY
+        : redactionPolicy;
+    return new Tn3270AssemblerAdapter(
+        new Tn3270KafkaPoster(trimmed, DEFAULT_TN3270_USER_TOPIC, DEFAULT_TN3270_RENDER_TOPIC),
+        new TelnetNegotiationFilter(),
+        buildRedaction(effectivePolicy),
+        emitScreenRenders,
+        rate);
+  }
+
+  private Function<Map<String, String>, Map<String, String>> buildRedaction(String policy) {
+    if (policy == null || policy.isBlank()) {
+      return Function.identity();
+    }
+    Pattern matcher = Pattern.compile(policy);
+    return input -> {
+      if (input == null || input.isEmpty()) {
+        return Map.of();
+      }
+      Map<String, String> sanitized = new LinkedHashMap<>(input.size());
+      for (Map.Entry<String, String> entry : input.entrySet()) {
+        String key = entry.getKey();
+        String value = entry.getValue();
+        if (key != null && matcher.matcher(key).matches()) {
+          sanitized.put(key, maskSensitiveValue(value));
+        } else {
+          sanitized.put(key, value);
+        }
+      }
+      return Map.copyOf(sanitized);
+    };
+  }
+
+  private static String maskSensitiveValue(String value) {
+    if (value == null || value.isBlank()) {
+      return value;
+    }
+    int keep = Math.max(0, Math.min(3, value.length()));
+    int maskUntil = value.length() - keep;
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (i < maskUntil && !Character.isWhitespace(c)) {
+        sb.append('*');
+      } else {
+        sb.append(c);
+      }
+    }
+    return sb.toString();
+  }
+
   private PersistencePort messagePersistence() {
     return buildFilePersistence(
         captureConfig.httpOutputDirectory(),
@@ -526,3 +625,10 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
+
+
+
+
+
+
+

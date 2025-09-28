@@ -53,6 +53,11 @@ Every measurement includes `radar.metric.key=<original>` to retain the unsanitiz
 | `http.flowAssembler.bytes` | Histogram | bytes | `radar.metric.key` | HTTP payload size per emission. |
 | `tn3270.flowAssembler.payload` | Counter | 1 | `radar.metric.key` | TN3270 payload forwarded. |
 | `tn3270.flowAssembler.bytes` | Histogram | bytes | `radar.metric.key` | TN3270 payload size per emission. |
+| `tn3270.events.render.count` | Counter | 1 | `radar.metric.key` | TN3270 `SCREEN_RENDER` events emitted by the assembler. |
+| `tn3270.events.submit.count` | Counter | 1 | `radar.metric.key` | TN3270 `USER_SUBMIT` events emitted by the assembler. |
+| `tn3270.bytes.processed` | Counter | By | `radar.metric.key` | Filtered TN3270 bytes processed post Telnet negotiation. |
+| `tn3270.parse.latency.ms` | Histogram | ms | `radar.metric.key` | Parser latency per TN3270 record. |
+| `tn3270.sessions.active` | UpDownCounter | 1 | `radar.metric.key` | Active TN3270 sessions tracked by the assembler. |
 | `<prefix>.protocol.disabled` | Counter | 1 | `radar.metric.key` | Flow detected protocol not enabled (prefix `live` or `assemble`). |
 | `<prefix>.protocol.unsupported` | Counter | 1 | `radar.metric.key` | Recon/pairing factory missing for detected protocol. |
 | `<prefix>.flowAssembler.error` | Counter | 1 | `radar.metric.key` | Flow assembler threw an exception. |
@@ -80,4 +85,5 @@ Every measurement includes `radar.metric.key=<original>` to retain the unsanitiz
 5. When adding new metrics, update this guide and add assertions ensuring the signal fires under both success and failure modes.
 
 Consistent telemetry is mandatory: deploys must not merge unless dashboards reflect new metrics and alerts are reviewed.
+
 

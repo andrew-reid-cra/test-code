@@ -34,6 +34,9 @@ import java.util.Optional;
  * @param tnEnabled whether TN3270 reconstruction is enabled
  * @param httpOutputDirectory optional override for the HTTP output directory
  * @param tnOutputDirectory optional override for the TN3270 output directory
+ * @param tn3270EmitScreenRenders whether the assembler should emit SCREEN_RENDER events
+ * @param tn3270ScreenRenderSampleRate probability in [0.0, 1.0] for emitting SCREEN_RENDER events
+ * @param tn3270RedactionPolicy regex identifying field names to redact before emission
  * @since 0.1.0
  * @implNote Enforces that at least one protocol is enabled and requires Kafka bootstrap servers whenever {@code ioMode} resolves to {@link IoMode#KAFKA}.
  * @see ca.gc.cra.radar.application.pipeline.AssembleUseCase
@@ -50,7 +53,10 @@ public record AssembleConfig(
     boolean httpEnabled,
     boolean tnEnabled,
     Optional<Path> httpOutputDirectory,
-    Optional<Path> tnOutputDirectory) {
+    Optional<Path> tnOutputDirectory,
+    boolean tn3270EmitScreenRenders,
+    double tn3270ScreenRenderSampleRate,
+    String tn3270RedactionPolicy) {
 
   private static final Path DEFAULT_BASE = defaultBaseDirectory();
 
@@ -74,6 +80,13 @@ public record AssembleConfig(
     outputDirectory = normalizePath("outputDirectory", outputDirectory);
     httpOutputDirectory = sanitizeOptionalPath("httpOutputDirectory", httpOutputDirectory);
     tnOutputDirectory = sanitizeOptionalPath("tnOutputDirectory", tnOutputDirectory);
+    tn3270RedactionPolicy = tn3270RedactionPolicy == null ? "" : tn3270RedactionPolicy.trim();
+    if (Double.isNaN(tn3270ScreenRenderSampleRate)) {
+      tn3270ScreenRenderSampleRate = 0d;
+    }
+    if (tn3270ScreenRenderSampleRate < 0d || tn3270ScreenRenderSampleRate > 1d) {
+      throw new IllegalArgumentException("tn3270ScreenRenderSampleRate must be within [0.0,1.0] (was " + tn3270ScreenRenderSampleRate + ')');
+    }
 
     if (!httpEnabled && !tnEnabled) {
       throw new IllegalArgumentException("At least one protocol must be enabled");
@@ -105,7 +118,10 @@ public record AssembleConfig(
         true,
         false,
         Optional.empty(),
-        Optional.empty());
+        Optional.empty(),
+        false,
+        0d,
+        "");
   }
 
   /**
@@ -151,6 +167,22 @@ public record AssembleConfig(
     Optional<Path> httpOut = optionalPath("httpOut", firstNonBlank(options, "httpOut", "--httpOut"));
     Optional<Path> tnOut = optionalPath("tnOut", firstNonBlank(options, "tnOut", "--tnOut"));
 
+    boolean tnEmitRenders = parseBoolean(options.get("tn3270.emitScreenRenders"), defaults.tn3270EmitScreenRenders());
+    double tnSampleRate = defaults.tn3270ScreenRenderSampleRate();
+    String tnSampleRateRaw = options.get("tn3270.screenRenderSampleRate");
+    if (tnSampleRateRaw != null && !tnSampleRateRaw.isBlank()) {
+      try {
+        tnSampleRate = Double.parseDouble(tnSampleRateRaw.trim());
+      } catch (NumberFormatException ex) {
+        throw new IllegalArgumentException("tn3270.screenRenderSampleRate must be a number between 0.0 and 1.0", ex);
+      }
+    }
+    if (tnSampleRate < 0d || tnSampleRate > 1d) {
+      throw new IllegalArgumentException("tn3270.screenRenderSampleRate must be between 0.0 and 1.0");
+    }
+    String tnRedactionPolicy = optionalString(options.get("tn3270.redaction.policy"))
+        .orElse(defaults.tn3270RedactionPolicy());
+
     String kafkaHttpPairsTopic = optionalString(options.get("kafkaHttpPairsTopic"))
         .map(value -> Strings.sanitizeTopic("kafkaHttpPairsTopic", value))
         .orElse(defaults.kafkaHttpPairsTopic());
@@ -177,7 +209,10 @@ public record AssembleConfig(
         httpEnabled,
         tnEnabled,
         httpOut,
-        tnOut);
+        tnOut,
+        tnEmitRenders,
+        tnSampleRate,
+        tnRedactionPolicy);
   }
 
   /**
@@ -401,3 +436,6 @@ public record AssembleConfig(
     return Path.of(home, ".radar", "out");
   }
 }
+
+
+

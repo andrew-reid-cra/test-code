@@ -4,11 +4,13 @@ import ca.gc.cra.radar.application.port.FlowAssembler;
 import ca.gc.cra.radar.application.port.MessageReconstructor;
 import ca.gc.cra.radar.application.port.MetricsPort;
 import ca.gc.cra.radar.application.port.PairingEngine;
+import ca.gc.cra.radar.application.port.Tn3270AssemblerPort;
 import ca.gc.cra.radar.application.port.PersistencePort;
 import ca.gc.cra.radar.application.port.ProtocolDetector;
 import ca.gc.cra.radar.config.AssembleConfig;
 import ca.gc.cra.radar.domain.capture.SegmentRecord;
 import ca.gc.cra.radar.domain.flow.FlowDirectionService;
+import ca.gc.cra.radar.domain.msg.MessageEvent;
 import ca.gc.cra.radar.domain.msg.MessagePair;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.TcpSegment;
@@ -46,6 +48,7 @@ public final class AssembleUseCase {
   private final AssembleConfig config;
   private final FlowProcessingEngine flowEngine;
   private final PersistencePort persistence;
+  private final Tn3270AssemblerPort tnAssembler;
   private final MetricsPort metrics;
   private final Set<ProtocolId> enabledProtocols;
   private final SegmentReaderFactory readerFactory;
@@ -75,11 +78,13 @@ public final class AssembleUseCase {
       Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
       Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
       PersistencePort persistence,
+      Tn3270AssemblerPort tnAssembler,
       MetricsPort metrics,
       Set<ProtocolId> enabledProtocols,
       SegmentReaderFactory readerFactory) {
     this.config = Objects.requireNonNull(config, "config");
     this.persistence = Objects.requireNonNull(persistence, "persistence");
+    this.tnAssembler = tnAssembler;
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.enabledProtocols = Set.copyOf(Objects.requireNonNull(enabledProtocols, "enabledProtocols"));
     this.readerFactory = Objects.requireNonNull(readerFactory, "readerFactory");
@@ -119,6 +124,7 @@ public final class AssembleUseCase {
           MDC.put("flowId", formatFlow(segment.flow()));
           List<MessagePair> pairs = flowEngine.onSegment(segment);
           for (MessagePair pair : pairs) {
+            processAssembler(pair);
             sink.persist(pair);
             metrics.increment("assemble.pairs.persisted");
             pairCount++;
@@ -137,16 +143,52 @@ public final class AssembleUseCase {
       log.error("Assemble pipeline failed after processing {} segments", segmentCount, ex);
       throw ex;
     } finally {
+      Exception closeFailure = null;
       try {
         flowEngine.close();
         log.info("Assemble flow engine closed");
       } catch (Exception ex) {
         log.error("Failed to close assemble flow engine", ex);
-        throw ex;
-      } finally {
-        MDC.remove("assemble.in");
+        closeFailure = ex;
       }
+      if (tnAssembler != null) {
+        try {
+          tnAssembler.close();
+          log.info("Assemble TN3270 assembler closed");
+        } catch (Exception assemblerCloseFailure) {
+          log.error("Failed to close assemble TN3270 assembler", assemblerCloseFailure);
+          if (closeFailure == null) {
+            closeFailure = assemblerCloseFailure;
+          }
+        }
+      }
+      if (closeFailure != null) {
+        throw closeFailure;
+      }
+      MDC.remove("assemble.in");
     }
+  }
+
+  private void processAssembler(MessagePair pair) throws Exception {
+    if (tnAssembler == null || pair == null) {
+      return;
+    }
+    if (!isTnPair(pair)) {
+      return;
+    }
+    tnAssembler.onPair(pair);
+  }
+
+  private boolean isTnPair(MessagePair pair) {
+    if (pair == null) {
+      return false;
+    }
+    MessageEvent request = pair.request();
+    if (request != null && request.protocol() == ProtocolId.TN3270) {
+      return true;
+    }
+    MessageEvent response = pair.response();
+    return response != null && response.protocol() == ProtocolId.TN3270;
   }
 
   private TcpSegment toSegment(SegmentRecord record) {

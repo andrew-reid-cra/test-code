@@ -8,6 +8,8 @@ import ca.gc.cra.radar.application.port.PacketSource;
 import ca.gc.cra.radar.application.port.PairingEngine;
 import ca.gc.cra.radar.application.port.PersistencePort;
 import ca.gc.cra.radar.application.port.ProtocolDetector;
+import ca.gc.cra.radar.application.port.Tn3270AssemblerPort;
+import ca.gc.cra.radar.domain.msg.MessageEvent;
 import ca.gc.cra.radar.domain.msg.MessagePair;
 import ca.gc.cra.radar.domain.net.RawFrame;
 import ca.gc.cra.radar.domain.net.TcpSegment;
@@ -72,6 +74,7 @@ public final class LiveProcessingUseCase {
   private final FrameDecoder frameDecoder;
   private final FlowProcessingEngine flowEngine;
   private final PersistencePort persistence;
+  private final Tn3270AssemblerPort tnAssembler;
   private final MetricsPort metrics;
   private final Set<ProtocolId> enabledProtocols;
   private final PersistenceSettings persistenceSettings;
@@ -134,6 +137,34 @@ public final class LiveProcessingUseCase {
         reconstructorFactories,
         pairingFactories,
         persistence,
+        null,
+        metrics,
+        enabledProtocols,
+        new PersistenceSettings(persistenceWorkers, persistenceQueueCapacity, QueueType.ARRAY));
+  }
+
+  public LiveProcessingUseCase(
+      PacketSource packetSource,
+      FrameDecoder frameDecoder,
+      FlowAssembler flowAssembler,
+      ProtocolDetector protocolDetector,
+      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
+      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
+      PersistencePort persistence,
+      Tn3270AssemblerPort tnAssembler,
+      MetricsPort metrics,
+      Set<ProtocolId> enabledProtocols,
+      int persistenceWorkers,
+      int persistenceQueueCapacity) {
+    this(
+        packetSource,
+        frameDecoder,
+        flowAssembler,
+        protocolDetector,
+        reconstructorFactories,
+        pairingFactories,
+        persistence,
+        tnAssembler,
         metrics,
         enabledProtocols,
         new PersistenceSettings(persistenceWorkers, persistenceQueueCapacity, QueueType.ARRAY));
@@ -166,9 +197,36 @@ public final class LiveProcessingUseCase {
       MetricsPort metrics,
       Set<ProtocolId> enabledProtocols,
       PersistenceSettings persistenceSettings) {
+    this(
+        packetSource,
+        frameDecoder,
+        flowAssembler,
+        protocolDetector,
+        reconstructorFactories,
+        pairingFactories,
+        persistence,
+        null,
+        metrics,
+        enabledProtocols,
+        persistenceSettings);
+  }
+
+  public LiveProcessingUseCase(
+      PacketSource packetSource,
+      FrameDecoder frameDecoder,
+      FlowAssembler flowAssembler,
+      ProtocolDetector protocolDetector,
+      Map<ProtocolId, Supplier<MessageReconstructor>> reconstructorFactories,
+      Map<ProtocolId, Supplier<PairingEngine>> pairingFactories,
+      PersistencePort persistence,
+      Tn3270AssemblerPort tnAssembler,
+      MetricsPort metrics,
+      Set<ProtocolId> enabledProtocols,
+      PersistenceSettings persistenceSettings) {
     this.packetSource = Objects.requireNonNull(packetSource, "packetSource");
     this.frameDecoder = Objects.requireNonNull(frameDecoder, "frameDecoder");
     this.persistence = Objects.requireNonNull(persistence, "persistence");
+    this.tnAssembler = tnAssembler;
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.enabledProtocols = Set.copyOf(Objects.requireNonNull(enabledProtocols, "enabledProtocols"));
     this.persistenceSettings = Objects.requireNonNull(persistenceSettings, "persistenceSettings");
@@ -256,6 +314,7 @@ public final class LiveProcessingUseCase {
               break;
             }
             try {
+              processAssembler(pair);
               enqueueForPersistence(pair);
               pairCount++;
             } catch (InterruptedException ie) {
@@ -291,6 +350,17 @@ public final class LiveProcessingUseCase {
           log.error("Failed to close live flow engine", flowCloseFailure);
           if (primaryFailure == null) {
             primaryFailure = flowCloseFailure;
+          }
+        }
+        if (tnAssembler != null) {
+          try {
+            tnAssembler.close();
+            log.info("Live TN3270 assembler closed");
+          } catch (Exception assemblerCloseFailure) {
+            log.error("Failed to close TN3270 assembler", assemblerCloseFailure);
+            if (primaryFailure == null) {
+              primaryFailure = assemblerCloseFailure;
+            }
           }
         }
         try {
@@ -400,6 +470,29 @@ public final class LiveProcessingUseCase {
       signalPersistenceFailure(ex);
       return false;
     }
+  }
+
+
+  private void processAssembler(MessagePair pair) throws Exception {
+    if (tnAssembler == null || pair == null) {
+      return;
+    }
+    if (!isTnPair(pair)) {
+      return;
+    }
+    tnAssembler.onPair(pair);
+  }
+
+  private boolean isTnPair(MessagePair pair) {
+    if (pair == null) {
+      return false;
+    }
+    MessageEvent request = pair.request();
+    if (request != null && request.protocol() == ProtocolId.TN3270) {
+      return true;
+    }
+    MessageEvent response = pair.response();
+    return response != null && response.protocol() == ProtocolId.TN3270;
   }
 
   private void enqueueForPersistence(MessagePair pair) throws InterruptedException {

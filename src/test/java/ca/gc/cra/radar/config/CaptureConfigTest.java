@@ -51,6 +51,9 @@ class CaptureConfigTest {
         Map.entry("rollMiB", "256"),
         Map.entry("httpOut", root.resolve("http").toString()),
         Map.entry("tnOut", root.resolve("tn").toString()),
+        Map.entry("tn3270.emitScreenRenders", "true"),
+        Map.entry("tn3270.screenRenderSampleRate", "0.5"),
+        Map.entry("tn3270.redaction.policy", "(?i)^(SIN|DOB)$"),
         Map.entry("persistWorkers", "2"),
         Map.entry("persistQueueCapacity", "256"));
 
@@ -74,6 +77,9 @@ class CaptureConfigTest {
     assertTrue(cfg.tn3270OutputDirectory().endsWith(Path.of("capture-root", "tn")));
     assertEquals(2, cfg.persistenceWorkers());
     assertEquals(256, cfg.persistenceQueueCapacity());
+    assertTrue(cfg.tn3270EmitScreenRenders());
+    assertEquals(0.5d, cfg.tn3270ScreenRenderSampleRate());
+    assertEquals("(?i)^(SIN|DOB)$", cfg.tn3270RedactionPolicy());
   }
 
   @Test
@@ -90,6 +96,9 @@ class CaptureConfigTest {
     assertEquals(defaults.httpOutputDirectory(), cfg.httpOutputDirectory());
     assertEquals(defaults.tn3270OutputDirectory(), cfg.tn3270OutputDirectory());
     assertEquals(defaults.snaplen(), cfg.snaplen());
+    assertEquals(defaults.tn3270EmitScreenRenders(), cfg.tn3270EmitScreenRenders());
+    assertEquals(defaults.tn3270ScreenRenderSampleRate(), cfg.tn3270ScreenRenderSampleRate());
+    assertEquals(defaults.tn3270RedactionPolicy(), cfg.tn3270RedactionPolicy());
     assertEquals(defaults.bufferBytes(), cfg.bufferBytes());
   }
 
@@ -140,6 +149,16 @@ class CaptureConfigTest {
     assertTrue(cfg.customBpfEnabled());
   }
 
+
+  @Test
+  void tn3270SampleRateOutsideBoundsFails() {
+    Map<String, String> inputs = Map.of(
+        "iface", "en0",
+        "tn3270.screenRenderSampleRate", "1.5");
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> CaptureConfig.fromMap(inputs));
+    assertTrue(ex.getMessage().contains("tn3270.screenRenderSampleRate"));
+  }
 
   @Test
   void customBpfRequiresEnableFlag() {

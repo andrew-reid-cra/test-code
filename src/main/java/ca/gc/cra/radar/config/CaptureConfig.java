@@ -34,6 +34,9 @@ import java.util.Objects;
  * @param persistenceWorkers number of persistence workers for live processing
  * @param persistenceQueueCapacity capacity of the live persistence queue
  * @param persistenceQueueType queue implementation used for live persistence hand-off
+ * @param tn3270EmitScreenRenders whether TN3270 SCREEN_RENDER events should be emitted
+ * @param tn3270ScreenRenderSampleRate probability in [0.0, 1.0] for emitting SCREEN_RENDER events
+ * @param tn3270RedactionPolicy regex identifying field names to redact before emission
  * @since RADAR 0.1-doc
  */
 public record CaptureConfig(
@@ -57,7 +60,10 @@ public record CaptureConfig(
     String kafkaTopicSegments,
     int persistenceWorkers,
     int persistenceQueueCapacity,
-    PersistenceQueueType persistenceQueueType) {
+    PersistenceQueueType persistenceQueueType,
+    boolean tn3270EmitScreenRenders,
+    double tn3270ScreenRenderSampleRate,
+    String tn3270RedactionPolicy) {
 
   private static final String DEFAULT_SAFE_BPF = CaptureProtocol.GENERIC.defaultFilter();
   private static final int DEFAULT_SNAPLEN = 65_535;
@@ -116,6 +122,13 @@ public record CaptureConfig(
         MAX_QUEUE_CAPACITY);
     ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
     persistenceQueueType = Objects.requireNonNullElse(persistenceQueueType, PersistenceQueueType.ARRAY);
+    tn3270RedactionPolicy = tn3270RedactionPolicy == null ? "" : tn3270RedactionPolicy.trim();
+    if (Double.isNaN(tn3270ScreenRenderSampleRate)) {
+      tn3270ScreenRenderSampleRate = 0d;
+    }
+    if (tn3270ScreenRenderSampleRate < 0d || tn3270ScreenRenderSampleRate > 1d) {
+      throw new IllegalArgumentException("tn3270ScreenRenderSampleRate must be within [0.0,1.0] (was " + tn3270ScreenRenderSampleRate + ')');
+    }
     if (kafkaBootstrap != null && !kafkaBootstrap.isBlank()) {
       kafkaBootstrap = Net.validateHostPort(kafkaBootstrap);
     } else {
@@ -166,7 +179,10 @@ public record CaptureConfig(
         "radar.segments",
         defaultWorkers,
         defaultQueueCapacity,
-        PersistenceQueueType.ARRAY);
+        PersistenceQueueType.ARRAY,
+        false,
+        0d,
+        "");
   }
 
   /**
@@ -241,6 +257,21 @@ public record CaptureConfig(
     Path tnOut = parseOptionalPath("tnOut", firstNonBlank(kv, "tnOut", "--tnOut"))
         .orElse(defaults.tn3270OutputDirectory());
 
+    boolean tnEmitRenders = parseBoolean(kv.get("tn3270.emitScreenRenders"), defaults.tn3270EmitScreenRenders());
+    double tnSampleRate = defaults.tn3270ScreenRenderSampleRate();
+    String tnSampleRateRaw = kv.get("tn3270.screenRenderSampleRate");
+    if (tnSampleRateRaw != null && !tnSampleRateRaw.isBlank()) {
+      try {
+        tnSampleRate = Double.parseDouble(tnSampleRateRaw.trim());
+      } catch (NumberFormatException ex) {
+        throw new IllegalArgumentException("tn3270.screenRenderSampleRate must be a number between 0.0 and 1.0", ex);
+      }
+    }
+    if (tnSampleRate < 0d || tnSampleRate > 1d) {
+      throw new IllegalArgumentException("tn3270.screenRenderSampleRate must be between 0.0 and 1.0");
+    }
+    String tnRedactionPolicy = kv.getOrDefault("tn3270.redaction.policy", defaults.tn3270RedactionPolicy());
+
     String kafkaBootstrapRaw = kv.get("kafkaBootstrap");
     String kafkaBootstrap = kafkaBootstrapRaw == null || kafkaBootstrapRaw.isBlank()
         ? null
@@ -286,7 +317,10 @@ public record CaptureConfig(
         kafkaTopicSegments,
         persistenceWorkers,
         persistenceQueueCapacity,
-        persistenceQueueType);
+        persistenceQueueType,
+        tnEmitRenders,
+        tnSampleRate,
+        tnRedactionPolicy);
   }
 
   /**
@@ -426,6 +460,14 @@ public record CaptureConfig(
     }
   }
 }
+
+
+
+
+
+
+
+
 
 
 

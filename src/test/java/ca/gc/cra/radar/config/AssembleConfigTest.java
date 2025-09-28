@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,9 @@ class AssembleConfigTest {
     assertEquals("radar.segments", config.kafkaSegmentsTopic());
     assertTrue(config.effectiveHttpOut().endsWith(Path.of("assemble", "http")));
     assertTrue(config.effectiveTnOut().endsWith(Path.of("assemble", "tn3270")));
+    assertFalse(config.tn3270EmitScreenRenders());
+    assertEquals(0d, config.tn3270ScreenRenderSampleRate());
+    assertEquals("", config.tn3270RedactionPolicy());
   }
 
   @Test
@@ -70,6 +74,15 @@ class AssembleConfigTest {
 
     assertTrue(config.effectiveHttpOut().endsWith(Path.of("pairs-out", "http")));
     assertTrue(config.effectiveTnOut().endsWith(Path.of("pairs-out", "tn3270")));
+  }
+
+  @Test
+  void tn3270SampleRateOutsideBoundsFails() {
+    Map<String, String> inputs = Map.of(
+        "tn3270.emitScreenRenders", "true",
+        "tn3270.screenRenderSampleRate", "-0.1");
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> AssembleConfig.fromMap(inputs));
+    assertTrue(ex.getMessage().contains("tn3270.screenRenderSampleRate"));
   }
 
   @Test
