@@ -5,7 +5,7 @@ This document describes a production-grade 3-node architecture (`Capture → Ass
 
 ---
 
-## 🌐 High-Level Flow
+##  High-Level Flow
 
 ```
 [ Capture Node ] ---> [ Kafka / NATS ] ---> [ Assemble Node ] ---> [ Kafka / FS ] ---> [ Poster Node ]
@@ -55,7 +55,7 @@ This document describes a production-grade 3-node architecture (`Capture → Ass
 
 ---
 
-## 📊 Transport and Topics
+##  Transport and Topics
 
 ### Ingress: `Capture → Assemble`
 - **Topic:** `packets.raw`
