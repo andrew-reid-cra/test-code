@@ -81,20 +81,73 @@ acks=1
 ### Capture Node
 
 ```bash
-java -XX:+AlwaysPreTouch -Xms16g -Xmx16g -jar RADAR.jar capture   iface=ens5   snaplen=96   bufmb=2048   timeout=50   out=kafka://broker:9092/packets.raw   producer.linger.ms=10   producer.batch.size=2097152   producer.compression=lz4   metricsExporter=otlp   otelEndpoint=http://otel-collector:4317
+# capture-node.yaml (excerpt)
+common:
+  metricsExporter: "otlp"
+  otelEndpoint: "http://otel-collector:4317"
+  otelResourceAttributes: "service.name=radar-capture,deployment.environment=prod"
+
+capture:
+  iface: "ens5"
+  ioMode: "KAFKA"
+  kafkaBootstrap: "broker1:9092,broker2:9092"
+  kafkaTopicSegments: "packets.raw"
+  snaplen: 96
+  bufmb: 2048
+  timeout: 50
+  persistWorkers: 16
+  persistQueueCapacity: 131072
+
+java -XX:+AlwaysPreTouch -Xms16g -Xmx16g -jar RADAR.jar capture \
+  --config=/etc/radar/capture-node.yaml
 ```
 
 ### Assemble Node
 
 ```bash
-java -XX:+AlwaysPreTouch -Xms64g -Xmx64g -jar RADAR.jar assemble   in=kafka://broker:9092/packets.raw   groupId=assemble-1   workers=48   workerAffinity=on   flowTable.maxEntries=15000000   flowTable.idleTimeout=120s   out=kafka://broker:9092/flows.pairs   producer.linger.ms=10   producer.batch.size=2097152   producer.compression=zstd   persistQueueType=ARRAY   persistQueueCapacity=131072   metricsExporter=otlp   otelEndpoint=http://otel-collector:4317
+# assemble-node.yaml (excerpt)
+common:
+  metricsExporter: "otlp"
+  otelEndpoint: "http://otel-collector:4317"
+  otelResourceAttributes: "service.name=radar-assemble,deployment.environment=prod"
+
+assemble:
+  ioMode: "KAFKA"
+  kafkaBootstrap: "broker1:9092,broker2:9092"
+  kafkaSegmentsTopic: "packets.raw"
+  kafkaHttpPairsTopic: "flows.http"
+  kafkaTnPairsTopic: "flows.tn3270"
+  allowOverwrite: false
+
+java -XX:+AlwaysPreTouch -Xms64g -Xmx64g -jar RADAR.jar assemble \
+  --config=/etc/radar/assemble-node.yaml
 ```
 
 ### Poster Node
 
 ```bash
-java -XX:+AlwaysPreTouch -Xms24g -Xmx24g -jar RADAR.jar poster   in=kafka://broker:9092/flows.pairs   groupId=poster-1   persistWorkers=24   persistQueueType=ARRAY   persistQueueCapacity=131072   out=/data/flows   file.rollInterval=60s   file.maxBytes=134217728   fsync=off   metricsExporter=otlp   otelEndpoint=http://otel-collector:4317
+# poster-node.yaml (excerpt)
+common:
+  metricsExporter: "otlp"
+  otelEndpoint: "http://otel-collector:4317"
+  otelResourceAttributes: "service.name=radar-poster,deployment.environment=prod"
+
+poster:
+  ioMode: "KAFKA"
+  posterOutMode: "KAFKA"
+  kafkaBootstrap: "broker1:9092,broker2:9092"
+  kafkaHttpPairsTopic: "flows.http"
+  kafkaTnPairsTopic: "flows.tn3270"
+  kafkaHttpReportsTopic: "radar.poster.http"
+  kafkaTnReportsTopic: "radar.poster.tn3270"
+  persistWorkers: 24
+  persistQueueCapacity: 131072
+
+java -XX:+AlwaysPreTouch -Xms24g -Xmx24g -jar RADAR.jar poster \
+  --config=/etc/radar/poster-node.yaml
 ```
+
+Operators usually manage these YAML templates with configuration management so each node boots with the correct defaults. Runtime overrides (for example `snaplen=128` or `persistWorkers=32`) still work via CLI arguments and are logged as WARN when they differ from YAML.
 
 ---
 
@@ -146,4 +199,8 @@ These are achievable on the recommended hardware with the provided tuning.
 ##  Final Notes
 
 This architecture is designed to scale horizontally. If you need >40 Gbps, scale **Capture** and **Assemble** nodes in parallel and shard traffic by IP range, VLAN, or 5‑tuple hash. Kafka provides natural fan-out for downstream consumers.
+
+
+
+
 

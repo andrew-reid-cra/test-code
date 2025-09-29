@@ -73,7 +73,8 @@ Every measurement includes the attribute `radar.metric.key=<original>` so dashbo
 1. Run a local collector (`otelcol`) or rely on the OpenTelemetry SDK testing utilities bundled with tests.
 2. Launch a pipeline with metrics enabled, for example:
    ```bash
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+   cp config/radar-example.yaml ./radar-telemetry.yaml
+   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-telemetry.yaml \
      pcapFile=fixtures/http_get.pcap \
      out=./tmp/capture \
      metricsExporter=otlp \
@@ -84,3 +85,4 @@ Every measurement includes the attribute `radar.metric.key=<original>` so dashbo
 5. When introducing a new metric, update this guide, add unit tests covering success and failure paths, and adjust dashboards/alerts before merging.
 
 Consistent telemetry is a release gate. Do not ship changes without updated documentation, tests, and monitoring assets.
+

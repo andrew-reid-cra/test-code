@@ -18,37 +18,37 @@ Inputs are network interfaces or `.pcap/.pcapng` files; outputs are rotated segm
 ## Configuration Reference
 | Setting | Applies To | Description | How to Set | Default |
 | --- | --- | --- | --- | --- |
-| `pcapFile` | capture (offline) | Replay a PCAP/PCAPNG instead of listening to an interface. | CLI `pcapFile=/raid/traces/april12.pcap` | unset |
-| `iface` | capture, live | Network interface used for packet capture. | CLI `iface=ens5` | platform default (`eth0`) |
-| `ioMode` | capture, assemble, poster, live | Chooses directory (`FILE`) or Kafka (`KAFKA`) persistence. | CLI `ioMode=KAFKA` | `FILE` |
-| `out` | capture (FILE) | Directory that receives rotated segment binaries. | CLI `out=/var/lib/radar/capture/segments` | `~/.radar/out/...` |
-| `in` | assemble | Segment input directory or topic (`in=kafka:radar.capture.segments`). | CLI `in=/var/lib/radar/capture/segments` | required |
-| `httpOut` / `tnOut` | assemble, poster | Override default protocol directories when writing to files. | CLI `httpOut=/var/lib/radar/assemble/pairs/http` | derived under `out` |
-| `posterOutMode` | poster | Poster sink: `FILE` writes directories, `KAFKA` streams renders. | CLI `posterOutMode=KAFKA` | `FILE` |
-| `kafkaBootstrap` | any Kafka mode | Bootstrap servers for Kafka IO (comma-separated). | CLI `kafkaBootstrap=broker1:9092,broker2:9092` | required when Kafka used |
-| `kafkaTopicSegments` | capture (Kafka) | Topic that receives raw segments from capture. | CLI `kafkaTopicSegments=radar.capture.segments` | derived from `out` when prefixed with `kafka:` |
-| `kafkaSegmentsTopic` | assemble (Kafka) | Topic supplying captured segments to assemblers. | CLI `kafkaSegmentsTopic=radar.capture.segments` | derived from `in=` |
-| `kafkaHttpPairsTopic` | assemble, poster (Kafka) | Topic for HTTP message pairs. | CLI `kafkaHttpPairsTopic=radar.assemble.http` | sanitized from `out` |
-| `kafkaTnPairsTopic` | assemble, poster (Kafka) | Topic for TN3270 message pairs. | CLI `kafkaTnPairsTopic=radar.assemble.tn3270` | sanitized from `out` |
-| `kafkaHttpReportsTopic` | poster (Kafka) | Topic for rendered HTTP posters. | CLI `kafkaHttpReportsTopic=radar.poster.http` | required when `posterOutMode=KAFKA` |
-| `kafkaTnReportsTopic` | poster (Kafka) | Topic for rendered TN3270 posters. | CLI `kafkaTnReportsTopic=radar.poster.tn3270` | required when `posterOutMode=KAFKA` |
-| `rollMiB` | capture, live | File rotation threshold in MiB. Use higher values on NVMe. | CLI `rollMiB=1024` | `512` |
-| `snap` / `snaplen` | capture, live | Packet snap length in bytes; keep at 65535 for full payloads. | CLI `snap=65535` | `65535` |
-| `bufMb` | capture, live | Per-interface capture buffer in MiB. | CLI `bufMb=1024` | `256` |
-| `timeout` | capture, live | Poll timeout in milliseconds. Set `timeout=0` to busy-poll. | CLI `timeout=0` | `1000` |
-| `persistWorkers` | live | Persistence worker threads for the live pipeline. | CLI `persistWorkers=16` | `max(2, cores/2)` |
-| `persistQueueCapacity` | live | Queue depth feeding persistence workers. | CLI `persistQueueCapacity=4096` | `persistWorkers * 128` |
-| `persistQueueType` | live | Queue implementation (`ARRAY` or `LINKED`). | CLI `persistQueueType=ARRAY` | `ARRAY` |
-| `httpEnabled` / `tnEnabled` | assemble | Toggle protocol-specific reconstruction. | CLI `tnEnabled=true` | `http=true`, `tn=false` |
-| `tn3270.*` flags | assemble | Control TN3270 screen renders and redaction. | CLI `tn3270.emitScreenRenders=true` | defaults from config |
-| `decode` | poster | Poster decode mode (`none`, `transfer`, `all`). | CLI `decode=transfer` | `none` |
+| `pcapFile` | capture (offline) | Replay a PCAP/PCAPNG instead of listening to an interface. | YAML `capture.pcapFile`; override with CLI `pcapFile=/raid/traces/april12.pcap` | unset |
+| `iface` | capture, live | Network interface used for packet capture. | YAML `capture.iface` / `live.iface`; override with CLI `iface=ens5` | platform default (`eth0`) |
+| `ioMode` | capture, assemble, poster, live | Chooses directory (`FILE`) or Kafka (`KAFKA`) persistence. | YAML `<mode>.ioMode`; override with CLI `ioMode=KAFKA` | `FILE` |
+| `out` | capture (FILE) | Directory that receives rotated segment binaries. | YAML `capture.out`; override with CLI `out=/var/lib/radar/capture/segments` | `~/.radar/out/...` |
+| `in` | assemble | Segment input directory or topic (`in=kafka:radar.capture.segments`). | YAML `assemble.in`; override with CLI `in=/var/lib/radar/capture/segments` | required |
+| `httpOut` / `tnOut` | assemble, poster | Override default protocol directories when writing to files. | YAML `<mode>.httpOut`; override with CLI `httpOut=/var/lib/radar/assemble/pairs/http` | derived under `out` |
+| `posterOutMode` | poster | Poster sink: `FILE` writes directories, `KAFKA` streams renders. | YAML `poster.posterOutMode`; override with CLI `posterOutMode=KAFKA` | `FILE` |
+| `kafkaBootstrap` | any Kafka mode | Bootstrap servers for Kafka IO (comma-separated). | YAML `<mode>.kafkaBootstrap`; override with CLI `kafkaBootstrap=broker1:9092,broker2:9092` | required when Kafka used |
+| `kafkaTopicSegments` | capture (Kafka) | Topic that receives raw segments from capture. | YAML `capture.kafkaTopicSegments`; override with CLI `kafkaTopicSegments=radar.capture.segments` | derived from `out` when prefixed with `kafka:` |
+| `kafkaSegmentsTopic` | assemble (Kafka) | Topic supplying captured segments to assemblers. | YAML `assemble.kafkaSegmentsTopic`; override with CLI `kafkaSegmentsTopic=radar.capture.segments` | derived from `in=` |
+| `kafkaHttpPairsTopic` | assemble, poster (Kafka) | Topic for HTTP message pairs. | YAML `assemble.kafkaHttpPairsTopic`; override with CLI `kafkaHttpPairsTopic=radar.assemble.http` | sanitized from `out` |
+| `kafkaTnPairsTopic` | assemble, poster (Kafka) | Topic for TN3270 message pairs. | YAML `assemble.kafkaTnPairsTopic`; override with CLI `kafkaTnPairsTopic=radar.assemble.tn3270` | sanitized from `out` |
+| `kafkaHttpReportsTopic` | poster (Kafka) | Topic for rendered HTTP posters. | YAML `poster.kafkaHttpReportsTopic`; override with CLI `kafkaHttpReportsTopic=radar.poster.http` | required when `posterOutMode=KAFKA` |
+| `kafkaTnReportsTopic` | poster (Kafka) | Topic for rendered TN3270 posters. | YAML `poster.kafkaTnReportsTopic`; override with CLI `kafkaTnReportsTopic=radar.poster.tn3270` | required when `posterOutMode=KAFKA` |
+| `rollMiB` | capture, live | File rotation threshold in MiB. Use higher values on NVMe. | YAML `<mode>.rollMiB`; override with CLI `rollMiB=1024` | `512` |
+| `snap` / `snaplen` | capture, live | Packet snap length in bytes; keep at 65535 for full payloads. | YAML `<mode>.snaplen`; override with CLI `snaplen=65535` | `65535` |
+| `bufMb` | capture, live | Per-interface capture buffer in MiB. | YAML `<mode>.bufmb`; override with CLI `bufmb=1024` | `256` |
+| `timeout` | capture, live | Poll timeout in milliseconds. Set `timeout=0` to busy-poll. | YAML `<mode>.timeout`; override with CLI `timeout=0` | `1000` |
+| `persistWorkers` | live | Persistence worker threads for the live pipeline. | YAML `live.persistWorkers`; override with CLI `persistWorkers=16` | `max(2, cores/2)` |
+| `persistQueueCapacity` | live | Queue depth feeding persistence workers. | YAML `live.persistQueueCapacity`; override with CLI `persistQueueCapacity=4096` | `persistWorkers * 128` |
+| `persistQueueType` | live | Queue implementation (`ARRAY` or `LINKED`). | YAML `live.persistQueueType`; override with CLI `persistQueueType=ARRAY` | `ARRAY` |
+| `httpEnabled` / `tnEnabled` | assemble | Toggle protocol-specific reconstruction. | YAML `assemble.tnEnabled`; override with CLI `tnEnabled=true` | `http=true`, `tn=false` |
+| `tn3270.*` flags | assemble | Control TN3270 screen renders and redaction. | YAML `assemble.tn3270.emitScreenRenders`; override with CLI `tn3270.emitScreenRenders=true` | defaults from config |
+| `decode` | poster | Poster decode mode (`none`, `transfer`, `all`). | YAML `poster.decode`; override with CLI `decode=transfer` | `none` |
 | `--enable-bpf` / `--bpf` | capture, live | Allow custom BPF filters and set the expression. | Flags `--enable-bpf --bpf="tcp port 443"` | disabled |
-| `--allow-overwrite` | all | Permit writing into non-empty directories. | CLI `--allow-overwrite` | disabled |
-| `--dry-run` | all | Validate configuration without executing the pipeline. | CLI `--dry-run` | disabled |
-| `metricsExporter` | all | Metrics exporter (`otlp` or `none`). | CLI `metricsExporter=otlp` | `otlp` |
-| `otelEndpoint` | all | OTLP metrics endpoint URL. | CLI `otelEndpoint=http://collector:4317` | unset |
-| `otelResourceAttributes` | all | Additional OTel resource attributes. | `OTEL_RESOURCE_ATTRIBUTES=service.name=radar,...` | unset |
-| `--verbose` | all | Enable DEBUG logging for investigations. | CLI `--verbose` | `INFO` |
+| `--allow-overwrite` | all | Permit writing into non-empty directories. | YAML `<mode>.allowOverwrite`; override with CLI `--allow-overwrite` | disabled |
+| `--dry-run` | all | Validate configuration without executing the pipeline. | YAML `<mode>.dryRun`; override with CLI `--dry-run` | disabled |
+| `metricsExporter` | all | Metrics exporter (`otlp` or `none`). | YAML `common.metricsExporter`; override with CLI `metricsExporter=otlp` | `otlp` |
+| `otelEndpoint` | all | OTLP metrics endpoint URL. | YAML `common.otelEndpoint`; override with CLI `otelEndpoint=http://collector:4317` | unset |
+| `otelResourceAttributes` | all | Additional OTel resource attributes. | YAML `common.otelResourceAttributes`; override with `OTEL_RESOURCE_ATTRIBUTES=service.name=radar,...` | unset |
+| `--verbose` | all | Enable DEBUG logging for investigations. | YAML `common.verbose`; override with CLI `--verbose` | `INFO` |
 
 
 ## Pipeline Deployment Modes
@@ -57,7 +57,7 @@ Use this mode when the capture host cannot run heavy assembly/poster workloads o
 
 ```bash
 # 1. Capture segments to disk
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.yaml \
   ioMode=FILE \
   iface=ens5 \
   out=/var/lib/radar/capture/segments \
@@ -66,7 +66,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
   otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
 
 # 2. Assemble segments into message pairs
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.yaml \
   ioMode=FILE \
   in=/var/lib/radar/capture/segments \
   out=/var/lib/radar/assemble/pairs \
@@ -75,7 +75,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
   otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
 
 # 3. Poster renders for analysts
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=/etc/radar/poster.yaml \
   ioMode=FILE \
   posterOutMode=FILE \
   httpIn=/var/lib/radar/assemble/pairs/http \
@@ -98,7 +98,7 @@ Choose Kafka when multiple assemblers/posters need to consume the same traffic o
 
 ```bash
 # 1. Capture directly to Kafka topics
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.yaml \
   ioMode=KAFKA \
   iface=ens5 \
   out=/var/lib/radar/capture/segments \
@@ -109,7 +109,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture \
   otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
 
 # 2. Assemble from the Kafka segment stream
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.yaml \
   ioMode=KAFKA \
   in=kafka:radar.capture.segments \
   kafkaBootstrap=broker1:9092,broker2:9092 \
@@ -122,7 +122,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble \
   otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
 
 # 3. Poster pushes renders back to Kafka
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster \
+java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=/etc/radar/poster.yaml \
   ioMode=KAFKA \
   posterOutMode=KAFKA \
   kafkaBootstrap=broker1:9092,broker2:9092 \
@@ -236,3 +236,8 @@ Additional guidance:
 - **Queue depth stuck at zero**: Check NIC permissions and confirm `capture.segment.persisted` increments; inspect capture logs for adapter issues.
 
 Keep dashboards, alerts, and this runbook aligned with every deployment. Update thresholds whenever pipeline characteristics change.
+
+
+
+
+

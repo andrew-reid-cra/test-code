@@ -75,9 +75,20 @@ Generated artefacts and reports live under `target/`.
 - Use sample pcaps under `src/test/resources` or provide your own via `capture pcapFile=... --dry-run` to validate configuration.
 - End-to-end smoke test:
   ```bash
-  java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture pcapFile=fixtures/http_get.pcap out=./tmp/capture --allow-overwrite
-  java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble in=./tmp/capture out=./tmp/pairs
-  java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster httpIn=./tmp/pairs/http httpOut=./tmp/reports/http
+  cp config/radar-example.yaml ./radar-dev.yaml
+
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-dev.yaml \
+    pcapFile=fixtures/http_get.pcap \
+    out=./tmp/capture \
+    --allow-overwrite
+
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=./radar-dev.yaml \
+    in=./tmp/capture \
+    out=./tmp/pairs
+
+  java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=./radar-dev.yaml \
+    httpIn=./tmp/pairs/http \
+    httpOut=./tmp/reports/http
   ```
 - Generate site reports (`mvn site`) and Javadoc before releasing.
 
@@ -88,3 +99,5 @@ Generated artefacts and reports live under `target/`.
 4. Request review only after `mvn verify` passes and documentation updates are committed.
 
 Ship every change with production discipline: more secure, more observable, more maintainable.
+
+

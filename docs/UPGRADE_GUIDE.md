@@ -29,9 +29,20 @@ RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain
 5. **Rebuild Documentation**: Run `mvn -q -DskipTests=false verify` followed by `mvn -DskipTests=true javadoc:javadoc`.
 6. **Smoke Test**: Execute an end-to-end workflow on representative traffic:
    ```bash
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture pcapFile=/path/sample.pcap out=./out --allow-overwrite
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble in=./out out=./pairs
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster httpIn=./pairs/http httpOut=./reports/http
+   cp config/radar-example.yaml ./radar-upgrade.yaml
+
+   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-upgrade.yaml \
+     pcapFile=/path/sample.pcap \
+     out=./out \
+     --allow-overwrite
+
+   java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=./radar-upgrade.yaml \
+     in=./out \
+     out=./pairs
+
+   java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=./radar-upgrade.yaml \
+     httpIn=./pairs/http \
+     httpOut=./reports/http
    ```
    Validate metrics (`capture.segment.persisted`, `assemble.pairs.persisted`), logs, and outputs before promoting.
 
@@ -60,3 +71,4 @@ RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain
 - [ ] `CHANGELOG.md` includes entries for your changes.
 
 Report regressions with sample pcaps, sanitized logs, and metric snapshots. Coordinate with maintainers on mitigation for any breaking changes.
+
