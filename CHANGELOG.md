@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
@@ -6,7 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Added
-- _Nothing yet_
+- YAML-driven user event rule engine with hot-reload session-aware matching.
+- HTTP persistence decorator that emits structured user events with metrics.
+- `user-events` CLI dry-run command and sample HTTP exchanges.
+- Documentation (`docs/user-events.md`) and example config (`config/user-events.example.yaml`).
 
 ## [1.0.0] - 2025-09-28
 ### Added
@@ -55,6 +58,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 - Legacy adapters and deprecated wiring replaced by the new capture/assembler implementation.
+
 
 
 

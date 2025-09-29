@@ -1,0 +1,43 @@
+version: 1
+defaults:
+  app: radar-test
+  source: http-gateway
+rules:
+  - id: login_success
+    description: "User successfully logs in"
+    match:
+      method: POST
+      path:
+        equals: /api/auth/login
+      status:
+        in: [200, 201]
+      body:
+        jsonpath:
+          - path: $.result
+            equals: success
+    extract:
+      user_id:
+        jsonpath: $.user.id
+      extra:
+        user_agent: header.User-Agent
+        client: query.client
+    event:
+      type: user.login
+      attributes:
+        channel: web
+  - id: view_tax_return
+    description: "View tax return"
+    match:
+      method: GET
+      path:
+        regex: ^/api/returns/(?P<returnId>[A-Za-z0-9_-]+)$
+      status:
+        in: [200]
+    extract:
+      extra:
+        return_id: path.returnId
+        referer: header.Referer
+    event:
+      type: user.view
+      attributes:
+        resource: tax_return

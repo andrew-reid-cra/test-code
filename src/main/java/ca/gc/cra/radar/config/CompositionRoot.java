@@ -13,6 +13,7 @@ import ca.gc.cra.radar.application.port.ProtocolDetector;
 import ca.gc.cra.radar.application.port.ProtocolModule;
 import ca.gc.cra.radar.application.port.SegmentPersistencePort;
 import ca.gc.cra.radar.application.port.Tn3270AssemblerPort;
+import ca.gc.cra.radar.application.events.rules.CompiledRuleSet;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270AssemblerAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270KafkaPoster;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.TelnetNegotiationFilter;
@@ -38,6 +39,16 @@ import ca.gc.cra.radar.infrastructure.protocol.http.HttpProtocolModule;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270MessageReconstructor;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270PairingEngineAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270ProtocolModule;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import java.util.ArrayList;
+import java.nio.file.Files;
+import ca.gc.cra.radar.infrastructure.events.UserEventPublishingPersistenceAdapter;
+import ca.gc.cra.radar.infrastructure.events.LoggingUserEventEmitter;
+import ca.gc.cra.radar.infrastructure.events.UserEventRuleWatcher;
+import ca.gc.cra.radar.application.events.rules.UserEventRuleSetProvider;
+import ca.gc.cra.radar.application.events.rules.UserEventRuleEngine;
+import ca.gc.cra.radar.application.events.SessionResolver;
 import ca.gc.cra.radar.infrastructure.time.SystemClockAdapter;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -71,7 +82,13 @@ import java.util.regex.Pattern;
  * @see ca.gc.cra.radar.application.pipeline.AssembleUseCase
  */
 public final class CompositionRoot {
+  private static final Logger log = LoggerFactory.getLogger(CompositionRoot.class);
   private final MetricsPort metrics;
+  private final SessionResolver sessionResolver = new SessionResolver();
+  private final UserEventRuleSetProvider userEventRuleSetProvider = new UserEventRuleSetProvider();
+  private volatile UserEventRuleEngine userEventRuleEngine;
+  private UserEventRuleWatcher userEventRuleWatcher;
+  private List<Path> userEventRulePaths = List.of();
   private static final String DEFAULT_TN3270_USER_TOPIC = "radar.tn3270.user-actions.v1";
   private static final String DEFAULT_TN3270_RENDER_TOPIC = "radar.tn3270.screen-renders.v1";
   private static final String DEFAULT_TN3270_REDACTION_POLICY = "";
@@ -409,14 +426,6 @@ public final class CompositionRoot {
     return sb.toString();
   }
 
-  private PersistencePort messagePersistence() {
-    return buildFilePersistence(
-        captureConfig.httpOutputDirectory(),
-        captureConfig.tn3270OutputDirectory(),
-        true,
-        true);
-  }
-
   /**
    * Builds persistence for assembled message pairs, honoring assemble IO mode.
    *
@@ -536,7 +545,7 @@ public final class CompositionRoot {
     if (httpEnabled) {
       tail = new HttpSegmentSinkPersistenceAdapter(httpDirectory, tail);
     }
-    return tail;
+    return wrapWithUserEvents(tail, httpEnabled);
   }
 
   /**
@@ -567,7 +576,7 @@ public final class CompositionRoot {
     if (httpEnabled) {
       tail = new HttpKafkaPersistenceAdapter(bootstrap, httpPairsTopic, tail);
     }
-    return tail;
+    return wrapWithUserEvents(tail, httpEnabled);
   }
 
   /**
@@ -603,6 +612,78 @@ public final class CompositionRoot {
     return Map.of(
         ProtocolId.HTTP, HttpPairingEngineAdapter::new,
         ProtocolId.TN3270, Tn3270PairingEngineAdapter::new);
+  }
+
+
+  private synchronized UserEventRuleEngine userEventRuleEngine() {
+    if (userEventRuleEngine != null) {
+      return userEventRuleEngine;
+    }
+    List<Path> rulePaths = resolveUserEventRulePaths();
+    userEventRulePaths = List.copyOf(rulePaths);
+    if (rulePaths.isEmpty()) {
+      log.info("User event rules disabled: no rule files configured");
+      userEventRuleEngine = new UserEventRuleEngine(null);
+      userEventRuleWatcher = null;
+      return userEventRuleEngine;
+    }
+    try {
+      CompiledRuleSet ruleSet = userEventRuleSetProvider.load(rulePaths);
+      userEventRuleEngine = new UserEventRuleEngine(ruleSet);
+      userEventRuleWatcher = new UserEventRuleWatcher(userEventRulePaths, userEventRuleSetProvider, userEventRuleEngine, log);
+      if (userEventRuleEngine.hasRules()) {
+        log.info("Loaded {} user event rules from {}", ruleSet.size(), rulePaths);
+      } else {
+        log.info("User event rule files {} contained no active rules", rulePaths);
+      }
+    } catch (Exception ex) {
+      log.warn("Failed to load user event rules from {}", rulePaths, ex);
+      userEventRuleEngine = new UserEventRuleEngine(null);
+      userEventRuleWatcher = null;
+    }
+    return userEventRuleEngine;
+  }
+
+  private List<Path> resolveUserEventRulePaths() {
+    String env = System.getenv("USER_EVENTS_RULES");
+    List<Path> paths = new ArrayList<>();
+    if (env != null && !env.isBlank()) {
+      String[] tokens = env.split("[,;]");
+      for (String token : tokens) {
+        String trimmed = token.trim();
+        if (!trimmed.isEmpty()) {
+          paths.add(Path.of(trimmed));
+        }
+      }
+    } else {
+      Path defaultPath = Path.of("config", "user-events.yaml");
+      if (Files.exists(defaultPath)) {
+        paths.add(defaultPath);
+      }
+      Path examplePath = Path.of("config", "user-events.example.yaml");
+      if (paths.isEmpty() && Files.exists(examplePath)) {
+        paths.add(examplePath);
+      }
+    }
+    return paths;
+  }
+
+  private PersistencePort wrapWithUserEvents(PersistencePort tail, boolean httpEnabled) {
+    if (!httpEnabled) {
+      return tail;
+    }
+    UserEventRuleEngine engine = userEventRuleEngine();
+    if (engine == null || !engine.hasRules()) {
+      return tail;
+    }
+    return new UserEventPublishingPersistenceAdapter(
+        tail,
+        engine,
+        sessionResolver,
+        new LoggingUserEventEmitter(metrics, "userEvents"),
+        userEventRuleWatcher,
+        metrics,
+        "userEvents");
   }
 
   /**

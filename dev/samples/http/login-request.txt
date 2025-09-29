@@ -1,0 +1,6 @@
+POST /api/auth/login?client=web HTTP/1.1
+Host: example.test
+User-Agent: SampleBrowser/1.0
+Content-Type: application/json
+
+{"username":"demo","password":"secret"}

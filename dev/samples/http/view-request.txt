@@ -1,0 +1,5 @@
+GET /api/returns/ABC123 HTTP/1.1
+Host: example.test
+User-Agent: SampleBrowser/1.0
+Referer: https://portal.test/dashboard
+

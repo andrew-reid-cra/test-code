@@ -1,0 +1,9 @@
+version: 1
+rules:
+  - id: bad_rule
+    description: "Invalid method"
+    match:
+      method:
+        foo: bar
+    event:
+      type: invalid

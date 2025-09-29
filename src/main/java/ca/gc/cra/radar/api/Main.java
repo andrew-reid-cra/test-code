@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.api;
 
 import ca.gc.cra.radar.api.tools.SegbinGrepCli;
+import ca.gc.cra.radar.api.tools.UserEventsDryRunCli;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import java.util.Arrays;
 import java.util.Locale;
@@ -16,7 +17,7 @@ import org.slf4j.LoggerFactory;
 public final class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
   private static final String SUMMARY_USAGE =
-      "usage: radar <capture|capture-pcap4j|live|assemble|poster|segbingrep> [options]";
+      "usage: radar <capture|capture-pcap4j|live|assemble|poster|segbingrep|user-events> [options]";
   private static final String HELP_TEXT = """
       RADAR command dispatcher
 
@@ -30,6 +31,7 @@ public final class Main {
         assemble         Assemble captured segments into higher-level pairs
         poster           Render reconstructed traffic to files or Kafka
         segbingrep       Search segment binaries for literal byte sequences
+        user-events      Dry-run user event rules against sample HTTP exchanges
 
       Global flags:
         --help      Show this message
@@ -86,6 +88,7 @@ public final class Main {
       case "assemble" -> AssembleCli.run(delegateArgs);
       case "poster" -> PosterCli.run(delegateArgs);
       case "segbingrep" -> SegbinGrepCli.run(delegateArgs);
+      case "user-events" -> UserEventsDryRunCli.run(delegateArgs);
       default -> {
         log.error("Unknown command: {}", command);
         CliPrinter.println(SUMMARY_USAGE);
