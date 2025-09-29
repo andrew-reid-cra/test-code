@@ -65,7 +65,11 @@ public record CaptureConfig(
     double tn3270ScreenRenderSampleRate,
     String tn3270RedactionPolicy) {
 
-  private static final String DEFAULT_SAFE_BPF = CaptureProtocol.GENERIC.defaultFilter();
+  private static final Map<CaptureProtocol, String> BUILT_IN_PROTOCOL_FILTERS =
+      Map.of(
+          CaptureProtocol.GENERIC, "tcp",
+          CaptureProtocol.TN3270, "tcp and (port 23 or port 992)");
+
   private static final int DEFAULT_SNAPLEN = 65_535;
   private static final int DEFAULT_BUFFER_MIB = 256;
   private static final int DEFAULT_TIMEOUT_MILLIS = 1_000;
@@ -161,7 +165,7 @@ public record CaptureConfig(
     return new CaptureConfig(
         "eth0",
         null,
-        DEFAULT_SAFE_BPF,
+        defaultFilterFor(CaptureProtocol.GENERIC),
         false,
         CaptureProtocol.GENERIC,
         DEFAULT_SNAPLEN,
@@ -212,7 +216,13 @@ public record CaptureConfig(
 
     boolean bpfAcknowledged = parseBoolean(kv.get("enableBpf"), false);
     CaptureProtocol protocol = CaptureProtocol.fromString(kv.get("protocol"));
-    String filter = protocol.defaultFilter();
+    String defaultFilterKey = "protocolDefaultFilter." + protocol.name();
+    String configuredFilter = kv.get(defaultFilterKey);
+    String filterCandidate = (configuredFilter == null || configuredFilter.isBlank())
+        ? defaultFilterFor(protocol)
+        : configuredFilter.trim();
+    String filter = Strings.requirePrintableAscii(defaultFilterKey, filterCandidate, MAX_BPF_LENGTH);
+    denyDangerousBpf(filter);
     boolean customBpf = false;
     String rawFilter = kv.get("bpf");
     if (rawFilter != null && !rawFilter.isBlank()) {
@@ -236,7 +246,7 @@ public record CaptureConfig(
     boolean promisc = parseBoolean(kv.get("promisc"), defaults.promiscuous());
     boolean immediate = parseBoolean(kv.get("immediate"), defaults.immediate());
 
-    String outRaw = firstNonBlank(kv, "out", "segmentsOut");
+    String outRaw = firstNonBlank(kv, "segmentsOut", "out");
     Path outputDir = defaults.outputDirectory();
     IoMode ioMode = parseIoMode(kv.get("ioMode"), defaults.ioMode());
     String kafkaTopicSegments = defaults.kafkaTopicSegments();
@@ -252,9 +262,9 @@ public record CaptureConfig(
     String fileBase = Strings.requireNonBlank("fileBase", kv.getOrDefault("fileBase", defaults.fileBase()));
     int rollMiB = parseBoundedInt(kv, "rollMiB", defaults.rollMiB(), MIN_ROLL_MIB, MAX_ROLL_MIB);
 
-    Path httpOut = parseOptionalPath("httpOut", firstNonBlank(kv, "httpOut", "--httpOut"))
+    Path httpOut = parseOptionalPath("httpOut", firstNonBlank(kv, "--httpOut", "httpOut"))
         .orElse(defaults.httpOutputDirectory());
-    Path tnOut = parseOptionalPath("tnOut", firstNonBlank(kv, "tnOut", "--tnOut"))
+    Path tnOut = parseOptionalPath("tnOut", firstNonBlank(kv, "--tnOut", "tnOut"))
         .orElse(defaults.tn3270OutputDirectory());
 
     boolean tnEmitRenders = parseBoolean(kv.get("tn3270.emitScreenRenders"), defaults.tn3270EmitScreenRenders());
@@ -399,6 +409,11 @@ public record CaptureConfig(
     }
   }
 
+
+  private static String defaultFilterFor(CaptureProtocol protocol) {
+    return BUILT_IN_PROTOCOL_FILTERS.getOrDefault(protocol, BUILT_IN_PROTOCOL_FILTERS.get(CaptureProtocol.GENERIC));
+  }
+
   private static java.util.Optional<Path> parseOptionalPath(String name, String value) {
     if (value == null || value.isBlank()) {
       return java.util.Optional.empty();
@@ -460,6 +475,16 @@ public record CaptureConfig(
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

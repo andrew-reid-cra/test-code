@@ -4,12 +4,18 @@ import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
 import ca.gc.cra.radar.config.CaptureConfig;
 import ca.gc.cra.radar.config.CaptureProtocol;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.IoMode;
+import ca.gc.cra.radar.config.ConfigMerger;
+import ca.gc.cra.radar.config.DefaultsForMode;
+import ca.gc.cra.radar.config.YamlConfigLoader;
 import ca.gc.cra.radar.logging.Logs;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,33 +100,79 @@ public final class CaptureCli {
       log.debug("Verbose logging enabled for capture CLI");
     }
 
-    boolean dryRun = input.hasFlag("--dry-run");
-    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean dryRunFlag = input.hasFlag("--dry-run");
+    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
     boolean enableBpfFlag = input.hasFlag("--enable-bpf");
 
     Map<String, String> kv;
     try {
-      kv = CliArgsParser.toMap(input.keyValueArgs());
+      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
-    TelemetryConfigurator.configureMetrics(kv);
+
+    String configPath = ConfigCliUtils.extractConfigPath(kv);
 
     if (enableBpfFlag) {
       kv.put("enableBpf", "true");
     }
 
+    Optional<Map<String, String>> yamlConfig = Optional.empty();
+    if (configPath != null) {
+      Path yamlPath = Path.of(configPath);
+      if (!Files.exists(yamlPath)) {
+        log.error("Configuration file does not exist: {}", yamlPath);
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      }
+      try {
+        yamlConfig = YamlConfigLoader.load(yamlPath, "capture");
+      } catch (IllegalArgumentException ex) {
+        log.error("Invalid YAML configuration: {}", ex.getMessage());
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      } catch (IOException ex) {
+        log.error("Unable to read configuration file {}", yamlPath, ex);
+        return ExitCode.IO_ERROR;
+      }
+    }
+
+    Map<String, String> defaults = DefaultsForMode.asFlatMap("capture");
+    Map<String, String> effective;
+    try {
+      effective = ConfigMerger.buildEffectiveConfig("capture", yamlConfig, kv, defaults, log::warn);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid capture configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
+    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+
+    Map<String, String> configInputs = new LinkedHashMap<>(effective);
+    String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
+    TelemetryConfigurator.configureMetrics(configInputs);
+
     CaptureConfig captureCfg;
     try {
-      captureCfg = CaptureConfig.fromMap(kv);
+      captureCfg = CaptureConfig.fromMap(configInputs);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid capture arguments: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
+    String sink = captureCfg.ioMode() == IoMode.KAFKA
+        ? captureCfg.kafkaTopicSegments()
+        : captureCfg.outputDirectory().toString();
+    log.info(
+        "Configured capture pipeline: ioMode={}, sink={}, metricsExporter={}",
+        captureCfg.ioMode(),
+        sink,
+        metricsExporter);
 
     boolean offline = captureCfg.pcapFile() != null;
     if (offline) {
@@ -209,3 +261,4 @@ public final class CaptureCli {
     }
   }
 }
+

@@ -37,7 +37,7 @@ public final class CliArgsParser {
         continue;
       }
       int idx = arg.indexOf('=');
-      if (idx <= 0 || idx == arg.length() - 1) {
+      if (idx <= 0) {
         throw new IllegalArgumentException("argument must be key=value (was '" + raw + "')");
       }
       String key = arg.substring(0, idx).trim();
@@ -81,3 +81,4 @@ public final class CliArgsParser {
     return false;
   }
 }
+

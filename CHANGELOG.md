@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 ### Changed
+- protocolDefaultFilter.* keys allow YAML-driven overrides for built-in BPF hints.
 - Test harnesses mute CLI and pipeline loggers during validation runs to keep `mvn verify` output signal-only.
 
 ## [0.3.0] - 2025-09-28

@@ -52,7 +52,15 @@ class PosterCliTest {
     StringWriter buffer = new StringWriter();
     CliPrinter.setWriterForTesting(new PrintWriter(buffer));
 
-    ExitCode code = PosterCli.run(new String[] {"httpOut=" + tempDir.resolve("reports")});
+    ExitCode code = PosterCli.run(new String[] {
+        "httpIn=",
+        "tnIn=",
+        "tnOut=",
+        "kafkaHttpPairsTopic=",
+        "kafkaTnPairsTopic=",
+        "kafkaHttpReportsTopic=",
+        "kafkaTnReportsTopic=",
+        "httpOut=" + tempDir.resolve("reports")});
 
     assertEquals(ExitCode.INVALID_ARGS, code);
     assertTrue(buffer.toString().contains("usage: poster"));
@@ -68,6 +76,10 @@ class PosterCliTest {
 
     ExitCode code = PosterCli.run(new String[] {
         "httpIn=kafka:radar.http.pairs",
+        "tnIn=",
+        "tnOut=",
+        "kafkaTnPairsTopic=",
+        "kafkaTnReportsTopic=",
         "kafkaBootstrap=localhost",
         "posterOutMode=KAFKA",
         "kafkaHttpReportsTopic=radar.http.reports"});
@@ -87,6 +99,10 @@ class PosterCliTest {
 
     ExitCode code = PosterCli.run(new String[] {
         "httpIn=" + httpIn.toString(),
+        "tnIn=",
+        "tnOut=",
+        "kafkaTnPairsTopic=",
+        "kafkaTnReportsTopic=",
         "httpOut=" + httpOut.toString(),
         "--dry-run"});
 
@@ -95,4 +111,3 @@ class PosterCliTest {
     assertTrue(Files.notExists(httpOut), "dry-run should not create output directories");
   }
 }
-

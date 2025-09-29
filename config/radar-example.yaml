@@ -1,0 +1,183 @@
+#===============================================================================
+# RADAR Configuration File (YAML)
+# One shared file. Omit keys to use embedded defaults. CLI overrides YAML.
+#===============================================================================
+
+common:
+  # Metrics exporter backend. Default otlp emits OpenTelemetry metrics; use none to disable when running air-gapped.
+  metricsExporter: "otlp"
+  # OTLP endpoint (http[s]://host:4317). Leave blank to rely on OTEL_EXPORTER_OTLP_ENDPOINT.
+  otelEndpoint: ""
+  # Comma-separated OpenTelemetry resource attributes (e.g., service.name=radar,env=prod).
+  otelResourceAttributes: ""
+  # Raise logging to DEBUG before delegating to subcommands; equivalent to --verbose.
+  verbose: false
+
+capture:
+  # Primary live capture interface. Defaults to eth0; set per host to avoid tapping the wrong NIC.
+  iface: "eth0"
+  # Optional offline replay file. Provide absolute path to .pcap/.pcapng; leave blank for live capture.
+  pcapFile: ""
+  # Protocol hint controlling default BPF filter (GENERIC|TN3270). HTTP rides on GENERIC because it shares TCP ports; switch to TN3270 for mainframe workloads.
+  protocol: "GENERIC"
+  # Override per-protocol default BPF filters when TN3270 or custom services use non-standard ports.
+  protocolDefaultFilter:
+    GENERIC: "tcp"
+    TN3270: "tcp and (port 23 or port 992)"
+  # Packet snap length in bytes. 65535 captures full payloads; lower to trim payload size on constrained disks.
+  snaplen: 65535
+  # libpcap buffer size in MiB. Increase on high-throughput NICs to absorb bursts before dropping.
+  bufmb: 256
+  # Poll timeout in milliseconds. Use 0 for busy-polling when microsecond latency matters.
+  timeout: 1000
+  # Enable promiscuous capture for shared segments. Leave false unless tapping SPAN or mirror ports.
+  promisc: false
+  # Immediate mode bypasses kernel buffering. Enable for lowest latency; increases CPU pressure.
+  immediate: false
+  # Segment output directory when ioMode=FILE. Ensure filesystem sustains target throughput.
+  out: "~/.radar/out/capture/segments"
+  # Basename used for rotated segment files.
+  fileBase: "segments"
+  # Rotation threshold in MiB. Raise on NVMe to reduce file churn; lower on slower disks.
+  rollMiB: 512
+  # HTTP poster staging directory used by downstream assemble/poster phases.
+  httpOut: "~/.radar/out/capture/http"
+  # TN3270 poster staging directory used by downstream assemble/poster phases.
+  tnOut: "~/.radar/out/capture/tn3270"
+  # Persistence strategy: FILE writes .segbin locally; KAFKA publishes to kafkaTopicSegments.
+  ioMode: "FILE"
+  # Kafka bootstrap servers (host:port[,host:port]). Required when ioMode=KAFKA.
+  kafkaBootstrap: ""
+  # Kafka topic receiving segments when ioMode=KAFKA.
+  kafkaTopicSegments: "radar.segments"
+  # Worker threads persisting segments/pairs. Leave blank to auto-scale (~half cores, capped at 4).
+  persistWorkers: ""
+  # Queue capacity feeding persistence workers. Leave blank to auto-size (workers * 64).
+  persistQueueCapacity: ""
+  # Persistence queue implementation: ARRAY (bounded, cache-friendly) or LINKED (elastic, higher GC cost).
+  persistQueueType: "ARRAY"
+  tn3270:
+    # Emit TN3270 screen-render events. Enables poster-friendly renders at additional cost.
+    emitScreenRenders: false
+    # Sample rate (0.0-1.0) controlling how many screen renders emit; tune up for investigations.
+    screenRenderSampleRate: 0.0
+    redaction:
+      # Regex of TN3270 field names to redact before persistence/poster stages.
+      policy: ""
+  # Gate for custom BPF expressions. Must be true before setting bpf filter text.
+  enableBpf: false
+  # Custom BPF expression. Keep empty to rely on protocol defaults; sanitize before enabling.
+  bpf: ""
+  # Allow overwriting existing capture directories. Enable only for automation with known cleanup.
+  allowOverwrite: false
+  # Dry-run validates config and prints execution plan without touching network or disk.
+  dryRun: false
+
+live:
+  # Live pipeline capture interface override.
+  iface: "eth0"
+  # Live processing does not support pcap replay; keep blank.
+  pcapFile: ""
+  # Protocol hint for default BPF (GENERIC|TN3270). HTTP flows remain under GENERIC; use TN3270 when the capture focuses on mainframe sessions.
+  protocol: "GENERIC"
+  # Override per-protocol default BPF filters when TN3270 or custom services use non-standard ports.
+  protocolDefaultFilter:
+    GENERIC: "tcp"
+    TN3270: "tcp and (port 23 or port 992)"
+  # Snap length controlling capture payload size; align with capture defaults.
+  snaplen: 65535
+  # Capture buffer MiB; consider >=1024 on 40Gbps hosts.
+  bufmb: 256
+  # Poll timeout ms; set 0 for ultra-low latency hand-offs.
+  timeout: 1000
+  promisc: false
+  immediate: false
+  out: "~/.radar/out/capture/segments"
+  fileBase: "segments"
+  rollMiB: 512
+  httpOut: "~/.radar/out/capture/http"
+  tnOut: "~/.radar/out/capture/tn3270"
+  ioMode: "FILE"
+  kafkaBootstrap: ""
+  kafkaTopicSegments: "radar.segments"
+  # Persistence workers default to half available cores (max 4). Increase for heavy sinks or Kafka latency.
+  persistWorkers: ""
+  # Persistence queue capacity defaults to workers * 64. Increase to smooth bursty sinks.
+  persistQueueCapacity: ""
+  persistQueueType: "ARRAY"
+  # Enable HTTP reconstruction; disable when only TN3270 matters to reclaim CPU.
+  httpEnabled: true
+  # Enable TN3270 reconstruction; turn on only when mainframe sessions are present.
+  tnEnabled: false
+  tn3270:
+    emitScreenRenders: false
+    screenRenderSampleRate: 0.0
+    redaction:
+      policy: ""
+  enableBpf: false
+  bpf: ""
+  allowOverwrite: false
+  dryRun: false
+
+assemble:
+  # Segment input directory when ioMode=FILE. Points at capture output root.
+  in: "~/.radar/out/capture/segments"
+  # Output root for assembled HTTP/TN3270 pairs (file mode).
+  out: "~/.radar/out/assemble"
+  # Input/output mode: FILE reads directories, KAFKA consumes segments from kafkaSegmentsTopic.
+  ioMode: "FILE"
+  # Kafka bootstrap servers; required when ioMode=KAFKA or when writing Kafka pairs.
+  kafkaBootstrap: ""
+  # Kafka topic providing segments when ioMode=KAFKA.
+  kafkaSegmentsTopic: "radar.segments"
+  # Kafka topic for HTTP pairs (used for Kafka ioMode or poster pipelines).
+  kafkaHttpPairsTopic: "radar.http.pairs"
+  # Kafka topic for TN3270 pairs.
+  kafkaTnPairsTopic: "radar.tn3270.pairs"
+  # HTTP pair output directory override. Leave blank to default under out/http.
+  httpOut: ""
+  # TN3270 pair output directory override. Leave blank to default under out/tn3270.
+  tnOut: ""
+  # Enable HTTP reconstruction; disable to skip HTTP processing entirely.
+  httpEnabled: true
+  # Enable TN3270 reconstruction; enable when mainframe traffic is present.
+  tnEnabled: false
+  tn3270:
+    emitScreenRenders: false
+    screenRenderSampleRate: 0.0
+    redaction:
+      policy: ""
+  # Allow overwriting non-empty output directories. Enable only for orchestrated reruns.
+  allowOverwrite: false
+  # Dry-run validates IO wiring and prints plan without processing segments.
+  dryRun: false
+
+poster:
+  # Poster input mode: FILE reads assembled directories; KAFKA streams from Kafka topics.
+  ioMode: "FILE"
+  # Poster output mode: FILE writes rendered artifacts; KAFKA publishes to Kafka topics.
+  posterOutMode: "FILE"
+  # HTTP pair input directory or leave blank when using Kafka.
+  httpIn: "~/.radar/out/assemble/http"
+  # TN3270 pair input directory or leave blank when using Kafka.
+  tnIn: "~/.radar/out/assemble/tn3270"
+  # HTTP poster output directory when posterOutMode=FILE.
+  httpOut: "~/.radar/out/poster/http"
+  # TN3270 poster output directory when posterOutMode=FILE.
+  tnOut: "~/.radar/out/poster/tn3270"
+  # Kafka bootstrap servers; required for Kafka input/output.
+  kafkaBootstrap: ""
+  # Kafka topic delivering HTTP pairs when ioMode=KAFKA.
+  kafkaHttpPairsTopic: "radar.http.pairs"
+  # Kafka topic delivering TN3270 pairs when ioMode=KAFKA.
+  kafkaTnPairsTopic: "radar.tn3270.pairs"
+  # Kafka topic for rendered HTTP posters when posterOutMode=KAFKA.
+  kafkaHttpReportsTopic: "radar.http.reports"
+  # Kafka topic for rendered TN3270 posters when posterOutMode=KAFKA.
+  kafkaTnReportsTopic: "radar.tn3270.reports"
+  # Poster decode depth: none | transfer | all. Higher levels add CPU; enable when analysts need decoded payloads.
+  decode: "none"
+  # Allow overwriting existing poster output directories.
+  allowOverwrite: false
+  # Dry-run validates wiring and prints plan without writing outputs.
+  dryRun: false

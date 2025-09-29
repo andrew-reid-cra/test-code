@@ -2,13 +2,18 @@ package ca.gc.cra.radar.api;
 
 import ca.gc.cra.radar.config.CaptureConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.ConfigMerger;
+import ca.gc.cra.radar.config.DefaultsForMode;
 import ca.gc.cra.radar.config.IoMode;
+import ca.gc.cra.radar.config.YamlConfigLoader;
 import ca.gc.cra.radar.logging.Logs;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,33 +90,70 @@ public final class LiveCli {
       log.debug("Verbose logging enabled for live CLI");
     }
 
-    boolean dryRun = input.hasFlag("--dry-run");
-    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean dryRunFlag = input.hasFlag("--dry-run");
+    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
     boolean enableBpfFlag = input.hasFlag("--enable-bpf");
 
     Map<String, String> kv;
     try {
-      kv = CliArgsParser.toMap(input.keyValueArgs());
+      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    TelemetryConfigurator.configureMetrics(kv);
+    String configPath = ConfigCliUtils.extractConfigPath(kv);
+
     if (enableBpfFlag) {
       kv.put("enableBpf", "true");
     }
 
-    CaptureConfig captureConfig;
+    Optional<Map<String, String>> yamlConfig = Optional.empty();
+    if (configPath != null) {
+      Path yamlPath = Path.of(configPath);
+      if (!java.nio.file.Files.exists(yamlPath)) {
+        log.error("Configuration file does not exist: {}", yamlPath);
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      }
+      try {
+        yamlConfig = YamlConfigLoader.load(yamlPath, "live");
+      } catch (IllegalArgumentException ex) {
+        log.error("Invalid YAML configuration: {}", ex.getMessage());
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      } catch (IOException ex) {
+        log.error("Unable to read configuration file {}", yamlPath, ex);
+        return ExitCode.IO_ERROR;
+      }
+    }
+
+    Map<String, String> defaults = DefaultsForMode.asFlatMap("live");
+    Map<String, String> effective;
     try {
-      captureConfig = CaptureConfig.fromMap(kv);
+      effective = ConfigMerger.buildEffectiveConfig("live", yamlConfig, kv, defaults, log::warn);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid live capture configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
+    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
+    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+
+    Map<String, String> configInputs = new LinkedHashMap<>(effective);
+    String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
+    TelemetryConfigurator.configureMetrics(configInputs);
+
+    CaptureConfig captureConfig;
+    try {
+      captureConfig = CaptureConfig.fromMap(configInputs);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid live capture configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
 
     if (captureConfig.pcapFile() != null) {
       log.error("pcapFile is not supported for live processing; use the capture command instead");
@@ -142,6 +184,13 @@ public final class LiveCli {
         new CompositionRoot(ca.gc.cra.radar.config.Config.defaults(), captureConfig);
 
     try {
+      log.info(
+          "Configured live pipeline: ioMode={}, sink={}, metricsExporter={}",
+          captureConfig.ioMode(),
+          captureConfig.ioMode() == IoMode.KAFKA
+              ? captureConfig.kafkaTopicSegments()
+              : captureConfig.outputDirectory(),
+          metricsExporter);
       log.info("Starting live processing on interface {}", captureConfig.iface());
       root.liveProcessingUseCase().run();
       log.info("Live processing completed on interface {}", captureConfig.iface());
@@ -200,3 +249,4 @@ public final class LiveCli {
 
   private record ValidatedPaths(Path segments, Path http, Path tn3270) {}
 }
+

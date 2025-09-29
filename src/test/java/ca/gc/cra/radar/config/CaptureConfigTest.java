@@ -131,7 +131,7 @@ class CaptureConfigTest {
   void tn3270ProtocolUsesDefaultFilter() {
     CaptureConfig cfg = CaptureConfig.fromMap(Map.of("iface", "en2", "protocol", "TN3270"));
 
-    assertEquals(CaptureProtocol.TN3270.defaultFilter(), cfg.filter());
+    assertEquals("tcp and (port 23 or port 992)", cfg.filter());
     assertEquals(CaptureProtocol.TN3270, cfg.protocol());
     assertFalse(cfg.customBpfEnabled());
   }
@@ -149,6 +149,20 @@ class CaptureConfigTest {
     assertTrue(cfg.customBpfEnabled());
   }
 
+
+  @Test
+  void protocolDefaultFilterOverrideAppliesWithoutEnableBpf() {
+    Map<String, String> inputs = Map.ofEntries(
+        Map.entry("iface", "en4"),
+        Map.entry("protocol", "TN3270"),
+        Map.entry("protocolDefaultFilter.TN3270", "tcp port 3023"));
+
+    CaptureConfig cfg = CaptureConfig.fromMap(inputs);
+
+    assertEquals("tcp port 3023", cfg.filter());
+    assertEquals(CaptureProtocol.TN3270, cfg.protocol());
+    assertFalse(cfg.customBpfEnabled());
+  }
 
   @Test
   void tn3270SampleRateOutsideBoundsFails() {
@@ -195,3 +209,4 @@ class CaptureConfigTest {
     assertTrue(ex.getMessage().contains("persistQueueCapacity"));
   }
 }
+

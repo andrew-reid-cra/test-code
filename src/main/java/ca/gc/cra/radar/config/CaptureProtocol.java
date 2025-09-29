@@ -3,13 +3,14 @@ package ca.gc.cra.radar.config;
 import java.util.Locale;
 
 /**
- * <strong>What:</strong> Capture protocol hints used to select sensible defaults for packet filtering.
- * <p><strong>Why:</strong> Allows CLI defaults to align BPF expressions and display names with expected protocol traffic.</p>
+ * <strong>What:</strong> Capture protocol hints used to align capture defaults with expected traffic families.
+ * <p><strong>Why:</strong> Operands (GENERIC, TN3270) allow YAML configuration to select sensible BPF filters and
+ * downstream heuristics.
  * <p><strong>Role:</strong> Configuration enum referenced by capture pipelines and validation utilities.</p>
  * <p><strong>Responsibilities:</strong>
  * <ul>
  *   <li>Expose human-friendly names for operator messaging.</li>
- *   <li>Provide default Berkeley Packet Filter expressions per protocol.</li>
+ *   <li>Identify protocol hints used to retrieve configured default BPF filters.</li>
  *   <li>Parse user-supplied strings into canonical enum values.</li>
  * </ul>
  * <p><strong>Thread-safety:</strong> Enum constants are immutable and globally shareable.</p>
@@ -20,16 +21,14 @@ import java.util.Locale;
  */
 public enum CaptureProtocol {
   /** Generic TCP capture without protocol-specific hints. */
-  GENERIC("Generic", "tcp"),
+  GENERIC("Generic"),
   /** Telnet TN3270/TN3270E traffic (TLS on 992 is common). */
-  TN3270("TN3270", "tcp and (port 23 or port 992)");
+  TN3270("TN3270");
 
   private final String displayName;
-  private final String defaultFilter;
 
-  CaptureProtocol(String displayName, String defaultFilter) {
+  CaptureProtocol(String displayName) {
     this.displayName = displayName;
-    this.defaultFilter = defaultFilter;
   }
 
   /**
@@ -43,19 +42,6 @@ public enum CaptureProtocol {
    */
   public String displayName() {
     return displayName;
-  }
-
-  /**
-   * Returns the default Berkeley Packet Filter expression associated with the protocol.
-   *
-   * @return BPF expression string suitable for libpcap
-   *
-   * <p><strong>Concurrency:</strong> Thread-safe accessor.</p>
-   * <p><strong>Performance:</strong> Constant-time.</p>
-   * <p><strong>Observability:</strong> Surfaces in logs when configuring capture devices.</p>
-   */
-  public String defaultFilter() {
-    return defaultFilter;
   }
 
   /**

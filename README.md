@@ -30,6 +30,12 @@ export OTEL_RESOURCE_ATTRIBUTES=service.name=radar,deployment.environment=dev
 ```
 Adjust the jar name if your Maven build produces a different classifier or version suffix.
 
+## YAML Config Quickstart
+- Copy `config/radar-example.yaml` and adjust per environment; unmentioned keys fall back to embedded defaults.
+- Launch with `java -jar radar.jar <mode> --config=/path/to/radar.yaml`; CLI key=value flags still override YAML with a WARN.
+- See `OPS_RUNBOOK.md` for per-mode parameter tables, validation rules, and tuning playbooks.
+
+
 ## Configs & CLI Flags
 | Flag | Applies | Description | Default |
 | --- | --- | --- | --- |

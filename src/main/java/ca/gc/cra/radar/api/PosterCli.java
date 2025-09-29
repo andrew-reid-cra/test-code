@@ -1,14 +1,18 @@
 package ca.gc.cra.radar.api;
 
 import ca.gc.cra.radar.application.pipeline.PosterUseCase;
+import ca.gc.cra.radar.config.ConfigMerger;
+import ca.gc.cra.radar.config.DefaultsForMode;
 import ca.gc.cra.radar.config.IoMode;
 import ca.gc.cra.radar.config.PosterConfig;
 import ca.gc.cra.radar.config.PosterConfig.ProtocolConfig;
+import ca.gc.cra.radar.config.YamlConfigLoader;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -88,23 +92,60 @@ public final class PosterCli {
       log.debug("Verbose logging enabled for poster CLI");
     }
 
-    boolean dryRun = input.hasFlag("--dry-run");
-    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean dryRunFlag = input.hasFlag("--dry-run");
+    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
 
     Map<String, String> kv;
     try {
-      kv = CliArgsParser.toMap(input.keyValueArgs());
+      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    TelemetryConfigurator.configureMetrics(kv);
+    String configPath = ConfigCliUtils.extractConfigPath(kv);
+
+    Optional<Map<String, String>> yamlConfig = Optional.empty();
+    if (configPath != null) {
+      Path yamlPath = Path.of(configPath);
+      if (!java.nio.file.Files.exists(yamlPath)) {
+        log.error("Configuration file does not exist: {}", yamlPath);
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      }
+      try {
+        yamlConfig = YamlConfigLoader.load(yamlPath, "poster");
+      } catch (IllegalArgumentException ex) {
+        log.error("Invalid YAML configuration: {}", ex.getMessage());
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      } catch (IOException ex) {
+        log.error("Unable to read configuration file {}", yamlPath, ex);
+        return ExitCode.IO_ERROR;
+      }
+    }
+
+    Map<String, String> defaults = DefaultsForMode.asFlatMap("poster");
+    Map<String, String> effective;
+    try {
+      effective = ConfigMerger.buildEffectiveConfig("poster", yamlConfig, kv, defaults, log::warn);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid poster configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
+    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+
+    Map<String, String> configInputs = new LinkedHashMap<>(effective);
+    String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
+    TelemetryConfigurator.configureMetrics(configInputs);
 
     PosterConfig config;
     try {
-      config = PosterConfig.fromMap(kv);
+      config = PosterConfig.fromMap(configInputs);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid poster configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
@@ -127,6 +168,11 @@ public final class PosterCli {
 
     PosterUseCase useCase = new PosterUseCase();
     try {
+      log.info(
+          "Configured poster pipeline: ioMode={}, sink={}, metricsExporter={}",
+          config.ioMode(),
+          describeSink(config),
+          metricsExporter);
       log.info("Starting poster pipelines with decode mode {}", config.decodeMode());
       useCase.run(config);
       log.info("Poster pipelines completed successfully");
@@ -235,7 +281,14 @@ public final class PosterCli {
       Optional<String> kafkaOutput) {}
 
   private record ValidatedPosterPaths(ProtocolValidation http, ProtocolValidation tn3270) {}
+  private static String describeSink(PosterConfig config) {
+    if (config.posterOutMode() == IoMode.KAFKA) {
+      return config.kafkaBootstrap().map(b -> "kafka:" + b).orElse("<kafka>");
+    }
+    return config.http()
+        .flatMap(protocol -> protocol.outputDirectory().map(Path::toString))
+        .or(() -> config.tn3270().flatMap(protocol -> protocol.outputDirectory().map(Path::toString)))
+        .orElse("<files>");
+  }
 }
-
-
 

@@ -3,12 +3,16 @@ package ca.gc.cra.radar.api;
 import ca.gc.cra.radar.application.pipeline.AssembleUseCase;
 import ca.gc.cra.radar.config.AssembleConfig;
 import ca.gc.cra.radar.config.CompositionRoot;
+import ca.gc.cra.radar.config.ConfigMerger;
+import ca.gc.cra.radar.config.DefaultsForMode;
 import ca.gc.cra.radar.config.IoMode;
+import ca.gc.cra.radar.config.YamlConfigLoader;
 import ca.gc.cra.radar.logging.LoggingConfigurator;
 import ca.gc.cra.radar.validation.Paths;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -88,23 +92,60 @@ public final class AssembleCli {
       log.debug("Verbose logging enabled for assemble CLI");
     }
 
-    boolean dryRun = input.hasFlag("--dry-run");
-    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
+    boolean dryRunFlag = input.hasFlag("--dry-run");
+    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
 
     Map<String, String> kv;
     try {
-      kv = CliArgsParser.toMap(input.keyValueArgs());
+      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    TelemetryConfigurator.configureMetrics(kv);
+    String configPath = ConfigCliUtils.extractConfigPath(kv);
+
+    Optional<Map<String, String>> yamlConfig = Optional.empty();
+    if (configPath != null) {
+      Path yamlPath = Path.of(configPath);
+      if (!java.nio.file.Files.exists(yamlPath)) {
+        log.error("Configuration file does not exist: {}", yamlPath);
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      }
+      try {
+        yamlConfig = YamlConfigLoader.load(yamlPath, "assemble");
+      } catch (IllegalArgumentException ex) {
+        log.error("Invalid YAML configuration: {}", ex.getMessage());
+        CliPrinter.println(SUMMARY_USAGE);
+        return ExitCode.INVALID_ARGS;
+      } catch (IOException ex) {
+        log.error("Unable to read configuration file {}", yamlPath, ex);
+        return ExitCode.IO_ERROR;
+      }
+    }
+
+    Map<String, String> defaults = DefaultsForMode.asFlatMap("assemble");
+    Map<String, String> effective;
+    try {
+      effective = ConfigMerger.buildEffectiveConfig("assemble", yamlConfig, kv, defaults, log::warn);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid assemble arguments: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
+    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+
+    Map<String, String> configInputs = new LinkedHashMap<>(effective);
+    String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
+    TelemetryConfigurator.configureMetrics(configInputs);
 
     AssembleConfig config;
     try {
-      config = AssembleConfig.fromMap(kv);
+      config = AssembleConfig.fromMap(configInputs);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid assemble arguments: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
@@ -129,6 +170,14 @@ public final class AssembleCli {
     AssembleUseCase useCase = root.assembleUseCase(config);
 
     try {
+      log.info(
+          "Configured assemble pipeline: ioMode={}, input={}, output={}, metricsExporter={}",
+          config.ioMode(),
+          config.ioMode() == IoMode.KAFKA ? config.kafkaSegmentsTopic() : config.inputDirectory(),
+          config.ioMode() == IoMode.KAFKA
+              ? config.kafkaHttpPairsTopic() + "," + config.kafkaTnPairsTopic()
+              : config.outputDirectory(),
+          metricsExporter);
       useCase.run();
       log.info("Assemble pipeline completed for input {}", validated.input());
       return ExitCode.SUCCESS;
@@ -207,7 +256,4 @@ public final class AssembleCli {
 
   private record ValidatedPaths(Path input, Path outputRoot, Path http, Path tn) {}
 }
-
-
-
 
