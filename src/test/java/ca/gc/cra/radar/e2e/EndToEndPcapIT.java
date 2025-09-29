@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +35,16 @@ public class EndToEndPcapIT {
   private static final Pattern SEGBIN_PATTERN = Pattern.compile(".*\\.segbin$");
   private static final Method MAIN_RUN = locateMainRun();
 
-  @Test
+    @BeforeAll
+  static void ensurePosterDefaultsExist() throws IOException {
+    Path base = Paths.get(System.getProperty("user.home", "."), ".radar", "out");
+    Files.createDirectories(base.resolve("assemble").resolve("http"));
+    Files.createDirectories(base.resolve("assemble").resolve("tn3270"));
+    Files.createDirectories(base.resolve("poster").resolve("http"));
+    Files.createDirectories(base.resolve("poster").resolve("tn3270"));
+  }
+
+@Test
   void httpEndToEnd() throws Exception {
     Path pcap = resource("pcap/http_small.pcap");
     Assumptions.assumeTrue(Files.exists(pcap), "HTTP PCAP missing");
