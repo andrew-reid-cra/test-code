@@ -8,12 +8,12 @@
 - Keep secrets (Kafka credentials, collector auth) out of the file; supply them via environment variables or secret stores.
 
 ## Launch Examples
-`bash
+```bash
 java -jar radar.jar capture --config=config/radar-example.yaml
 java -jar radar.jar live --config=config/radar-example.yaml iface=ens5 persistWorkers=8
 java -jar radar.jar assemble --config=config/radar-example.yaml ioMode=KAFKA kafkaBootstrap=kfk1:9092
 java -jar radar.jar poster --config=config/radar-example.yaml posterOutMode=KAFKA decode=transfer
-`
+```
 
 ## Parameter Tables
 
@@ -64,7 +64,7 @@ Live mode honors the same capture keys; defaults mirror the capture table unless
 | key | type | default | description | when to tune |
 | --- | --- | --- | --- | --- |
 | iface | string | eth0 | Network interface for live processing. | Match NIC on production sensor hosts. |
-| pcapFile | string | "" | Offline replay source (unsupported). | Keep empty—Live CLI rejects non-empty values. |
+| pcapFile | string | "" | Offline replay source (unsupported). | Keep emptyï¿½Live CLI rejects non-empty values. |
 | protocol | enum | GENERIC | Default BPF hint. | Align with dominant protocol to trim noise. |
 | protocolDefaultFilter.* | string | GENERIC: tcp / TN3270: tcp and (port 23 or port 992) | Default BPF per protocol hint. | Override when mainframe or custom services use non-standard ports. |
 | snaplen | integer | 65535 | Capture snap length. | Lower only if downstream sinks cannot store full payloads. |
@@ -132,12 +132,12 @@ Live mode honors the same capture keys; defaults mirror the capture table unless
 | dryRun | boolean | false | Validation-only run. | Use to confirm IO wiring prior to batch rendering. |
 
 ## Validations & Troubleshooting
-- **Kafka bootstrap required**: Any ioMode/posterOutMode set to KAFKA, or Kafka topics in use, must accompany kafkaBootstrap. CLI exits with Invalid configuration when missing—update YAML or CLI to include bootstrap servers.
+- **Kafka bootstrap required**: Any ioMode/posterOutMode set to KAFKA, or Kafka topics in use, must accompany kafkaBootstrap. CLI exits with Invalid configuration when missingï¿½update YAML or CLI to include bootstrap servers.
 - **Protocol toggles**: live and assemble require at least one of httpEnabled or 	nEnabled to be true. If both false, pipelines refuse to start. Re-enable the protocol you intend to process.
 - **Custom BPF guard**: Providing bpf without enableBpf=true triggers a validation error. Flip the gate only after a security review.
 - **File safety**: AllowOverwrite=false blocks writes into non-empty directories. Specify AllowOverwrite=true only when orchestration ensures safe reuse.
 - **Poster FILE mode**: When posterOutMode=FILE, both httpOut and 	nOut must resolve to writable directories. YAML defaults point to ~/.radar/out/poster/**; adjust if those paths are absent.
-- **Dry-run planning**: dryRun=true prints the execution plan and validates IO without producing output—useful for deployment pipelines and troubleshooting.
+- **Dry-run planning**: dryRun=true prints the execution plan and validates IO without producing outputï¿½useful for deployment pipelines and troubleshooting.
 
 ## Operational Tips
 - Start from config/radar-example.yaml and layer environment-specific overrides in version control.
