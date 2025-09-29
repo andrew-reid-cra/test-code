@@ -25,7 +25,7 @@ All processes **must** initialize an OTel `Resource` with:
 - **Meter name:** `ca.gc.cra.radar.<module>`  
 - **Tracer name:** `ca.gc.cra.radar.<module>` (one per module or per package)  
 - **Metric names:** `radar.<module>.<noun>[.<verb>]` (lowercase, dot-separated), units as UCUM.  
-  - Examples: `radar.capture.packets` (1), `radar.capture.bytes` (By), `radar.sink.latency` (ms)
+  - Examples: `radar.capture.packets.total` (1), `live.persist.latencyNanos` (ns), `tn3270.parse.latency.ms` (ms)
 
 ### 1.4 Performance Principles
 - Prefer **asynchronous** (observable) gauges for queue depth, pool utilization.  
@@ -39,87 +39,88 @@ All processes **must** initialize an OTel `Resource` with:
 
 ### 2.1 Capture Module (NIC -> Segment Queue)
 **Attributes (common):**  
-`adapter={jnr-libpcap|pcap4j}`, `if_name`, `protocol={tcp|udp|other}`, `queue=segment`
+`impl={pcap4j|jnr-libpcap}`, `source=<iface-or-path>`, `offline=<true|false>`, `status={ok|null.data|poll.error|poll.failure}`
 
 **Counters**
-- `radar.capture.packets` (1) -> total packets captured  
-- `radar.capture.bytes` (By) -> total bytes captured  
-- `radar.capture.dropped` (1) -> kernel/driver drops (if available)  
-- `radar.capture.errors` (1) -> capture errors (timeouts, syscalls, adapter faults)
+- `radar.capture.packets.total` (1) -> incremented for every packet delivered by the adapter telemetry helper.
+- `radar.capture.bytes.total` (By) -> total bytes returned from `Packet#getRawData()`.
+- `radar.capture.errors.total` (1) -> non-success polls, including null payloads and exceptions (status attribute differentiates cases).
+- `capture.segment.persisted` (1) -> `SegmentCaptureUseCase` persisted a TCP segment after decoding.
+- `capture.segment.skipped.decode` / `capture.segment.skipped.pureAck` (1) -> decoder rejected the frame or the segment was a pure ACK filtered out.
 
 **Histograms**
-- `radar.capture.batch.size` (1) -> packets per poll/batch  
-- `radar.capture.poll.latency` (ms) -> time in poll/read calls
+- `radar.capture.poll.latency` (ns) -> duration of each `handle.getNextPacket()` call. Captured at the adapter level so we can contrast live vs offline sources.
 
 **Observable Gauges**
-- `radar.capture.queue.depth` (1) -> pending segments in queue  
-- `radar.capture.throughput` (By/s) -> rolling byte rate (calculate in code)
-- Attributes: tag `impl` (jni|pcap4j) plus `source` (iface or file) so dashboards distinguish adapters.
+- Not yet implemented. Use downstream `live.persist.queue.*` metrics to understand queue pressure until capture-side gauges land.
 
 **Traces**
-- **Span:** `capture.poll` around each poll/batch  
-  - Attributes: `batch.size`, `adapter`, `if_name`  
-  - Events on anomalies: `drop`, `timeout`, `buffer_overrun`
+- `capture.start` spans wrap adapter bootstrap and record `impl`, `offline`, `snaplen`, and `filter.present`.
+- `capture.poll` spans wrap each poll, attach `bytes` and `timestamp.micros`, and record exceptions when the JNI/pcap layer raises.
 
 **Logs**
-- Level **WARN/ERROR** for adapter failures with `adapter`, `if_name`, `errno`, `consecutive_failures`.
+- WARN/ERROR statements surface adapter failures with contextual fields (`iface`/`pcapFile`, errno). `SegmentCaptureUseCase` enriches logs with `flowId` via MDC once segments are decoded.
 
 ---
+
 
 ### 2.2 Assembler Module (Segment Queue -> Flow/Message)
 **Attributes (common):**  
-`protocol={http|tn3270|other}`, `queue={segment|flow}`, `reassembly={inorder|reorder}`, `buffer_pool={on|off}`
+`radar.metric.key` for every measurement, plus `protocol=tn3270` where noted.
 
 **Counters**
-- `radar.assembler.sessions.started` (1)  
-- `radar.assembler.sessions.terminated` (1)  
-- `radar.assembler.messages.reassembled` (1) -> HTTP msgs or TN3270 transactions  
-- `radar.assembler.reassembly.errors` (1) -> checksum, gaps, timeouts  
-- `radar.assembler.tcp.retransmissions.seen` (1) -> if available
+- `<prefix>.segment.accepted` -> `FlowProcessingEngine` accepted an oriented TCP segment (`prefix` is `live` or `assemble`).
+- `<prefix>.protocol.detected` / `.protocol.disabled` / `.protocol.unsupported` -> outcomes from protocol classification before building reconstructor/pairing engines.
+- `<prefix>.flowAssembler.error` -> exceptions raised by the flow assembler implementation.
+- `<prefix>.pairs.generated` -> message pairs emitted from `FlowProcessingEngine` back to the pipeline.
+- `live.segment.skipped.decode` -> live decoder dropped a frame before it reached flow processing.
+- `assemble.pairs.persisted` -> offline assembler persisted a message pair to the configured sink.
+- `http.flowAssembler.payload` / `tn3270.flowAssembler.payload` / `<prefix>.payload` -> protocol adapters accepted payload-bearing segments.
 
 **Histograms**
-- `radar.assembler.reassembly.latency` (ms) -> segment->message latency  
-- `radar.assembler.message.size` (By) -> payload size distribution
+- `<prefix>.byteStream.bytes` -> payload bytes emitted per flush from `FlowProcessingEngine`.
+- `protocol.http.bytes` / `protocol.tn3270.bytes` -> recorded by protocol metrics helpers as reconstructed payload volume.
+- `tn3270.parse.latency.ms` -> parser latency for host writes and client submits inside `Tn3270AssemblerAdapter`.
 
 **Observable Gauges**
-- `radar.assembler.sessions.active` (1)  
-- `radar.assembler.queue.depth` (1) -> inflight segments/messages  
-- `radar.assembler.buffer.pool.inuse` (By)
+- `tn3270.sessions.active` (UpDownCounter) -> counts active TN3270 sessions; decremented on close.
 
 **Traces**
-- **Span:** `assembler.reassemble` per message/flow  
-  - Link to capture span via **span link** or **context propagation** (see section 4).  
-  - Events: `gap_detected`, `reorder`, `timeout_eviction`
+- `tn3270.parse.host_write` and `tn3270.parse.client_submit` spans wrap parser work, set session/screen attributes, and propagate context with `Scope` so downstream logs correlate.
+- Capture spans propagate via MDC (`flowId`) and executor hand-offs inside `LiveProcessingUseCase`.
 
 **Logs**
-- Structured **INFO** when switching protocol parsers; **WARN** for recoverable parse errors; **ERROR** for corrupt sequences dropped.
+- Flow and assembler stages set MDC keys (`pipeline`, `flowId`, `protocol`) before logging successes or failures.
+- Recoverable parser errors log the session key and increment counters, while unrecoverable ones bubble up to `live.persist.error` or shutdown paths for visibility.
 
 ---
 
+
 ### 2.3 Sink Module (Message -> Persistence/Outbound)
 **Attributes (common):**  
-`sink={opensearch|file|kinesis|http}`, `queue={message|persist}`
+`radar.metric.key` (always). Persistence workers currently emit no extra dimensions; rely on pipeline-specific MDC (`pipeline`, `protocol`) for log correlation.
 
 **Counters**
-- `radar.sink.records.posted` (1)  
-- `radar.sink.records.failed` (1)  
-- `radar.sink.retries` (1)  
+- `live.pairs.persisted` -> successfully batched pairs written by the live persistence executor.
+- `live.persist.enqueued` / `.enqueue.retry` / `.enqueue.dropped` / `.enqueue.interrupted` -> enqueue outcomes for the bounded persistence queue.
+- `live.persist.error` / `.worker.uncaught` / `.worker.interrupted` -> worker life-cycle issues surfaced by `LiveProcessingUseCase`.
+- `live.persist.shutdown.force` / `.shutdown.interrupted` / `.flush.error` -> shutdown anomalies requiring manual intervention.
+- `assemble.pairs.persisted` -> offline assembler flushed a message pair to disk.
 
 **Histograms**
-- `radar.sink.latency` (ms) -> request->ack time  
-- `radar.sink.payload.size` (By)
+- `live.persist.latencyNanos` / `.latencyEmaNanos` -> persistence round-trip durations (raw and EMA-smoothed).
+- `live.persist.enqueue.waitNanos` / `.waitEmaNanos` -> time spent waiting for queue capacity.
+- `live.persist.queue.depth` / `.queue.highWater` -> instantaneous and max queue depth samples recorded during runtime.
 
 **Observable Gauges**
-- `radar.sink.queue.depth` (1)  
-- `radar.sink.endpoint.rtt` (ms) -> rolling estimate if feasible
+- `live.persist.worker.active` -> observed worker counts sampled pre/post shutdown; exported via the histogram instrument backing `MetricsPort.observe`.
 
 **Traces**
-- **Span:** `sink.persist` or `sink.post`  
-  - Attributes: `sink.type`, `endpoint`, `http.status_code` (if HTTP)  
-  - Events: `retry_scheduled`, `backoff`, `circuit_open` (if using CB)
+- Dedicated sink spans are not yet implemented. Until then, correlate persistence behaviour through the metrics above plus MDC-tagged WARN/ERROR logs.
 
 **Logs**
-- **WARN** for transient failures with retry metadata; **ERROR** with correlation IDs on terminal failures.
+- Saturation warnings (queue full, retries) include depth, worker counts, and retry totals.
+- Persistence adapters log flush/close errors with the pipeline MDC so alerts can point directly at failing sinks.
 
 ---
 
@@ -151,22 +152,83 @@ All processes **must** initialize an OTel `Resource` with:
 ## 3) Java Implementation Patterns
 
 ### 3.1 Bootstrapping the OTel SDK (OTLP)
+`ca.gc.cra.radar.infrastructure.metrics.OpenTelemetryBootstrap` wires the SDK using environment/JVM properties:
+
 ```java
-// package ca.gc.cra.radar.telemetry;
-... Java code here ...
+BootstrapConfig config = BootstrapConfig.fromEnvironment();
+if (config.exporter() == ExporterMode.NONE) {
+  log.info("OpenTelemetry metrics exporter disabled (exporter=none)");
+  return BootstrapResult.noop();
+}
+SdkMeterProviderBuilder builder = SdkMeterProvider.builder()
+    .setResource(config.resource());
+MetricReader reader = createReader(config);
+if (reader != null) {
+  builder.registerMetricReader(reader);
+}
+SdkMeterProvider provider = builder.build();
+Meter meter = provider.meterBuilder("ca.gc.cra.radar")
+    .setInstrumentationVersion(config.instrumentationVersion())
+    .build();
 ```
+
+- `OTEL_METRICS_EXPORTER` / `otel.metrics.exporter` toggles OTLP vs noop (`none` skips all emission but keeps the app running).
+- `OTEL_EXPORTER_OTLP_ENDPOINT` defaults to `http://localhost:4317`; override via CLI flags or JVM props.
+- `OTEL_RESOURCE_ATTRIBUTES` appends to the detected resource (`service.namespace=ca.gc.cra`, `service.name=radar`, `service.version` from Maven, `service.instance.id` from hostname/MXBean).
+- `BootstrapResult` owns the provider/meter and exposes `isNoop()` for callers; tests access `forTesting(reader)` to bind in-memory exporters without touching the real environment.
 
 ### 3.2 Defining Instruments (Capture Example)
+`Pcap4jPacketSource.Telemetry` centralises capture metrics and attributes:
+
 ```java
-// package ca.gc.cra.radar.capture;
-... Java code here ...
+Meter meter = GlobalOpenTelemetry.getMeter("ca.gc.cra.radar.capture.pcap4j");
+Attributes attributes = Attributes.builder()
+    .put(ATTR_IMPL, "pcap4j")
+    .put(ATTR_SOURCE, source)
+    .put(ATTR_OFFLINE, offline)
+    .build();
+LongCounter packets = meter.counterBuilder("radar.capture.packets.total")
+    .setUnit("1")
+    .setDescription("Packets captured by the pcap4j adapter")
+    .build();
+LongCounter bytes = meter.counterBuilder("radar.capture.bytes.total")
+    .setUnit("By")
+    .setDescription("Bytes captured by the pcap4j adapter")
+    .build();
+LongHistogram latency = meter.histogramBuilder("radar.capture.poll.latency")
+    .ofLongs()
+    .setUnit("ns")
+    .setDescription("Poll latency for pcap4j packet source")
+    .build();
 ```
 
+- `telemetry.packetCounter.add(1, telemetry.baseAttributes)` and friends ensure every poll emits consistent dimensions.
+- `telemetry.withStatus("poll.failure")` enriches error counters with a `status` attribute so dashboards can break down failure modes.
+- Counters/histograms survive adapter reuse because instruments are cached on the `Telemetry` record.
+
 ### 3.3 Tracing with Context Across Queues
+The TN3270 assembler keeps spans and metrics aligned even as work hops across executors:
+
 ```java
-// package ca.gc.cra.radar.core;
-... Java code here ...
+Span span = tracer.spanBuilder("tn3270.parse.host_write").startSpan();
+try (Scope ignored = span.makeCurrent()) {
+  bytesCounter.add(processedBytes, telemetryAttributes);
+  ScreenSnapshot snapshot = Tn3270Parser.parseHostWrite(filtered, context.state);
+  parseLatency.record(durationMs, telemetryAttributes);
+  span.setAttribute("tn3270.session", context.key.canonical());
+  span.setAttribute("tn3270.screen.hash", screenHash == null ? "" : screenHash);
+} catch (Exception ex) {
+  span.recordException(ex);
+  span.setStatus(StatusCode.ERROR, ex.getMessage() == null ? "host parse error" : ex.getMessage());
+  throw ex;
+} finally {
+  span.end();
+}
 ```
+
+- `try (Scope ignored = span.makeCurrent())` ensures downstream logs inherit the trace identifiers, even when persistence happens on worker threads.
+- Client submissions reuse the same pattern (`tn3270.parse.client_submit`) with sanitised AID/input fields and redaction policies before logging.
+- Live pipelines complement spans with MDC keys (`pipeline`, `flowId`, `protocol`) so metrics, traces, and logs converge on the same identifiers.
 
 ### 3.4 Structured Logs via SLF4J with Trace IDs
 - Use a logging layout that includes `trace_id` and `span_id` (via MDC or OTel autoinstrumentation bridge).  
@@ -178,11 +240,16 @@ All processes **must** initialize an OTel `Resource` with:
 ## 4) Testing Telemetry
 
 ### 4.1 Unit Tests (SDK In-Memory)
-- Use **`InMemoryMetricReader`** and **in-memory span exporter** to assert:
+- `OpenTelemetryMetricsAdapterCounterTest` drives `increment()` three times, flushes via `InMemoryMetricReader`, and asserts the exported `LongSum` plus the `radar.metric.key` attribute and resource defaults (`service.name=radar`, `service.namespace=ca.gc.cra`).
+- `OpenTelemetryMetricsAdapterHistogramTest` exercises `observe()` and confirms histogram aggregation while verifying that sanitised instrument names still carry the original metric key.
+- `OpenTelemetryBootstrapNoopTest` sets `otel.metrics.exporter=none` to guarantee we fall back to the noop provider without throwing, protecting CLI startup when telemetry is disabled.
 
 ### 4.2 Integration/Perf Tests
-- Drive synthetic traffic through **Capture -> Assembler -> Sink** and validate:
-...
+- `LiveProcessingUseCasePersistenceTest` uses the `RecordingMetrics` test double to assert queue depth, latency, retry, and worker metrics fire under load, back-pressure, and failure scenarios.
+- `LiveProcessingUseCaseConcurrencyTest` and `LiveProcessingUseCaseTest` stress multi-threaded execution, ensuring saturation paths increment `live.persist.*` counters and that shutdown metrics surface as expected.
+- `EndToEndPcapIT` replays bundled PCAP fixtures through capture ? assemble ? poster CLIs; run it with OTLP enabled to watch `capture.segment.persisted`, `assemble.pairs.persisted`, and downstream metrics flow end-to-end.
+- Performance profile runs (`mvn -Pperf verify`) can emit metrics while benchmarks execute; set OTEL environment variables before invoking the profile so histograms capture regression data.
+
 ### 4.3 Local Collector Smoke Test
 - **Prerequisites:** download the OpenTelemetry Collector binary that matches your OS from the official releases page (https://github.com/open-telemetry/opentelemetry-collector-releases).
 - **Configuration:** save the following as `otel-local.yaml` to receive metrics from RADAR and log them locally:
@@ -228,39 +295,87 @@ service:
 ---
 
 ## 5) Alerting & SLO Hints
-...
+- **Capture Health:** Alert if `capture.segment.skipped.decode + capture.segment.skipped.pureAck` exceeds 5% of `capture.segment.persisted` over 10 minutes. Track `radar.capture.errors.total` by `status` to identify flaky interfaces.
+- **Assembler Stability:** Watch `<prefix>.protocol.disabled` / `.protocol.unsupported` spikes; unexpected increases often mean configuration drift. Page when `tn3270.parse.latency.ms` p95 > 75 ms for 5 minutes.
+- **Persistence SLO:** Keep `live.persist.latencyNanos` p95 under 5 ms and ensure `live.persist.enqueue.dropped` stays at zero; a single drop should trigger investigation.
+- **Worker Reliability:** Create single-value panels for `live.persist.worker.uncaught`, `.worker.interrupted`, `.shutdown.force`, and `.flush.error`. Any non-zero value is a Sev2.
+- **Throughput Trend:** Plot `capture.segment.persisted` and `live.pairs.persisted` side-by-side; divergence indicates assembly or sink bottlenecks.
 
 ---
 
 ## 6) Maven Coordinates (example)
-...
+| Artifact | Version | Purpose |
+| --- | --- | --- |
+| `io.opentelemetry:opentelemetry-api` | 1.36.0 | Runtime API used across adapters (`GlobalOpenTelemetry`, meters, tracers). |
+| `io.opentelemetry:opentelemetry-sdk` | 1.36.0 | SDK implementation used by `OpenTelemetryBootstrap`. |
+| `io.opentelemetry:opentelemetry-exporter-otlp` | 1.36.0 | OTLP gRPC exporter wired into the periodic reader. |
+| `io.opentelemetry:opentelemetry-sdk-testing` | 1.36.0 | In-memory metric/span exporters for unit tests. |
+| `org.slf4j:slf4j-api` + `ch.qos.logback:logback-classic` | 2.0.13 / 1.4.14 | Structured logging with MDC support and trace/span correlation. |
+
+These are already declared in `pom.xml`; downstream modules embedding RADAR components should align with the same versions to avoid classpath conflicts.
 
 ---
 
 ## 7) Developer Checklist (Observability)
-...
+- Name new metrics with the `radar.<module>.<noun>[.<verb>]` pattern and update this guide plus dashboards in the same PR.
+- Cover every new counter/gauge with a test (`InMemoryMetricReader` for adapters, `RecordingMetrics` for pipelines) so regressions are caught at build time.
+- Ensure MDC keys you set (`pipeline`, `flowId`, `protocol`) are cleared in `finally` blocks; missing clean-up leaks context across threads.
+- When introducing spans, add attributes sparingly and document them here; keep cardinality bounded.
+- Run one CLI with `OTEL_METRICS_EXPORTER=otlp` before merging to confirm metrics flow end-to-end with your changes.
 
 ---
 
 ## 8) Dashboard Seeds (quick start)
-...
+- **Capture Throughput:** Plot `radar.capture.packets.total` (rate over 5m) grouped by `impl`/`source` attributes emitted by the capture adapter. Add a ratio panel of `capture.segment.skipped.decode` vs `capture.segment.persisted`.
+- **Assembler Mix:** Stack `live.pairs.generated` and `assemble.pairs.generated` using the `radar_metric_key` attribute to highlight protocol volume trends; pair with `protocol.http.bytes` / `protocol.tn3270.bytes` for payload depth.
+- **Persistence Latency:** Heatmap `live.persist.latencyNanos` quantiles with a single-value panel driven by `live.persist.latencyEmaNanos` to surface rolling averages.
+- **TN3270 Health:** Table `tn3270.sessions.active` (current) alongside rates for `tn3270.events.submit.count` and `tn3270.events.render.count` to catch sudden session churn.
+
+When using Prometheus/OTel Collector exporters, always group or filter by `radar_metric_key` to target the logical metric name regardless of sanitised instrument IDs.
 
 ---
 
 ## 9) Security & Privacy
-...
+- Avoid embedding payload contents or PII in metrics/logs. `Tn3270AssemblerAdapter` honours a redaction function for user inputs; extend it instead of logging raw fields.
+- Trace/span attributes should remain low-cardinality; never include account numbers, SINs, or session secrets.
+- `SegmentCaptureUseCase` and `AssembleUseCase` use MDC keys to reference flow identifiers; keep these high-level (IP:port) and scrub when threads exit.
+- Only expose environment metadata through `OTEL_RESOURCE_ATTRIBUTES` (e.g., `deployment.environment`, `region`). Do not pass credentials or tokens via resource attributes.
 
 ---
 
 ## 10) Migration Notes (if you already have logs/metrics)
-...
+- Pre-1.0 builds used ad-hoc counters; replace them with `OpenTelemetryMetricsAdapter` and update dashboards to group by `radar_metric_key`.
+- If you previously relied on `NoOpMetricsAdapter`, keep the same wiring--`OpenTelemetryBootstrap` respects `OTEL_METRICS_EXPORTER=none` so disabling telemetry still works.
+- Prometheus/Grafana dashboards should pivot to the new metric names (`live.persist.*`, `capture.segment.*`, `tn3270.parse.*`). Sanity-check alert rules after renaming.
+- Tests that stubbed metrics should switch to `RecordingMetrics` or `InMemoryMetricReader` utilities now that the SDK is part of the toolchain.
 
 ---
 
 ### Appendix A: Minimal Boot Example (Main)
 ```java
-... Java code here ...
+import ca.gc.cra.radar.application.port.SegmentPersistencePort;
+import ca.gc.cra.radar.application.pipeline.SegmentCaptureUseCase;
+import ca.gc.cra.radar.infrastructure.capture.Pcap4jPacketSource;
+import ca.gc.cra.radar.infrastructure.metrics.OpenTelemetryMetricsAdapter;
+import ca.gc.cra.radar.infrastructure.net.FrameDecoderLibpcap;
+
+public final class MinimalTelemetryDemo {
+  private MinimalTelemetryDemo() {}
+
+  public static void main(String[] args) throws Exception {
+    OpenTelemetryMetricsAdapter metrics = new OpenTelemetryMetricsAdapter();
+    Pcap4jPacketSource packetSource = new Pcap4jPacketSource(
+        "en0", 65535, true, 10, 4 * 1024 * 1024, true, null);
+    SegmentPersistencePort persistence = /* your persistence adapter */ null;
+
+    SegmentCaptureUseCase capture =
+        new SegmentCaptureUseCase(packetSource, new FrameDecoderLibpcap(), persistence, metrics);
+    capture.run(); // metrics + spans emit automatically via MetricsPort hooks
+  }
+}
 ```
+
+The CLI wiring (see `CapturePcap4jCli` and `CompositionRoot`) follows the same pattern: instantiate the adapter once, pass it through dependency construction, and let the periodic reader ship metrics to the configured collector.
 
 ---
 
