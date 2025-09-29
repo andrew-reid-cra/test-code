@@ -5,9 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
+### Added
+- _Nothing yet_
+
+## [1.0.0] - 2025-09-28
+### Added
+- Single YAML configuration flow shared across capture, live, assemble, and poster CLIs, with CLI overrides logged as WARN.
+- Configurable protocol default filters (`protocolDefaultFilter.*`) so operators can supply non-standard TN3270 ports.
+
 ### Changed
-- protocolDefaultFilter.* keys allow YAML-driven overrides for built-in BPF hints.
 - Test harnesses mute CLI and pipeline loggers during validation runs to keep `mvn verify` output signal-only.
+- Documentation refreshed to reference YAML-driven launches, including ops, developer, telemetry, and architecture guides.
+
 
 ## [0.3.0] - 2025-09-28
 ### Added
@@ -46,5 +55,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 - Legacy adapters and deprecated wiring replaced by the new capture/assembler implementation.
+
 
 

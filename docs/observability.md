@@ -207,11 +207,13 @@ service:
   ```bash
   otelcol --config otel-local.yaml
   ```
+- Copy `config/radar-example.yaml` to a working file (for example `./radar-telemetry.yaml`) and adjust metrics settings before launching the CLI.
 - **Invoke RADAR with metrics enabled (choose the CLI under test):**
   ```bash
-  java -cp target/RADAR-0.1.0-SNAPSHOT.jar \
-    ca.gc.cra.radar.api.Main capture \
-    iface=en0 metricsExporter=otlp \
+  java -cp target/RADAR-1.0.0.jar \
+    ca.gc.cra.radar.api.Main capture --config=./radar-telemetry.yaml \
+    iface=en0 \
+    metricsExporter=otlp \
     otelEndpoint=http://localhost:4317 \
     otelResourceAttributes=service.name=radar-capture,deployment.environment=dev
   ```
@@ -263,6 +265,8 @@ service:
 ---
 
 **This file is authoritative.** Any new code or refactor that touches hot paths must include corresponding OTel metrics/traces/logs as specified above. If in doubt, add the signal and document the rationale in the PR.
+
+
 
 
 

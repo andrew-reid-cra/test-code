@@ -5,7 +5,7 @@ Set OpenTelemetry environment variables (or CLI flags) before launching any CLI:
 ```bash
 export OTEL_METRICS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-export OTEL_RESOURCE_ATTRIBUTES=service.name=radar,deployment.environment=dev,service.version=0.1.0-SNAPSHOT
+export OTEL_RESOURCE_ATTRIBUTES=service.name=radar,deployment.environment=dev,service.version=1.0.0
 ```
 All CLIs honour inline overrides, for example `metricsExporter=otlp otelEndpoint=http://collector:4317`. Leaving the exporter unset disables metrics; production deployments must keep it enabled.
 
@@ -74,7 +74,7 @@ Every measurement includes the attribute `radar.metric.key=<original>` so dashbo
 2. Launch a pipeline with metrics enabled, for example:
    ```bash
    cp config/radar-example.yaml ./radar-telemetry.yaml
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-telemetry.yaml \
+   java -jar target/RADAR-1.0.0.jar capture --config=./radar-telemetry.yaml \
      pcapFile=fixtures/http_get.pcap \
      out=./tmp/capture \
      metricsExporter=otlp \
@@ -85,4 +85,5 @@ Every measurement includes the attribute `radar.metric.key=<original>` so dashbo
 5. When introducing a new metric, update this guide, add unit tests covering success and failure paths, and adjust dashboards/alerts before merging.
 
 Consistent telemetry is a release gate. Do not ship changes without updated documentation, tests, and monitoring assets.
+
 

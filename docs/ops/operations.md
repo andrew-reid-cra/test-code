@@ -8,30 +8,30 @@ packaged launcher) when running outside the source tree.
 ## Quick start commands
 
 ### Capture CLI (file mode)
+```bash
+radar capture --config=/etc/radar/capture.yaml
+# overrides are logged as WARN when they differ from YAML
+# example override: radar capture --config=/etc/radar/capture.yaml iface=ens3 persistWorkers=4
 ```
-radar capture iface=ens3 bpf="tcp port 443" out=/var/radar/segments rollMiB=512
-```
-- Creates `/var/radar/segments` if missing and rolls files after ~512 MiB.
-- Safe defaults: `snap=65535`, `bufmb=1024`, `timeout=1`, `promisc=true`, `immediate=true`.
-- Add `ioMode=KAFKA kafkaBootstrap=broker:9092 kafkaTopicSegments=radar.segments` to stream
-  segments directly to Kafka.
+- Ensure the YAML config points capture outputs at a writable directory (for example `/var/radar/segments`); the CLI will create it on demand.
+- Safe defaults are stored in YAML (`snaplen=65535`, `bufmb=1024`, `timeout=1`, `promisc=true`, `immediate=true`).
+- Configure Kafka destinations in YAML (`ioMode=KAFKA`, `kafkaBootstrap`, `kafkaTopicSegments`) when streaming segments.
 - Alternate path: run `radar capture-pcap4j ...` to benchmark the pcap4j adapter with identical flags and outputs.
 
 ### Assemble CLI (file mode)
+```bash
+radar assemble --config=/etc/radar/assemble.yaml
 ```
-radar assemble in=/var/radar/segments out=/var/radar/pairs httpOut=/var/radar/http tnOut=/var/radar/tn3270
-```
-- Reads files emitted by capture, reconstructs protocol pairs, and persists HTTP/TN3270 outputs.
-- Enable Kafka in/out with `ioMode=KAFKA kafkaBootstrap=broker:9092 kafkaSegmentsTopic=radar.segments`
-  plus `kafkaHttpPairsTopic` / `kafkaTnPairsTopic`.
+- Reads segment outputs defined in YAML, reconstructs protocol pairs, and persists HTTP/TN3270 outputs.
+- Enable Kafka flows by setting `ioMode=KAFKA`, `kafkaBootstrap`, and topic names in YAML (or via overrides).
 
 ### Poster CLI (inspection run)
+```bash
+radar poster --config=/etc/radar/poster.yaml
+# add protocol overrides per run, e.g. httpIn=..., posterOutMode=KAFKA
 ```
-radar poster httpIn=/var/radar/pairs/http httpOut=/var/radar/poster/http decode=transfer
-```
-- Renders human-readable HTTP transactions using local pairs.
-- Add `tnIn` / `tnOut` for TN3270, or switch to Kafka with `ioMode=KAFKA posterOutMode=KAFKA` and the
-  corresponding topic flags.
+- Renders human-readable HTTP transactions using the inputs defined in YAML.
+- Provide TN3270 inputs in YAML (`tnIn` / `tnOut`) or switch to Kafka with `ioMode=KAFKA` and `posterOutMode=KAFKA`.
 - Use `decode=all` to inflate both transfer- and content-encoded payloads.
 
 ## Logging and exit codes
@@ -53,6 +53,12 @@ wrapping the binaries today.
 
 ### Capture CLI flags
 
+```bash
+radar capture --config=/etc/radar/capture.yaml
+# overrides logged as WARN when they differ from YAML
+# e.g. radar capture --config=/etc/radar/capture.yaml iface=ens3 persistWorkers=4
+```
+
 | Flag | Default | Notes |
 |------|---------|-------|
 | `iface` | _required_ | Network interface name (e.g., `ens3`) |
@@ -68,6 +74,9 @@ wrapping the binaries today.
 
 ### Assemble CLI flags
 
+```bash
+radar assemble --config=/etc/radar/assemble.yaml
+
 | Flag | Default | Notes |
 |------|---------|-------|
 | `in` | _required_ | Capture segment directory or `kafka:<topic>`. |
@@ -79,6 +88,12 @@ wrapping the binaries today.
 | `kafkaBootstrap` | _required for Kafka_ | Comma-separated brokers. |
 
 ### Poster CLI flags
+
+```bash
+```
+radar poster --config=/etc/radar/poster.yaml
+# add protocol overrides per run, e.g. httpIn=..., posterOutMode=KAFKA
+```
 
 | Flag | Default | Notes |
 |------|---------|-------|
@@ -124,3 +139,7 @@ wrapping the binaries today.
   output directories and verify free space with `df -h`.
 - **Stale metrics**: restart the CLI after rotating logs?use shorter runs and external schedulers for
   continuous capture until the live orchestrator lands.
+
+
+
+

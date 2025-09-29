@@ -31,16 +31,16 @@ RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain
    ```bash
    cp config/radar-example.yaml ./radar-upgrade.yaml
 
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-upgrade.yaml \
+   java -jar target/RADAR-1.0.0.jar capture --config=./radar-upgrade.yaml \
      pcapFile=/path/sample.pcap \
      out=./out \
      --allow-overwrite
 
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=./radar-upgrade.yaml \
+   java -jar target/RADAR-1.0.0.jar assemble --config=./radar-upgrade.yaml \
      in=./out \
      out=./pairs
 
-   java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=./radar-upgrade.yaml \
+   java -jar target/RADAR-1.0.0.jar poster --config=./radar-upgrade.yaml \
      httpIn=./pairs/http \
      httpOut=./reports/http
    ```
@@ -71,4 +71,5 @@ RADAR follows [Semantic Versioning](https://semver.org/). Patch releases contain
 - [ ] `CHANGELOG.md` includes entries for your changes.
 
 Report regressions with sample pcaps, sanitized logs, and metric snapshots. Coordinate with maintainers on mitigation for any breaking changes.
+
 

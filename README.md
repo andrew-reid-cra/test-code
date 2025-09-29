@@ -20,7 +20,7 @@ mvn -q -DskipTests=false verify
 cp config/radar-example.yaml ./radar-local.yaml
 
 # run (offline pcap -> file sink, CLI overrides still win)
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=./radar-local.yaml \
+java -jar target/RADAR-1.0.0.jar capture --config=./radar-local.yaml \
   pcapFile=/path/to/input.pcap \
   out=/tmp/radar/out \
   persistWorkers=6 \
@@ -113,6 +113,7 @@ All pipelines emit OpenTelemetry metrics, spans, and logs through the `MetricsPo
 
 ## Support and Security
 Report issues with sanitized logs, redacted payloads, and configuration snippets only; never share live packet captures or secrets. Escalate security concerns privately to maintainers. Configure credentials (Kafka, collectors, storage) through environment variables or secret stores rather than embedding them in configuration files or documentation.
+
 
 
 

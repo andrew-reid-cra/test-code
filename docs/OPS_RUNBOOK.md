@@ -57,7 +57,7 @@ Use this mode when the capture host cannot run heavy assembly/poster workloads o
 
 ```bash
 # 1. Capture segments to disk
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.yaml \
+java -jar target/RADAR-1.0.0.jar capture --config=/etc/radar/capture.yaml \
   ioMode=FILE \
   iface=ens5 \
   out=/var/lib/radar/capture/segments \
@@ -66,7 +66,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.ya
   otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
 
 # 2. Assemble segments into message pairs
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.yaml \
+java -jar target/RADAR-1.0.0.jar assemble --config=/etc/radar/assemble.yaml \
   ioMode=FILE \
   in=/var/lib/radar/capture/segments \
   out=/var/lib/radar/assemble/pairs \
@@ -75,7 +75,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.
   otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
 
 # 3. Poster renders for analysts
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=/etc/radar/poster.yaml \
+java -jar target/RADAR-1.0.0.jar poster --config=/etc/radar/poster.yaml \
   ioMode=FILE \
   posterOutMode=FILE \
   httpIn=/var/lib/radar/assemble/pairs/http \
@@ -98,7 +98,7 @@ Choose Kafka when multiple assemblers/posters need to consume the same traffic o
 
 ```bash
 # 1. Capture directly to Kafka topics
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.yaml \
+java -jar target/RADAR-1.0.0.jar capture --config=/etc/radar/capture.yaml \
   ioMode=KAFKA \
   iface=ens5 \
   out=/var/lib/radar/capture/segments \
@@ -109,7 +109,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar capture --config=/etc/radar/capture.ya
   otelResourceAttributes=service.name=radar-capture,deployment.environment=prod
 
 # 2. Assemble from the Kafka segment stream
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.yaml \
+java -jar target/RADAR-1.0.0.jar assemble --config=/etc/radar/assemble.yaml \
   ioMode=KAFKA \
   in=kafka:radar.capture.segments \
   kafkaBootstrap=broker1:9092,broker2:9092 \
@@ -122,7 +122,7 @@ java -jar target/RADAR-0.1.0-SNAPSHOT.jar assemble --config=/etc/radar/assemble.
   otelResourceAttributes=service.name=radar-assemble,deployment.environment=prod
 
 # 3. Poster pushes renders back to Kafka
-java -jar target/RADAR-0.1.0-SNAPSHOT.jar poster --config=/etc/radar/poster.yaml \
+java -jar target/RADAR-1.0.0.jar poster --config=/etc/radar/poster.yaml \
   ioMode=KAFKA \
   posterOutMode=KAFKA \
   kafkaBootstrap=broker1:9092,broker2:9092 \
@@ -236,6 +236,7 @@ Additional guidance:
 - **Queue depth stuck at zero**: Check NIC permissions and confirm `capture.segment.persisted` increments; inspect capture logs for adapter issues.
 
 Keep dashboards, alerts, and this runbook aligned with every deployment. Update thresholds whenever pipeline characteristics change.
+
 
 
 
