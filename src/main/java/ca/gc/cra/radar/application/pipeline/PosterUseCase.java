@@ -86,34 +86,38 @@ public final class PosterUseCase {
    */
   public void run(PosterConfig config) throws Exception {
     Objects.requireNonNull(config, "config");
-    List<Callable<Void>> tasks = new ArrayList<>();
-
-    addTask(tasks, ProtocolId.HTTP, config.http(), config);
-    addTask(tasks, ProtocolId.TN3270, config.tn3270(), config);
+    List<Callable<Void>> tasks = buildTasks(config);
 
     if (tasks.isEmpty()) {
       throw new IllegalArgumentException("poster: no protocol inputs configured");
     }
 
     if (tasks.size() == 1) {
-      tasks.get(0).call();
+      executeSingle(tasks.get(0));
       return;
     }
 
+    executeInParallel(tasks);
+  }
+
+  private List<Callable<Void>> buildTasks(PosterConfig config) {
+    List<Callable<Void>> tasks = new ArrayList<>();
+
+    addTask(tasks, ProtocolId.HTTP, config.http(), config);
+    addTask(tasks, ProtocolId.TN3270, config.tn3270(), config);
+
+    return tasks;
+  }
+
+  private void executeSingle(Callable<Void> task) throws Exception {
+    task.call();
+  }
+
+  private void executeInParallel(List<Callable<Void>> tasks) throws Exception {
     ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
     try {
       List<Future<Void>> futures = executor.invokeAll(tasks);
-      for (Future<Void> future : futures) {
-        try {
-          future.get();
-        } catch (ExecutionException ex) {
-          Throwable cause = ex.getCause();
-          if (cause instanceof Exception exception) {
-            throw exception;
-          }
-          throw new RuntimeException(cause);
-        }
-      }
+      rethrowFromFutures(futures);
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
       log.warn("Poster pipelines interrupted; requesting shutdown");
@@ -122,6 +126,20 @@ public final class PosterUseCase {
     } finally {
       executor.shutdown();
       log.info("Poster worker pool shutdown initiated");
+    }
+  }
+
+  private void rethrowFromFutures(List<Future<Void>> futures) throws Exception {
+    for (Future<Void> future : futures) {
+      try {
+        future.get();
+      } catch (ExecutionException ex) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof Exception exception) {
+          throw exception;
+        }
+        throw new RuntimeException(cause);
+      }
     }
   }
 
