@@ -14,15 +14,15 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>21</maven.compiler.release>
     <junit.jupiter.version>6.0.0</junit.jupiter.version>
-    <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
-    <maven.javadoc.plugin.version>3.6.3</maven.javadoc.plugin.version>
-    <maven.checkstyle.plugin.version>3.3.1</maven.checkstyle.plugin.version>
-    <maven.surefire.plugin.version>3.1.2</maven.surefire.plugin.version>
-    <maven.failsafe.plugin.version>3.1.2</maven.failsafe.plugin.version>
-    <jacoco.plugin.version>0.8.10</jacoco.plugin.version>
-    <maven.site.plugin.version>3.12.1</maven.site.plugin.version>
-    <maven.surefire.report.plugin.version>3.1.2</maven.surefire.report.plugin.version>
-    <maven.project.info.reports.plugin.version>3.4.2</maven.project.info.reports.plugin.version>
+    <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
+    <maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
+    <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
+    <maven.surefire.plugin.version>3.5.4</maven.surefire.plugin.version>
+    <maven.failsafe.plugin.version>3.5.4</maven.failsafe.plugin.version>
+    <jacoco.plugin.version>0.8.13</jacoco.plugin.version>
+    <maven.site.plugin.version>3.21.0</maven.site.plugin.version>
+    <maven.surefire.report.plugin.version>3.5.4</maven.surefire.report.plugin.version>
+    <maven.project.info.reports.plugin.version>3.9.0</maven.project.info.reports.plugin.version>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <slf4j.version>2.0.17</slf4j.version>
     <logback.version>1.5.18</logback.version>
@@ -378,7 +378,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>3.4.0</version>
+            <version>3.6.1</version>
             <executions>
               <execution>
                 <id>add-benchmark-sources</id>
@@ -397,7 +397,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>3.1.0</version>
+            <version>3.6.0</version>
             <configuration>
               <classpathScope>test</classpathScope>
               <includeProjectDependencies>true</includeProjectDependencies>
