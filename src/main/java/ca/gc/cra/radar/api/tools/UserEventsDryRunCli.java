@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class UserEventsDryRunCli {
   private static final Logger log = LoggerFactory.getLogger(UserEventsDryRunCli.class);
+  private static final String SAMPLE_PREFIX = "Sample ";
   private static final String SUMMARY_USAGE =
       "usage: user-events [rules=config/user-events.yaml] [samples=dev/samples/http]";
   private static final String HELP_TEXT = """
@@ -117,15 +118,15 @@ public final class UserEventsDryRunCli {
         totalSamples.incrementAndGet();
         HttpExchangeContext exchange = HttpExchangeBuilder.from(sample.pair()).orElse(null);
         if (exchange == null) {
-          CliPrinter.println("Sample " + sample.name() + ": unable to parse HTTP request/response");
+          CliPrinter.println(SAMPLE_PREFIX + sample.name() + ": unable to parse HTTP request/response");
           continue;
         }
         List<RuleMatchResult> matches = engine.evaluate(exchange);
         if (matches.isEmpty()) {
-          CliPrinter.println("Sample " + sample.name() + ": no matching rules");
+          CliPrinter.println(SAMPLE_PREFIX + sample.name() + ": no matching rules");
           continue;
         }
-        CliPrinter.println("Sample " + sample.name() + ": " + matches.size() + " match(es)");
+        CliPrinter.println(SAMPLE_PREFIX + sample.name() + ": " + matches.size() + " match(es)");
         for (RuleMatchResult match : matches) {
           UserEvent event = UserEventAssembler.build(engine, exchange, match, sessionResolver);
           totalMatches.incrementAndGet();

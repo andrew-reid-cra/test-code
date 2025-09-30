@@ -276,35 +276,24 @@ public final class HttpKafkaPersistenceAdapter implements PersistencePort {
     }
   }
 
-
-
-
-
-
-
-
-
-private static String escape(String value) {
-  if (value == null) {
-    return "";
-  }
-  StringBuilder sb = new StringBuilder(value.length());
-  for (int i = 0; i < value.length(); i++) {
-    char c = value.charAt(i);
-    if (c == 92 || c == 34) {
-      sb.append((char) 92).append(c);
-    } else if (c == 10) {
-      sb.append("\n");
-    } else if (c == 13) {
-      sb.append("\r");
-    } else if (c == 9) {
-      sb.append("\t");
-    } else {
-      sb.append(c);
+  private static String escape(String value) {
+    if (value == null) {
+      return "";
     }
+    StringBuilder sb = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      String escaped = switch (c) {
+        case '\\', '\"' -> "\\" + c;
+        case '\n' -> "\\n";
+        case '\r' -> "\\r";
+        case '\t' -> "\\t";
+        default -> String.valueOf(c);
+      };
+      sb.append(escaped);
+    }
+    return sb.toString();
   }
-  return sb.toString();
-}
 
 private static String sanitizeTopic(String topic) {
     return Strings.sanitizeTopic("httpKafkaTopic", topic);

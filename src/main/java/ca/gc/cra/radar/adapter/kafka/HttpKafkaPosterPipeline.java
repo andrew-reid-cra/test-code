@@ -40,6 +40,9 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * @since RADAR 0.1-doc
  */
 public final class HttpKafkaPosterPipeline implements PosterPipeline {
+  private static final String HEADER_CONTENT_LENGTH = "Content-Length";
+  private static final String HEADER_CONTENT_ENCODING = "Content-Encoding";
+  private static final String HEADER_TRANSFER_ENCODING = "Transfer-Encoding";
   private final String bootstrapServers;
   private final Supplier<Consumer<String, String>> consumerSupplier;
 
@@ -384,7 +387,9 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     }
     sb.append('\n');
     appendBody(sb, decoded.body());
-  }  private static HttpMessage decodeHttpMessage(HttpMessage message, PosterConfig.DecodeMode mode) {
+  }
+
+  private static HttpMessage decodeHttpMessage(HttpMessage message, PosterConfig.DecodeMode mode) {
     if (message == null || message.body().length == 0) {
       return message;
     }
@@ -392,29 +397,29 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     byte[] workingBody = originalBody;
     Map<String, String> headerMap = new LinkedHashMap<>(headerMap(message.headers()));
     if (mode.decodeTransferEncoding()) {
-      String transfer = headerMap.getOrDefault("Transfer-Encoding", "");
+      String transfer = headerMap.getOrDefault(HEADER_TRANSFER_ENCODING, "");
       if (!transfer.isBlank() && transfer.toLowerCase(Locale.ROOT).contains("chunked")) {
         try {
           workingBody = decodeChunked(workingBody);
-          headerMap.remove("Transfer-Encoding");
-          headerMap.put("Content-Length", Integer.toString(workingBody.length));
+          headerMap.remove(HEADER_TRANSFER_ENCODING);
+          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
         } catch (Exception ignore) {
           workingBody = originalBody;
         }
       }
     }
     if (mode.decodeContentEncoding()) {
-      String encoding = headerMap.getOrDefault("Content-Encoding", "");
+      String encoding = headerMap.getOrDefault(HEADER_CONTENT_ENCODING, "");
       String lower = encoding.toLowerCase(Locale.ROOT);
       try {
         if (lower.contains("gzip")) {
           workingBody = decodeGzip(workingBody);
-          headerMap.remove("Content-Encoding");
-          headerMap.put("Content-Length", Integer.toString(workingBody.length));
+          headerMap.remove(HEADER_CONTENT_ENCODING);
+          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
         } else if (lower.contains("deflate")) {
           workingBody = decodeDeflate(workingBody);
-          headerMap.remove("Content-Encoding");
-          headerMap.put("Content-Length", Integer.toString(workingBody.length));
+          headerMap.remove(HEADER_CONTENT_ENCODING);
+          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
         }
       } catch (Exception ignore) {
         workingBody = originalBody;

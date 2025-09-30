@@ -112,6 +112,7 @@ public final class AssembleUseCase {
     MDC.put("assemble.in", config.inputDirectory().toString());
     long segmentCount = 0;
     long pairCount = 0;
+    Exception cleanupFailure = null;
     try (PersistencePort sink = this.persistence;
          SegmentRecordReader reader = readerFactory.open(config)) {
       log.info("Assemble pipeline reading from {}", config.inputDirectory());
@@ -143,30 +144,37 @@ public final class AssembleUseCase {
       log.error("Assemble pipeline failed after processing {} segments", segmentCount, ex);
       throw ex;
     } finally {
-      Exception closeFailure = null;
-      try {
-        flowEngine.close();
-        log.info("Assemble flow engine closed");
-      } catch (Exception ex) {
-        log.error("Failed to close assemble flow engine", ex);
-        closeFailure = ex;
-      }
-      if (tnAssembler != null) {
-        try {
-          tnAssembler.close();
-          log.info("Assemble TN3270 assembler closed");
-        } catch (Exception assemblerCloseFailure) {
-          log.error("Failed to close assemble TN3270 assembler", assemblerCloseFailure);
-          if (closeFailure == null) {
-            closeFailure = assemblerCloseFailure;
-          }
-        }
-      }
-      if (closeFailure != null) {
-        throw closeFailure;
-      }
+      cleanupFailure = closeResources();
       MDC.remove("assemble.in");
     }
+    if (cleanupFailure != null) {
+      throw cleanupFailure;
+    }
+  }
+
+  private Exception closeResources() {
+    Exception closeFailure = null;
+    try {
+      flowEngine.close();
+      log.info("Assemble flow engine closed");
+    } catch (Exception ex) {
+      log.error("Failed to close assemble flow engine", ex);
+      closeFailure = ex;
+    }
+    if (tnAssembler != null) {
+      try {
+        tnAssembler.close();
+        log.info("Assemble TN3270 assembler closed");
+      } catch (Exception assemblerCloseFailure) {
+        log.error("Failed to close assemble TN3270 assembler", assemblerCloseFailure);
+        if (closeFailure == null) {
+          closeFailure = assemblerCloseFailure;
+        } else {
+          closeFailure.addSuppressed(assemblerCloseFailure);
+        }
+      }
+    }
+    return closeFailure;
   }
 
   private void processAssembler(MessagePair pair) throws Exception {

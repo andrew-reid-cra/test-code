@@ -4,7 +4,6 @@ import ca.gc.cra.radar.application.events.http.HttpExchangeContext;
 import ca.gc.cra.radar.application.events.http.HttpRequestContext;
 import ca.gc.cra.radar.application.events.http.HttpResponseContext;
 import ca.gc.cra.radar.application.events.json.JsonPathExpression;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -103,7 +102,7 @@ final class CompiledRule {
     }
 
     for (BodyMatcher matcher : bodyMatchers) {
-      if (!matcher.matches(exchange, bodies)) {
+      if (!matcher.matches(bodies)) {
         return Optional.empty();
       }
     }
@@ -301,7 +300,7 @@ final class CompiledRule {
       this.requiresJson = jsonPredicates.stream().anyMatch(JsonPredicate::requiresJson);
     }
 
-    boolean matches(HttpExchangeContext exchange, BodyContentCache bodies) {
+    boolean matches(BodyContentCache bodies) {
       if (contains != null || regex != null) {
         Optional<String> body = target == BodyTarget.REQUEST
             ? bodies.requestBodyString()
