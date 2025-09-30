@@ -44,26 +44,56 @@ public final class HttpResponseContext {
     this.timestampMicros = timestampMicros;
   }
 
+  /**
+   * Returns the HTTP status code emitted by the server.
+   *
+   * @return status code or a negative value when unavailable
+   */
   public int status() {
     return status;
   }
 
+  /**
+   * Provides the optional HTTP reason phrase.
+   *
+   * @return textual reason or {@code null} when not supplied on the wire
+   */
   public String reason() {
     return reason;
   }
 
+  /**
+   * Returns the HTTP version token associated with the response.
+   *
+   * @return HTTP version value such as {@code HTTP/1.1}
+   */
   public String httpVersion() {
     return httpVersion;
   }
 
+  /**
+   * Provides a case-insensitive view of the response headers.
+   *
+   * @return immutable header map keyed in lower case with ordered values
+   */
   public Map<String, List<String>> headers() {
     return headers;
   }
 
+  /**
+   * Supplies the lazily decoded response body.
+   *
+   * @return body view capable of exposing bytes, text, or JSON on demand
+   */
   public HttpBodyView body() {
     return body;
   }
 
+  /**
+   * Provides the capture timestamp measured in microseconds since the epoch.
+   *
+   * @return microsecond-resolution timestamp associated with the response
+   */
   public long timestampMicros() {
     return timestampMicros;
   }

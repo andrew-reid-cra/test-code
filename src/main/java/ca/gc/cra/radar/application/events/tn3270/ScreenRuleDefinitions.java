@@ -59,6 +59,15 @@ public final class ScreenRuleDefinitions {
       LabelExtraction labelExtraction,
       UserIdExtraction userIdExtraction) {
 
+    /**
+     * Validates required metadata and performs defensive copying of nested collections.
+     *
+     * @param id unique identifier for the rule; never {@code null}
+     * @param description optional human-readable description; may be {@code null}
+     * @param matches ordered match predicates that must all succeed; never {@code null}
+     * @param labelExtraction configuration describing how to capture the screen label; never {@code null}
+     * @param userIdExtraction optional configuration describing how to capture the operator id; may be {@code null}
+     */
     public ScreenRule {
       id = Objects.requireNonNull(id, "id");
       matches = List.copyOf(Objects.requireNonNull(matches, "matches"));
@@ -75,6 +84,14 @@ public final class ScreenRuleDefinitions {
    * @param ignoreCase whether comparison should be case-insensitive
    */
   public record MatchCondition(Position position, String equals, boolean trim, boolean ignoreCase) {
+    /**
+     * Ensures match predicates reference valid positions and immutable expectations.
+     *
+     * @param position location metadata
+     * @param equals expected value extracted from the position; never {@code null}
+     * @param trim whether leading/trailing whitespace should be trimmed before comparison
+     * @param ignoreCase whether comparison should be case-insensitive
+     */
     public MatchCondition {
       position = Objects.requireNonNull(position, "position");
       equals = Objects.requireNonNull(equals, "equals");
@@ -88,6 +105,12 @@ public final class ScreenRuleDefinitions {
    * @param trim whether to trim the captured text
    */
   public record LabelExtraction(Position position, boolean trim) {
+    /**
+     * Validates extraction configuration for terminal labels.
+     *
+     * @param position region to capture
+     * @param trim whether to trim the captured text
+     */
     public LabelExtraction {
       position = Objects.requireNonNull(position, "position");
     }
@@ -100,6 +123,12 @@ public final class ScreenRuleDefinitions {
    * @param trim whether to trim the captured text
    */
   public record UserIdExtraction(Position position, boolean trim) {
+    /**
+     * Validates extraction configuration for operator identifiers.
+     *
+     * @param position region to capture
+     * @param trim whether to trim the captured text
+     */
     public UserIdExtraction {
       position = Objects.requireNonNull(position, "position");
     }
@@ -113,6 +142,13 @@ public final class ScreenRuleDefinitions {
    * @param length number of columns to capture; must be {@code >= 1}
    */
   public record Position(int row, int column, int length) {
+    /**
+     * Validates the provided coordinates to ensure they refer to a real screen region.
+     *
+     * @param row one-based row index; must be {@code >= 1}
+     * @param column one-based column index; must be {@code >= 1}
+     * @param length number of columns to capture; must be {@code >= 1}
+     */
     public Position {
       if (row < 1) {
         throw new IllegalArgumentException("row must be >= 1 (was " + row + ')');

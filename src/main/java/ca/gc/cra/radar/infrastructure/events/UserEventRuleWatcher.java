@@ -30,6 +30,14 @@ public final class UserEventRuleWatcher {
   private volatile long nextCheckAt;
   private Map<Path, FileTime> lastSnapshot;
 
+  /**
+   * Creates a watcher that polls rule files using the default refresh interval.
+   *
+   * @param rulePaths ordered list of rule files to monitor
+   * @param provider loader responsible for compiling rule files
+   * @param engine target engine that should receive updated rule sets
+   * @param log logger used for operational visibility
+   */
   public UserEventRuleWatcher(
       List<Path> rulePaths,
       UserEventRuleSetProvider provider,
@@ -38,6 +46,15 @@ public final class UserEventRuleWatcher {
     this(rulePaths, provider, engine, log, DEFAULT_INTERVAL_MILLIS);
   }
 
+  /**
+   * Creates a watcher with a caller-specified polling interval.
+   *
+   * @param rulePaths ordered list of rule files to monitor
+   * @param provider loader responsible for compiling rule files
+   * @param engine target engine that should receive updated rule sets
+   * @param log logger used for operational visibility
+   * @param intervalMillis minimum interval between successive checks in milliseconds
+   */
   public UserEventRuleWatcher(
       List<Path> rulePaths,
       UserEventRuleSetProvider provider,
@@ -84,6 +101,12 @@ public final class UserEventRuleWatcher {
     }
   }
 
+  /**
+   * Checks whether the rule file snapshot differs from the previous execution.
+   *
+   * @param current freshly captured file timestamps
+   * @return {@code true} when any file count or modification time differs
+   */
   private boolean hasChanged(Map<Path, FileTime> current) {
     if (current.size() != lastSnapshot.size()) {
       return true;
@@ -97,6 +120,11 @@ public final class UserEventRuleWatcher {
     return false;
   }
 
+  /**
+   * Captures the current last-modified timestamps for every tracked rule file.
+   *
+   * @return mutable map of file timestamps (missing files are skipped)
+   */
   private Map<Path, FileTime> snapshot() {
     Map<Path, FileTime> snapshot = new HashMap<>();
     for (Path path : rulePaths) {

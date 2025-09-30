@@ -58,6 +58,11 @@ public final class UserEventRuleEngine {
     return ruleSet == null ? null : ruleSet.defaults();
   }
 
+  /**
+   * Indicates whether at least one rule is currently active.
+   *
+   * @return {@code true} when a non-empty rule set has been loaded
+   */
   public boolean hasRules() {
     CompiledRuleSet ruleSet = current.get();
     return ruleSet != null && !ruleSet.isEmpty();

@@ -26,10 +26,20 @@ public final class HttpExchangeContext {
         : Math.max(0L, response.timestampMicros() - request.timestampMicros());
   }
 
+  /**
+   * Returns the request context that triggered the exchange.
+   *
+   * @return immutable request metadata captured from the reconstructed session
+   */
   public HttpRequestContext request() {
     return request;
   }
 
+  /**
+   * Returns the response context when the server reply was captured.
+   *
+   * @return immutable response metadata or {@code null} when unavailable
+   */
   public HttpResponseContext response() {
     return response;
   }
@@ -44,6 +54,8 @@ public final class HttpExchangeContext {
   }
 
   /**
+   * Indicates whether the exchange contains a reconstructed server response.
+   *
    * @return {@code true} when a response was reconstructed
    */
   public boolean hasResponse() {

@@ -72,54 +72,119 @@ public final class HttpRequestContext {
     this.timestampMicros = timestampMicros;
   }
 
+  /**
+   * Returns the HTTP method token exactly as reconstructed from the wire.
+   *
+   * @return method such as {@code GET}, {@code POST}, etc.
+   */
   public String method() {
     return method;
   }
 
+  /**
+   * Provides the normalized request path with any query component removed.
+   *
+   * @return canonical request path beginning with a forward slash
+   */
   public String path() {
     return path;
   }
 
+  /**
+   * Exposes the raw request target, including query string if present.
+   *
+   * @return original request target exactly as it appeared on the wire
+   */
   public String rawTarget() {
     return rawTarget;
   }
 
+  /**
+   * Returns the HTTP version token negotiated for the request.
+   *
+   * @return HTTP version value such as {@code HTTP/1.1}
+   */
   public String httpVersion() {
     return httpVersion;
   }
 
+  /**
+   * Provides a case-insensitive view of the request headers.
+   *
+   * @return immutable header map keyed in lower case with ordered values
+   */
   public Map<String, List<String>> headers() {
     return headers;
   }
 
+  /**
+   * Returns cookies extracted from the {@code Cookie} header.
+   *
+   * @return immutable map of cookie names to values
+   */
   public Map<String, String> cookies() {
     return cookies;
   }
 
+  /**
+   * Provides normalized query parameters captured during parsing.
+   *
+   * @return immutable map of lower-cased query parameter names to first values
+   */
   public Map<String, String> query() {
     return query;
   }
 
+  /**
+   * Supplies the lazily decoded request body.
+   *
+   * @return body view capable of exposing bytes, text, or JSON on demand
+   */
   public HttpBodyView body() {
     return body;
   }
 
+  /**
+   * Returns the originating client IP address.
+   *
+   * @return normalized textual representation of the source IP
+   */
   public String clientIp() {
     return clientIp;
   }
 
+  /**
+   * Returns the originating client port.
+   *
+   * @return TCP/UDP source port used for the request
+   */
   public int clientPort() {
     return clientPort;
   }
 
+  /**
+   * Returns the server IP address that received the request.
+   *
+   * @return target IP address
+   */
   public String serverIp() {
     return serverIp;
   }
 
+  /**
+   * Returns the server port that handled the request.
+   *
+   * @return TCP/UDP destination port
+   */
   public int serverPort() {
     return serverPort;
   }
 
+  /**
+   * Provides the capture timestamp measured in microseconds since the epoch.
+   *
+   * @return microsecond-resolution timestamp associated with the request
+   */
   public long timestampMicros() {
     return timestampMicros;
   }

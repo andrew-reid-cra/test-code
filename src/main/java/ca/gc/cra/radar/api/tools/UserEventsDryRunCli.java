@@ -58,6 +58,16 @@ public final class UserEventsDryRunCli {
 
   private UserEventsDryRunCli() {}
 
+  /**
+   * Executes the dry-run workflow for user event rules.
+   *
+   * <p>Parses command-line options, loads the requested rule files, builds sample HTTP exchanges,
+   * and prints any generated user events. The CLI returns a non-zero exit code whenever the
+   * supplied arguments are invalid or an unrecoverable IO error occurs.
+   *
+   * @param args raw CLI arguments supplied by the launcher
+   * @return success or failure exit code communicated to the invoking shell
+   */
   public static ExitCode run(String[] args) {
     CliInput input = CliInput.parse(args);
     if (input.help()) {
@@ -130,6 +140,12 @@ public final class UserEventsDryRunCli {
     }
   }
 
+  /**
+   * Formats a matched user event into a single descriptive log line.
+   *
+   * @param event user event produced by the rule engine
+   * @return human-readable summary showing rule id, event type, and key attributes
+   */
   private static String formatEvent(UserEvent event) {
     StringBuilder sb = new StringBuilder("  - ")
         .append(event.ruleId())
@@ -150,6 +166,16 @@ public final class UserEventsDryRunCli {
     return sb.toString();
   }
 
+  /**
+   * Expands the supplied rules argument into an ordered list of files to load.
+   *
+   * <p>When no explicit value is provided, the method falls back to the default RADAR
+   * configuration locations. Any missing file triggers an {@link IllegalArgumentException} so the
+   * CLI can report the issue to the operator.
+   *
+   * @param raw raw argument value extracted from the CLI key-value pairs
+   * @return list of existing rule files ready for compilation
+   */
   private static List<Path> resolveRulePaths(String raw) {
     List<Path> paths = new ArrayList<>();
     if (raw == null || raw.isBlank()) {
@@ -179,6 +205,12 @@ public final class UserEventsDryRunCli {
     return paths;
   }
 
+  /**
+   * Resolves the directory holding sample HTTP request/response pairs.
+   *
+   * @param raw argument value pointing to the desired directory
+   * @return existing directory path, absolute when the supplied value does not resolve directly
+   */
   private static Path resolveSamplesDir(String raw) {
     Path path = Path.of(raw);
     if (Files.isDirectory(path)) {
@@ -187,6 +219,13 @@ public final class UserEventsDryRunCli {
     return path.toAbsolutePath();
   }
 
+  /**
+   * Reads sample files from disk and pairs matching request/response documents.
+   *
+   * @param directory directory containing <name>-request.txt and <name>-response.txt resources
+   * @return ordered list of samples; responses are optional when a file is missing
+   * @throws IOException when the sample directory cannot be traversed
+   */
   private static List<Sample> loadSamples(Path directory) throws IOException {
     Map<String, Path> requests = new TreeMap<>();
     Map<String, Path> responses = new TreeMap<>();
@@ -210,6 +249,16 @@ public final class UserEventsDryRunCli {
     return samples;
   }
 
+  /**
+   * Constructs a synthetic message pair used by the assembler to mimic live traffic.
+   *
+   * <p>The helper reuses a loopback five-tuple because samples originate from disk and not the
+   * network capture pipeline.
+   *
+   * @param requestPath path to the HTTP request payload snippet
+   * @param responsePath optional path to the HTTP response payload snippet
+   * @return message pair wrapping byte streams ready for rule evaluation
+   */
   private static MessagePair buildPair(Path requestPath, Path responsePath) {
     try {
       byte[] requestBytes = Files.readAllBytes(requestPath);
@@ -228,5 +277,8 @@ public final class UserEventsDryRunCli {
     }
   }
 
+  /**
+   * Pairing of a logical sample identifier with the reconstructed message pair.
+   */
   private record Sample(String name, MessagePair pair) {}
 }
