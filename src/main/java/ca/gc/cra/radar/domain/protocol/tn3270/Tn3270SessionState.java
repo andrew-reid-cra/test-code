@@ -504,6 +504,9 @@ public final class Tn3270SessionState {
       byte[] buffer,
       List<FieldMeta> fields,
       String lastScreenHash) {
+    /**
+     * Creates a snapshot and defensively copies mutable data.
+     */
     public PartitionSnapshot {
       attributes = attributes != null ? attributes.clone() : new byte[0];
       buffer = buffer != null ? buffer.clone() : new byte[0];
@@ -553,3 +556,4 @@ public final class Tn3270SessionState {
     }
   }
 }
+

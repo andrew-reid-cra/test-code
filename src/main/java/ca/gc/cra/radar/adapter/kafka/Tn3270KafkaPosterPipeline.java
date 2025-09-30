@@ -413,7 +413,6 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
           + '}';
     }
   }
-  }
 
   private record TnPair(
       String txId,
@@ -424,6 +423,7 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       BinaryMessage request,
       BinaryMessage response) {}
 }
+
 
 
 
