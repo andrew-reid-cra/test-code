@@ -71,42 +71,57 @@ public final class Tn3270Hashes {
     switch (tail) {
       case 15:
         k2 ^= (long) (data[tailStart + 14] & 0xFF) << 48;
+        // fall through
       case 14:
         k2 ^= (long) (data[tailStart + 13] & 0xFF) << 40;
+        // fall through
       case 13:
         k2 ^= (long) (data[tailStart + 12] & 0xFF) << 32;
+        // fall through
       case 12:
         k2 ^= (long) (data[tailStart + 11] & 0xFF) << 24;
+        // fall through
       case 11:
         k2 ^= (long) (data[tailStart + 10] & 0xFF) << 16;
+        // fall through
       case 10:
         k2 ^= (long) (data[tailStart + 9] & 0xFF) << 8;
+        // fall through
       case 9:
         k2 ^= (long) (data[tailStart + 8] & 0xFF);
         k2 *= c2;
         k2 = Long.rotateLeft(k2, 33);
         k2 *= c1;
         h2 ^= k2;
+        // fall through
       case 8:
         k1 ^= (long) (data[tailStart + 7] & 0xFF) << 56;
+        // fall through
       case 7:
         k1 ^= (long) (data[tailStart + 6] & 0xFF) << 48;
+        // fall through
       case 6:
         k1 ^= (long) (data[tailStart + 5] & 0xFF) << 40;
+        // fall through
       case 5:
         k1 ^= (long) (data[tailStart + 4] & 0xFF) << 32;
+        // fall through
       case 4:
         k1 ^= (long) (data[tailStart + 3] & 0xFF) << 24;
+        // fall through
       case 3:
         k1 ^= (long) (data[tailStart + 2] & 0xFF) << 16;
+        // fall through
       case 2:
         k1 ^= (long) (data[tailStart + 1] & 0xFF) << 8;
+        // fall through
       case 1:
         k1 ^= (long) (data[tailStart] & 0xFF);
         k1 *= c1;
         k1 = Long.rotateLeft(k1, 31);
         k1 *= c2;
         h1 ^= k1;
+        // fall through
       default:
     }
 
