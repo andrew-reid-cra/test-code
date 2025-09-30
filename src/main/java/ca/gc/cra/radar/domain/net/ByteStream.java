@@ -36,13 +36,17 @@ public record ByteStream(FiveTuple flow, boolean fromClient, byte[] data, long t
     if (this == o) {
       return true;
     }
-    if (!(o instanceof ByteStream that)) {
+    if (!(o instanceof ByteStream(
+        FiveTuple otherFlow,
+        boolean otherFromClient,
+        byte[] otherData,
+        long otherTimestamp))) {
       return false;
     }
-    return fromClient == that.fromClient()
-        && timestampMicros == that.timestampMicros()
-        && Objects.equals(flow, that.flow())
-        && Arrays.equals(data, that.data());
+    return fromClient == otherFromClient
+        && timestampMicros == otherTimestamp
+        && Objects.equals(flow, otherFlow)
+        && Arrays.equals(data, otherData);
   }
 
   @Override

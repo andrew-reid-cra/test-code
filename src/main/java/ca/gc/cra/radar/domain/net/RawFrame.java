@@ -31,11 +31,11 @@ public record RawFrame(byte[] data, long timestampMicros) {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof RawFrame that)) {
+    if (!(o instanceof RawFrame(byte[] otherData, long otherTimestamp))) {
       return false;
     }
-    return timestampMicros == that.timestampMicros()
-        && Arrays.equals(data, that.data());
+    return timestampMicros == otherTimestamp
+        && Arrays.equals(data, otherData);
   }
 
   @Override

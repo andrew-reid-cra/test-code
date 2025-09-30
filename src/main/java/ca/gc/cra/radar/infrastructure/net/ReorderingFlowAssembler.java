@@ -241,11 +241,11 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         if (this == o) {
           return true;
         }
-        if (!(o instanceof Chunk chunk)) {
+        if (!(o instanceof Chunk(byte[] otherData, long otherTimestamp))) {
           return false;
         }
-        return timestampMicros == chunk.timestampMicros
-            && Arrays.equals(data, chunk.data);
+        return timestampMicros == otherTimestamp
+            && Arrays.equals(data, otherData);
       }
 
       @Override
@@ -273,11 +273,11 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         if (this == o) {
           return true;
         }
-        if (!(o instanceof EmittedSlice slice)) {
+        if (!(o instanceof EmittedSlice(byte[] otherData, long otherTimestamp))) {
           return false;
         }
-        return timestampMicros == slice.timestampMicros
-            && Arrays.equals(data, slice.data);
+        return timestampMicros == otherTimestamp
+            && Arrays.equals(data, otherData);
       }
 
       @Override

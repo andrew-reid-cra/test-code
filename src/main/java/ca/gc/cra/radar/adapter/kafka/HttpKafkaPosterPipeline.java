@@ -608,15 +608,21 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof HttpMessage that)) {
+      if (!(o instanceof HttpMessage(
+          long otherTimestamp,
+          String otherFirstLine,
+          String otherHeaders,
+          byte[] otherBody,
+          int otherStatus,
+          Map<String, String> otherAttributes))) {
         return false;
       }
-      return timestamp == that.timestamp
-          && status == that.status
-          && Objects.equals(firstLine, that.firstLine)
-          && Objects.equals(headers, that.headers)
-          && Arrays.equals(body, that.body)
-          && Objects.equals(attributes, that.attributes);
+      return timestamp == otherTimestamp
+          && status == otherStatus
+          && Objects.equals(firstLine, otherFirstLine)
+          && Objects.equals(headers, otherHeaders)
+          && Arrays.equals(body, otherBody)
+          && Objects.equals(attributes, otherAttributes);
     }
 
     @Override

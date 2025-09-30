@@ -304,12 +304,15 @@ public final class HttpExchangeBuilder {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof ParsedMessage that)) {
+      if (!(o instanceof ParsedMessage(
+          String otherFirstLine,
+          Map<String, List<String>> otherHeaders,
+          byte[] otherBody))) {
         return false;
       }
-      return Objects.equals(firstLine, that.firstLine)
-          && Objects.equals(headers, that.headers)
-          && Arrays.equals(body, that.body);
+      return Objects.equals(firstLine, otherFirstLine)
+          && Objects.equals(headers, otherHeaders)
+          && Arrays.equals(body, otherBody);
     }
 
     @Override

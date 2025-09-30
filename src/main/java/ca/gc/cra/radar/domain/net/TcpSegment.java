@@ -51,19 +51,29 @@ public record TcpSegment(
     if (this == o) {
       return true;
     }
-    if (!(o instanceof TcpSegment that)) {
+    if (!(o instanceof TcpSegment(
+        FiveTuple otherFlow,
+        long otherSequenceNumber,
+        boolean otherFromClient,
+        byte[] otherPayload,
+        boolean otherFin,
+        boolean otherSyn,
+        boolean otherRst,
+        boolean otherPsh,
+        boolean otherAck,
+        long otherTimestamp))) {
       return false;
     }
-    return fromClient == that.fromClient()
-        && fin == that.fin()
-        && syn == that.syn()
-        && rst == that.rst()
-        && psh == that.psh()
-        && ack == that.ack()
-        && timestampMicros == that.timestampMicros()
-        && Objects.equals(flow, that.flow())
-        && sequenceNumber == that.sequenceNumber()
-        && Arrays.equals(payload, that.payload());
+    return fromClient == otherFromClient
+        && fin == otherFin
+        && syn == otherSyn
+        && rst == otherRst
+        && psh == otherPsh
+        && ack == otherAck
+        && timestampMicros == otherTimestamp
+        && Objects.equals(flow, otherFlow)
+        && sequenceNumber == otherSequenceNumber
+        && Arrays.equals(payload, otherPayload);
   }
 
   @Override
