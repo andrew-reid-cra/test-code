@@ -513,14 +513,33 @@ public final class Tn3270SessionState {
       fields = fields != null ? List.copyOf(fields) : List.of();
     }
 
+    /**
+     * Returns a defensive copy of the partition attribute bytes.
+     *
+     * @return attribute bytes copied from the session buffer
+     */
+    public byte[] attributes() {
+      return attributes.clone();
+    }
+
+    /**
+     * Returns a defensive copy of the partition screen buffer.
+     *
+     * @return screen buffer bytes copied from the session buffer
+     */
+    public byte[] buffer() {
+      return buffer.clone();
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartitionSnapshot that)) {
+      if (o == null || o.getClass() != getClass()) {
         return false;
       }
+      PartitionSnapshot that = (PartitionSnapshot) o;
       return id == that.id
           && rows == that.rows
           && cols == that.cols
@@ -556,4 +575,8 @@ public final class Tn3270SessionState {
     }
   }
 }
+
+
+
+
 

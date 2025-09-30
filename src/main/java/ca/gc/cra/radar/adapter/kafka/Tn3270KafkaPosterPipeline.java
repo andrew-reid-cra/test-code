@@ -385,9 +385,10 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof BinaryMessage that)) {
+      if (o == null || o.getClass() != getClass()) {
         return false;
       }
+      BinaryMessage that = (BinaryMessage) o;
       return timestamp == that.timestamp
           && length == that.length
           && Arrays.equals(payload, that.payload)
@@ -423,6 +424,7 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       BinaryMessage request,
       BinaryMessage response) {}
 }
+
 
 
 
