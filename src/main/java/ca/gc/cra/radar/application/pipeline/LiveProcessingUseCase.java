@@ -64,7 +64,7 @@ public final class LiveProcessingUseCase {
   private static final int DEFAULT_QUEUE_CAPACITY = DEFAULT_PERSISTENCE_WORKERS * 128;
   private static final int PERSIST_BATCH_SIZE = 32;
   private static final Duration PERSISTENCE_SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
-  private static final long ENQUEUE_MAX_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+  private static final long ENQUEUE_MAX_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(50);
   private static final long ENQUEUE_BACKOFF_NANOS = TimeUnit.MICROSECONDS.toNanos(200);
   private static final long WORKER_IDLE_POLL_MILLIS = 25L;
   private static final int SATURATION_LOG_THRESHOLD = 1_000;
@@ -778,6 +778,7 @@ public final class LiveProcessingUseCase {
     }
   }
 }
+
 
 
 

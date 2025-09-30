@@ -47,13 +47,9 @@ public interface JnrLibpcap {
         loader.library("pcap").library("libpcap");
     }
 
-    try {
+   
         return loader.load(); // try candidates in order
-    } catch (UnsatisfiedLinkError e) {
-        // Print nested causes to find the missing dependency name
-        e.printStackTrace();
-        throw e;
-    }
+    
 }
 
   /**
