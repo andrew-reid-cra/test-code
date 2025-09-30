@@ -13,16 +13,13 @@ import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.kafka.clients.producer.MockProducer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 class HttpKafkaPersistenceAdapterTest {
 
   @Test
   void serializesMessagePairToKafka() throws Exception {
-    MockProducer<String, byte[]> producer =
-        new MockProducer<>(true, new StringSerializer(), new ByteArraySerializer());
+    MockProducer<String, byte[]> producer = MockProducerFactory.byteArrayProducer();
     HttpKafkaPersistenceAdapter adapter = new HttpKafkaPersistenceAdapter(producer, "radar.http.pairs", null);
 
     MessagePair pair = httpPair();

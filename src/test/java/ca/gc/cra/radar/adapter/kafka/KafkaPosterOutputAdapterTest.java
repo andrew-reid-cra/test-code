@@ -5,14 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import ca.gc.cra.radar.application.port.poster.PosterOutputPort.PosterReport;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import org.apache.kafka.clients.producer.MockProducer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 class KafkaPosterOutputAdapterTest {
 
   @Test
   void publishesReportsToKafkaTopic() throws Exception {
-    MockProducer<String, String> producer = new MockProducer<>(true, new StringSerializer(), new StringSerializer());
+    MockProducer<String, String> producer = MockProducerFactory.stringProducer();
     KafkaPosterOutputAdapter adapter = new KafkaPosterOutputAdapter(producer, "radar.http.reports");
 
     PosterReport report = new PosterReport(ProtocolId.HTTP, "txn", 100L, "content");

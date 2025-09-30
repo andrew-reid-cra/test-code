@@ -6,16 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import ca.gc.cra.radar.domain.capture.SegmentRecord;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.producer.MockProducer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 class SegmentKafkaSinkAdapterTest {
 
   @Test
   void publishesSegmentAsJsonMessage() {
-    MockProducer<String, byte[]> producer =
-        new MockProducer<>(true, new StringSerializer(), new ByteArraySerializer());
+    MockProducer<String, byte[]> producer = MockProducerFactory.byteArrayProducer();
     SegmentKafkaSinkAdapter adapter = new SegmentKafkaSinkAdapter(producer, "radar.segments");
 
     SegmentRecord record = new SegmentRecord(

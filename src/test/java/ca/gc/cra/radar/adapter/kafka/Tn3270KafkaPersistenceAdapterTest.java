@@ -12,16 +12,13 @@ import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import java.util.Map;
 import org.apache.kafka.clients.producer.MockProducer;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 
 class Tn3270KafkaPersistenceAdapterTest {
 
   @Test
   void serializesBinaryPairToKafka() throws Exception {
-    MockProducer<String, byte[]> producer =
-        new MockProducer<>(true, new StringSerializer(), new ByteArraySerializer());
+    MockProducer<String, byte[]> producer = MockProducerFactory.byteArrayProducer();
     Tn3270KafkaPersistenceAdapter adapter =
         new Tn3270KafkaPersistenceAdapter(producer, "radar.tn3270.pairs", null);
 

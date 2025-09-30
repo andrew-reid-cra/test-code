@@ -27,6 +27,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.PartitionInfo;
 import org.junit.jupiter.api.Test;
 
@@ -153,6 +155,21 @@ class Tn3270KafkaPosterTest {
     }
 
     @Override
+    public void registerMetricForSubscription(KafkaMetric metric) {
+      // no-op for test stub
+    }
+
+    @Override
+    public void unregisterMetricFromSubscription(KafkaMetric metric) {
+      // no-op for test stub
+    }
+
+    @Override
+    public Uuid clientInstanceId(Duration timeout) {
+      return Uuid.ZERO_UUID;
+    }
+
+    @Override
     public void close() {
       closed.set(true);
       closeCalls.incrementAndGet();
@@ -170,13 +187,6 @@ class Tn3270KafkaPosterTest {
 
     @Override
     public void beginTransaction() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void sendOffsetsToTransaction(
-        Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> offsets,
-        String consumerGroupId) {
       throw new UnsupportedOperationException();
     }
 
