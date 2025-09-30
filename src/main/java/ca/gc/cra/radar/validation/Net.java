@@ -6,51 +6,31 @@ import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 
 /**
- * <strong>What:</strong> Network endpoint validation utilities for RADAR CLI and adapter configuration.
- * <p><strong>Why:</strong> Prevents malformed host:port pairs from reaching capture adapters and sink clients,
- * avoiding obscure connection failures at runtime.
- * <p><strong>Role:</strong> Domain support invoked while wiring adapters prior to capture → assemble → sink operations.
- * <p><strong>Responsibilities:</strong>
- * <ul>
- *   <li>Normalize and validate hostnames, IPv4, and IPv6 literals.</li>
- *   <li>Enforce port ranges compatible with TCP listeners (1-65535).</li>
- *   <li>Produce consistent error messaging for CLI feedback.</li>
- * </ul>
- * <p><strong>Thread-safety:</strong> Immutable and safe for concurrent calls.</p>
- * <p><strong>Performance:</strong> O(n) string parsing with cached {@link Pattern} instances.</p>
- * <p><strong>Observability:</strong> No direct metrics; violations surface as {@link IllegalArgumentException}s.</p>
- *
- * @implNote IPv6 addresses must be wrapped in {@code [ ]} to disambiguate the trailing port delimiter.
- * @since 0.1.0
- * @see Numbers
- * @see Strings
+ * Network endpoint validation utilities for RADAR.
+ * See class javadoc in your existing file for full description.
  */
 public final class Net {
-  private static final Pattern HOST_PATTERN = Pattern.compile(
-      "(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$");
-  private static final Pattern IPV4_PATTERN = Pattern.compile("^(?:[0-9]{1,3})(?:\\.[0-9]{1,3}){3}$");
+
+  // RFC-conservative bounds
+  private static final int MAX_HOSTNAME_LENGTH = 253;   // total length
+  private static final int MAX_LABEL_LENGTH    = 63;    // per label
+
+  // IPv4 dotted-quad shape (fast pre-check); we still range-check octets.
+  private static final Pattern IPV4_PATTERN = Pattern.compile("\\A\\d{1,3}(?:\\.\\d{1,3}){3}\\z");
 
   private Net() {
     // Utility
   }
 
-  /**
-   * Validates a host:port string supporting hostnames, IPv4, and IPv6 literals.
-   *
-   * @param value candidate host:port string provided via CLI or configuration; must be non-null/non-blank
-   * @return normalized host:port pair using bracketed IPv6 literals when applicable
-   * @throws IllegalArgumentException if the host or port component is invalid or out of range
-   *
-   * <p><strong>Concurrency:</strong> Thread-safe; operates solely on locals.</p>
-   * <p><strong>Performance:</strong> Performs a single pass over the input and reuses compiled regex patterns.</p>
-   * <p><strong>Observability:</strong> Does not emit metrics; caller should surface exceptions to users.</p>
-   */
+  /** Validates a host:port string supporting hostnames, IPv4, and IPv6 literals. */
   public static String validateHostPort(String value) {
-    String sanitized = Strings.requireNonBlank("host:port", value);
-    String host;
-    String portPart;
+    final String sanitized = Strings.requireNonBlank("host:port", value).trim();
+    final String host;
+    final String portPart;
+    final String normalizedHost;
+
     if (sanitized.startsWith("[")) {
-      int idx = sanitized.indexOf(']');
+      final int idx = sanitized.indexOf(']');
       if (idx < 0) {
         throw new IllegalArgumentException("host:port must close IPv6 literal with ']'");
       }
@@ -60,56 +40,121 @@ public final class Net {
       }
       portPart = sanitized.substring(idx + 2);
       validateIpv6(host);
-      sanitized = '[' + host + ']';
+      normalizedHost = '[' + host + ']';
     } else {
-      int lastColon = sanitized.lastIndexOf(':');
+      final int lastColon = sanitized.lastIndexOf(':');
       if (lastColon <= 0 || lastColon == sanitized.length() - 1) {
         throw new IllegalArgumentException("host:port must use HOST:PORT format");
       }
       host = sanitized.substring(0, lastColon);
       portPart = sanitized.substring(lastColon + 1);
-      if (host.contains(":")) {
+      if (host.indexOf(':') >= 0) {
         throw new IllegalArgumentException("IPv6 host must be wrapped in [ ]");
       }
-      validateHost(host);
-      sanitized = host;
+      validateHost(host); // hostname or IPv4
+      normalizedHost = host;
     }
 
-    int port;
+    final int port;
     try {
       port = Integer.parseInt(portPart);
     } catch (NumberFormatException ex) {
       throw new IllegalArgumentException("port must be numeric (was " + portPart + ")", ex);
     }
     Numbers.requireRange("port", port, 1, 65535);
-    return sanitized + ':' + port;
+    return normalizedHost + ':' + port;
   }
 
+  /**
+   * Orchestrates host validation with low cognitive complexity:
+   * - IPv4: regex shape + octet range check
+   * - Hostname: deterministic label-by-label checks
+   */
   private static void validateHost(String host) {
     if (IPV4_PATTERN.matcher(host).matches()) {
-      int startIndex = 0;
-      for (int i = 0; i < 4; i++) {
-        int endIndex = i < 3 ? host.indexOf('.', startIndex) : host.length();
-        String part = host.substring(startIndex, endIndex);
-        int octet = Integer.parseInt(part);
-        Numbers.requireRange("IPv4 octet", octet, 0, 255);
-        startIndex = endIndex + 1;
-      }
+      validateIpv4Octets(host);
       return;
     }
-    if (!HOST_PATTERN.matcher(host).matches()) {
-      throw new IllegalArgumentException("invalid hostname: " + host);
+    validateHostname(host);
+  }
+
+  /** Deterministic hostname validator (ASCII/Punycode). */
+  private static void validateHostname(String host) {
+    final int len = host.length();
+    if (len == 0 || len > MAX_HOSTNAME_LENGTH) {
+      throw new IllegalArgumentException("invalid hostname length: " + len + " (must be 1.." + MAX_HOSTNAME_LENGTH + ')');
+    }
+
+    int start = 0;
+    while (true) {
+      final int dot = host.indexOf('.', start);
+      final int end = (dot == -1) ? len : dot;
+      validateLabel(host, start, end);
+      if (dot == -1) {
+        break; // last label done
+      }
+      start = dot + 1;
+      if (start == len) {
+        throw new IllegalArgumentException("invalid hostname: empty trailing label");
+      }
     }
   }
 
+  /**
+   * Validates a single label [start,end):
+   * - length 1..63
+   * - first/last are alnum
+   * - interior chars are alnum or '-'
+   */
+  private static void validateLabel(String s, int start, int end) {
+    final int labelLen = end - start;
+    if (labelLen <= 0 || labelLen > MAX_LABEL_LENGTH) {
+      throw new IllegalArgumentException("invalid hostname: label length " + labelLen + " (must be 1.." + MAX_LABEL_LENGTH + ")");
+    }
+
+    final char first = s.charAt(start);
+    final char last  = s.charAt(end - 1);
+    if (!isAsciiAlnum(first) || !isAsciiAlnum(last)) {
+      throw new IllegalArgumentException("invalid hostname: labels must start/end with alphanumeric");
+    }
+
+    // Check interior if any
+    for (int i = start + 1; i < end - 1; i++) {
+      final char c = s.charAt(i);
+      if (!(isAsciiAlnum(c) || c == '-')) {
+        throw new IllegalArgumentException("invalid hostname: illegal character '" + c + '\'');
+      }
+    }
+  }
+
+  /** Parses and range-checks IPv4 octets (0..255). */
+  private static void validateIpv4Octets(String host) {
+    int startIndex = 0;
+    for (int i = 0; i < 4; i++) {
+      final int endIndex = (i < 3) ? host.indexOf('.', startIndex) : host.length();
+      final String part = host.substring(startIndex, endIndex);
+      final int octet = Integer.parseInt(part);
+      Numbers.requireRange("IPv4 octet", octet, 0, 255);
+      startIndex = endIndex + 1; // safe when i == 3 (ignored)
+    }
+  }
+
+  /** Validates a raw IPv6 literal (without brackets) using JDK parsing. */
   private static void validateIpv6(String host) {
     try {
-      InetAddress address = InetAddress.getByName(host);
+      final InetAddress address = InetAddress.getByName(host);
       if (!(address instanceof Inet6Address)) {
         throw new IllegalArgumentException("invalid IPv6 literal: " + host);
       }
     } catch (UnknownHostException ex) {
       throw new IllegalArgumentException("invalid IPv6 literal: " + host, ex);
     }
+  }
+
+  /** Fast ASCII alphanumeric check (no locale). */
+  private static boolean isAsciiAlnum(char c) {
+    return (c >= 'a' && c <= 'z')
+        || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9');
   }
 }
