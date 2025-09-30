@@ -395,37 +395,9 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       return message;
     }
     byte[] originalBody = message.body();
-    byte[] workingBody = originalBody;
     Map<String, String> headerMap = new LinkedHashMap<>(headerMap(message.headers()));
-    if (mode.decodeTransferEncoding()) {
-      String transfer = headerMap.getOrDefault(HEADER_TRANSFER_ENCODING, "");
-      if (!transfer.isBlank() && transfer.toLowerCase(Locale.ROOT).contains("chunked")) {
-        try {
-          workingBody = decodeChunked(workingBody);
-          headerMap.remove(HEADER_TRANSFER_ENCODING);
-          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
-        } catch (Exception ignore) {
-          workingBody = originalBody;
-        }
-      }
-    }
-    if (mode.decodeContentEncoding()) {
-      String encoding = headerMap.getOrDefault(HEADER_CONTENT_ENCODING, "");
-      String lower = encoding.toLowerCase(Locale.ROOT);
-      try {
-        if (lower.contains("gzip")) {
-          workingBody = decodeGzip(workingBody);
-          headerMap.remove(HEADER_CONTENT_ENCODING);
-          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
-        } else if (lower.contains("deflate")) {
-          workingBody = decodeDeflate(workingBody);
-          headerMap.remove(HEADER_CONTENT_ENCODING);
-          headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(workingBody.length));
-        }
-      } catch (Exception ignore) {
-        workingBody = originalBody;
-      }
-    }
+    byte[] workingBody = maybeDecodeTransferEncoding(mode, headerMap, originalBody, originalBody);
+    workingBody = maybeDecodeContentEncoding(mode, headerMap, originalBody, workingBody);
     String rebuiltHeaders = headerMap.isEmpty() ? message.headers() : rebuildHeaders(headerMap);
     return new HttpMessage(
         message.timestamp(),
@@ -434,7 +406,63 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
         workingBody,
         message.status(),
         message.attributes());
-  }  private static Map<String, String> headerMap(String headers) {
+  }
+
+  private static byte[] maybeDecodeTransferEncoding(
+      PosterConfig.DecodeMode mode,
+      Map<String, String> headerMap,
+      byte[] originalBody,
+      byte[] currentBody) {
+    if (!mode.decodeTransferEncoding()) {
+      return currentBody;
+    }
+    String transfer = headerMap.getOrDefault(HEADER_TRANSFER_ENCODING, "");
+    if (transfer.isBlank() || !transfer.toLowerCase(Locale.ROOT).contains("chunked")) {
+      return currentBody;
+    }
+    try {
+      byte[] decoded = decodeChunked(currentBody);
+      headerMap.remove(HEADER_TRANSFER_ENCODING);
+      headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(decoded.length));
+      return decoded;
+    } catch (Exception ignore) {
+      return originalBody;
+    }
+  }
+
+  private static byte[] maybeDecodeContentEncoding(
+      PosterConfig.DecodeMode mode,
+      Map<String, String> headerMap,
+      byte[] originalBody,
+      byte[] currentBody) {
+    if (!mode.decodeContentEncoding()) {
+      return currentBody;
+    }
+    String encoding = headerMap.getOrDefault(HEADER_CONTENT_ENCODING, "");
+    if (encoding.isBlank()) {
+      return currentBody;
+    }
+    String lower = encoding.toLowerCase(Locale.ROOT);
+    try {
+      if (lower.contains("gzip")) {
+        byte[] decoded = decodeGzip(currentBody);
+        headerMap.remove(HEADER_CONTENT_ENCODING);
+        headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(decoded.length));
+        return decoded;
+      }
+      if (lower.contains("deflate")) {
+        byte[] decoded = decodeDeflate(currentBody);
+        headerMap.remove(HEADER_CONTENT_ENCODING);
+        headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(decoded.length));
+        return decoded;
+      }
+    } catch (Exception ignore) {
+      return originalBody;
+    }
+    return currentBody;
+  }
+
+  private static Map<String, String> headerMap(String headers) {
     Map<String, String> map = new LinkedHashMap<>();
     if (headers == null) {
       return map;
