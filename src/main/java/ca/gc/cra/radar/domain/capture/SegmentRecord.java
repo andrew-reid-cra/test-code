@@ -1,5 +1,8 @@
 package ca.gc.cra.radar.domain.capture;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * <strong>What:</strong> Immutable representation of a captured TCP segment persisted by RADAR.
  * <p><strong>Why:</strong> Allows capture pipelines to archive raw network data for replay and auditing.</p>
@@ -37,6 +40,51 @@ public record SegmentRecord(
    */
   public SegmentRecord {
     payload = payload != null ? payload.clone() : new byte[0];
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof SegmentRecord that)) {
+      return false;
+    }
+    return timestampMicros == that.timestampMicros()
+        && srcPort == that.srcPort()
+        && dstPort == that.dstPort()
+        && sequence == that.sequence()
+        && flags == that.flags()
+        && Objects.equals(srcIp, that.srcIp())
+        && Objects.equals(dstIp, that.dstIp())
+        && Arrays.equals(payload, that.payload());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Long.hashCode(timestampMicros);
+    result = 31 * result + Objects.hashCode(srcIp);
+    result = 31 * result + Integer.hashCode(srcPort);
+    result = 31 * result + Objects.hashCode(dstIp);
+    result = 31 * result + Integer.hashCode(dstPort);
+    result = 31 * result + Long.hashCode(sequence);
+    result = 31 * result + Integer.hashCode(flags);
+    result = 31 * result + Arrays.hashCode(payload);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "SegmentRecord{"
+        + "timestampMicros=" + timestampMicros
+        + ", srcIp='" + srcIp + '\'
+        + ", srcPort=" + srcPort
+        + ", dstIp='" + dstIp + '\'
+        + ", dstPort=" + dstPort
+        + ", sequence=" + sequence
+        + ", flags=" + flags
+        + ", payload=" + Arrays.toString(payload)
+        + '}';
   }
 
   /** TCP FIN flag mask. */

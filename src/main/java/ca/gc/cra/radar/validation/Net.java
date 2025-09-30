@@ -87,10 +87,13 @@ public final class Net {
 
   private static void validateHost(String host) {
     if (IPV4_PATTERN.matcher(host).matches()) {
-      String[] parts = host.split("\\.");
-      for (String part : parts) {
+      int startIndex = 0;
+      for (int i = 0; i < 4; i++) {
+        int endIndex = i < 3 ? host.indexOf('.', startIndex) : host.length();
+        String part = host.substring(startIndex, endIndex);
         int octet = Integer.parseInt(part);
         Numbers.requireRange("IPv4 octet", octet, 0, 255);
+        startIndex = endIndex + 1;
       }
       return;
     }

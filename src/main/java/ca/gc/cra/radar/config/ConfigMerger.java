@@ -31,8 +31,9 @@ public final class ConfigMerger {
       Map<String, String> defaults,
       Consumer<String> warn) {
     Objects.requireNonNull(mode, "mode");
+    Objects.requireNonNull(yaml, "yaml");
     Map<String, String> defaultsCopy = defaults == null ? Map.of() : defaults;
-    Map<String, String> yamlCopy = yaml == null ? Map.of() : yaml.orElse(Map.of());
+    Map<String, String> yamlCopy = yaml.orElse(Map.of());
     Map<String, String> cliCopy = cli == null ? Map.of() : cli;
 
     Map<String, String> merged = new LinkedHashMap<>(defaultsCopy);

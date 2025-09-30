@@ -76,6 +76,7 @@ public final class SegmentCaptureUseCase {
   public void run() throws Exception {
     boolean started = false;
     long persistedCount = 0;
+    Exception cleanupFailure = null;
     try {
       packetSource.start();
       started = true;
@@ -127,32 +128,48 @@ public final class SegmentCaptureUseCase {
         metrics.increment("capture.segment.persisted");
       }
     } finally {
+      cleanupFailure = closeResources(started, persistedCount);
+      MDC.remove("capture.in");
+    }
+    if (cleanupFailure != null) {
+      throw cleanupFailure;
+    }
+  }
+
+  private Exception closeResources(boolean started, long persistedCount) {
+    Exception failure = null;
+    try {
+      persistence.flush();
+      log.info("Capture persistence flushed after {} segments", persistedCount);
+    } catch (Exception ex) {
+      log.error("Failed to flush capture persistence", ex);
+      failure = ex;
+    }
+    try {
+      persistence.close();
+      log.info("Capture persistence port closed");
+    } catch (Exception ex) {
+      log.error("Failed to close capture persistence port", ex);
+      if (failure != null) {
+        failure.addSuppressed(ex);
+      } else {
+        failure = ex;
+      }
+    }
+    if (started) {
       try {
-        persistence.flush();
-        log.info("Capture persistence flushed after {} segments", persistedCount);
+        packetSource.close();
+        log.info("Capture packet source closed");
       } catch (Exception ex) {
-        log.error("Failed to flush capture persistence", ex);
-        throw ex;
-      } finally {
-        try {
-          persistence.close();
-          log.info("Capture persistence port closed");
-        } catch (Exception ex) {
-          log.error("Failed to close capture persistence port", ex);
-          throw ex;
-        } finally {
-          if (started) {
-            try {
-              packetSource.close();
-              log.info("Capture packet source closed");
-            } catch (Exception ex) {
-              log.error("Failed to close packet source", ex);
-              throw ex;
-            }
-          }
+        log.error("Failed to close packet source", ex);
+        if (failure != null) {
+          failure.addSuppressed(ex);
+        } else {
+          failure = ex;
         }
       }
     }
+    return failure;
   }
 
   private static boolean isPureAck(TcpSegment segment) {

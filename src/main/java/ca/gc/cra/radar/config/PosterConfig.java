@@ -62,10 +62,10 @@ public final class PosterConfig {
       DecodeMode decodeMode) {
     this.ioMode = Objects.requireNonNullElse(ioMode, IoMode.FILE);
     this.posterOutMode = Objects.requireNonNullElse(posterOutMode, IoMode.FILE);
-    Optional<String> bootstrap = kafkaBootstrap == null ? Optional.empty() : kafkaBootstrap;
+    Optional<String> bootstrap = Objects.requireNonNullElse(kafkaBootstrap, Optional.empty());
     this.kafkaBootstrap = bootstrap.map(String::trim).filter(s -> !s.isEmpty());
-    this.http = http == null ? Optional.empty() : http;
-    this.tn3270 = tn3270 == null ? Optional.empty() : tn3270;
+    this.http = Objects.requireNonNullElse(http, Optional.empty());
+    this.tn3270 = Objects.requireNonNullElse(tn3270, Optional.empty());
     this.decodeMode = Objects.requireNonNull(decodeMode, "decodeMode");
 
     boolean kafkaInputConfigured = this.http.map(ProtocolConfig::hasKafkaInput).orElse(false)
@@ -415,12 +415,12 @@ public final class PosterConfig {
      * <p><strong>Observability:</strong> Trusts upstream sanitizers so diagnostics reference the original knob names.</p>
      */
     public ProtocolConfig {
-      inputDirectory = inputDirectory == null ? Optional.empty()
-          : inputDirectory.map(path -> path.toAbsolutePath().normalize());
-      kafkaInputTopic = kafkaInputTopic == null ? Optional.empty() : kafkaInputTopic;
-      outputDirectory = outputDirectory == null ? Optional.empty()
-          : outputDirectory.map(path -> path.toAbsolutePath().normalize());
-      kafkaOutputTopic = kafkaOutputTopic == null ? Optional.empty() : kafkaOutputTopic;
+      inputDirectory = Objects.requireNonNull(inputDirectory, "inputDirectory")
+          .map(path -> path.toAbsolutePath().normalize());
+      kafkaInputTopic = Objects.requireNonNull(kafkaInputTopic, "kafkaInputTopic");
+      outputDirectory = Objects.requireNonNull(outputDirectory, "outputDirectory")
+          .map(path -> path.toAbsolutePath().normalize());
+      kafkaOutputTopic = Objects.requireNonNull(kafkaOutputTopic, "kafkaOutputTopic");
     }
 
     /**

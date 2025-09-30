@@ -235,11 +235,63 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
       Chunk {
         data = data != null ? data.clone() : new byte[0];
       }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof Chunk chunk)) {
+          return false;
+        }
+        return timestampMicros == chunk.timestampMicros
+            && Arrays.equals(data, chunk.data);
+      }
+
+      @Override
+      public int hashCode() {
+        int result = Arrays.hashCode(data);
+        result = 31 * result + Long.hashCode(timestampMicros);
+        return result;
+      }
+
+      @Override
+      public String toString() {
+        return "Chunk{data=" + Arrays.toString(data)
+            + ", timestampMicros=" + timestampMicros
+            + '}';
+      }
     }
 
     record EmittedSlice(byte[] data, long timestampMicros) {
       EmittedSlice {
         data = data != null ? data.clone() : new byte[0];
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof EmittedSlice slice)) {
+          return false;
+        }
+        return timestampMicros == slice.timestampMicros
+            && Arrays.equals(data, slice.data);
+      }
+
+      @Override
+      public int hashCode() {
+        int result = Arrays.hashCode(data);
+        result = 31 * result + Long.hashCode(timestampMicros);
+        return result;
+      }
+
+      @Override
+      public String toString() {
+        return "EmittedSlice{data=" + Arrays.toString(data)
+            + ", timestampMicros=" + timestampMicros
+            + '}';
       }
     }
   }

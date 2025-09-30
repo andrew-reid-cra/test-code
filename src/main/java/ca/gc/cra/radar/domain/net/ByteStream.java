@@ -1,5 +1,8 @@
 package ca.gc.cra.radar.domain.net;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * <strong>What:</strong> Ordered slice of TCP bytes emitted by a flow assembler for a single direction.
  * <p><strong>Why:</strong> Provides assemble-stage ports with immutable payload chunks plus flow metadata.</p>
@@ -26,5 +29,38 @@ public record ByteStream(FiveTuple flow, boolean fromClient, byte[] data, long t
    */
   public ByteStream {
     data = data != null ? data : new byte[0];
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof ByteStream that)) {
+      return false;
+    }
+    return fromClient == that.fromClient()
+        && timestampMicros == that.timestampMicros()
+        && Objects.equals(flow, that.flow())
+        && Arrays.equals(data, that.data());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Objects.hashCode(flow);
+    result = 31 * result + Boolean.hashCode(fromClient);
+    result = 31 * result + Arrays.hashCode(data);
+    result = 31 * result + Long.hashCode(timestampMicros);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "ByteStream{"
+        + "flow=" + flow
+        + ", fromClient=" + fromClient
+        + ", data=" + Arrays.toString(data)
+        + ", timestampMicros=" + timestampMicros
+        + '}';
   }
 }

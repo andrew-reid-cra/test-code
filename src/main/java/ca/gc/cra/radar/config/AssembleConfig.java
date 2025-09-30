@@ -293,9 +293,7 @@ public record AssembleConfig(
    * <p><strong>Observability:</strong> Ensures invalid hosts are surfaced via exceptions.</p>
    */
   private static Optional<String> sanitizeBootstrap(Optional<String> candidate) {
-    if (candidate == null) {
-      return Optional.empty();
-    }
+    Objects.requireNonNull(candidate, "candidate");
     return candidate.map(Net::validateHostPort);
   }
 
@@ -331,9 +329,7 @@ public record AssembleConfig(
    * <p><strong>Observability:</strong> Guards against null bytes so error messages remain clear.</p>
    */
   private static Optional<Path> sanitizeOptionalPath(String name, Optional<Path> candidate) {
-    if (candidate == null || candidate.isEmpty()) {
-      return Optional.empty();
-    }
+    Objects.requireNonNull(candidate, "candidate");
     return candidate.map(path -> normalizePath(name, path));
   }
 

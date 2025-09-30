@@ -247,7 +247,7 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
         return 0;
       }
     }
-    return request ? 0 : 0;
+    return request ? 0 : -1;
   }
 
   private static boolean equalsIgnoreCase(byte[] array, int start, int end, byte[] token) {

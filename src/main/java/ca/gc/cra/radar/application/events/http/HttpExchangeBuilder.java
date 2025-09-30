@@ -9,6 +9,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Objects;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -291,7 +293,42 @@ public final class HttpExchangeBuilder {
     return new RequestAddresses(clientIp, clientPort, serverIp, serverPort);
   }
 
-  private record ParsedMessage(String firstLine, Map<String, List<String>> headers, byte[] body) {}
+  private record ParsedMessage(String firstLine, Map<String, List<String>> headers, byte[] body) {
+    ParsedMessage {
+      headers = headers != null ? Map.copyOf(headers) : Map.of();
+      body = body != null ? body.clone() : new byte[0];
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof ParsedMessage that)) {
+        return false;
+      }
+      return Objects.equals(firstLine, that.firstLine)
+          && Objects.equals(headers, that.headers)
+          && Arrays.equals(body, that.body);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hashCode(firstLine);
+      result = 31 * result + Objects.hashCode(headers);
+      result = 31 * result + Arrays.hashCode(body);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "ParsedMessage{"
+          + "firstLine='" + firstLine + '\''
+          + ", headers=" + headers
+          + ", body=" + Arrays.toString(body)
+          + '}';
+    }
+  }
 
   private record TargetComponents(String path, Map<String, String> query) {}
 

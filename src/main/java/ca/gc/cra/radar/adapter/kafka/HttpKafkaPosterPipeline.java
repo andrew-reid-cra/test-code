@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -124,8 +125,8 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
         }
       }
     }
-  }
 
+  }
   private Consumer<String, String> createConsumer() {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -572,6 +573,45 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     HttpMessage {
       body = body != null ? body : new byte[0];
       attributes = attributes != null ? attributes : Map.of();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof HttpMessage that)) {
+        return false;
+      }
+      return timestamp == that.timestamp
+          && status == that.status
+          && Objects.equals(firstLine, that.firstLine)
+          && Objects.equals(headers, that.headers)
+          && Arrays.equals(body, that.body)
+          && Objects.equals(attributes, that.attributes);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Long.hashCode(timestamp);
+      result = 31 * result + Objects.hashCode(firstLine);
+      result = 31 * result + Objects.hashCode(headers);
+      result = 31 * result + Arrays.hashCode(body);
+      result = 31 * result + Integer.hashCode(status);
+      result = 31 * result + Objects.hashCode(attributes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "HttpMessage{"
+          + "timestamp=" + timestamp
+          + ", firstLine='" + firstLine + '\''
+          + ", headers='" + headers + '\''
+          + ", body=" + Arrays.toString(body)
+          + ", status=" + status
+          + ", attributes=" + attributes
+          + '}';
     }
   }
 

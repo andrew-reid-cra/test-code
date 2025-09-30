@@ -379,6 +379,40 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       payload = payload != null ? payload : new byte[0];
       attributes = attributes != null ? attributes : Map.of();
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof BinaryMessage that)) {
+        return false;
+      }
+      return timestamp == that.timestamp
+          && length == that.length
+          && Arrays.equals(payload, that.payload)
+          && Objects.equals(attributes, that.attributes);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Long.hashCode(timestamp);
+      result = 31 * result + Integer.hashCode(length);
+      result = 31 * result + Arrays.hashCode(payload);
+      result = 31 * result + Objects.hashCode(attributes);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "BinaryMessage{"
+          + "timestamp=" + timestamp
+          + ", length=" + length
+          + ", payload=" + Arrays.toString(payload)
+          + ", attributes=" + attributes
+          + '}';
+    }
+  }
   }
 
   private record TnPair(

@@ -1,5 +1,7 @@
 package ca.gc.cra.radar.domain.net;
 
+import java.util.Arrays;
+
 /**
  * <strong>What:</strong> Immutable representation of a captured link-layer frame.
  * <p><strong>Why:</strong> Allows capture adapters to hand off raw frames to decoders without exposing mutable buffers.</p>
@@ -22,5 +24,32 @@ public record RawFrame(byte[] data, long timestampMicros) {
    */
   public RawFrame {
     data = data != null ? data.clone() : new byte[0];
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof RawFrame that)) {
+      return false;
+    }
+    return timestampMicros == that.timestampMicros()
+        && Arrays.equals(data, that.data());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Arrays.hashCode(data);
+    result = 31 * result + Long.hashCode(timestampMicros);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "RawFrame{"
+        + "data=" + Arrays.toString(data)
+        + ", timestampMicros=" + timestampMicros
+        + '}';
   }
 }

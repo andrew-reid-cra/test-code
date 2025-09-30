@@ -503,5 +503,53 @@ public final class Tn3270SessionState {
       byte[] attributes,
       byte[] buffer,
       List<FieldMeta> fields,
-      String lastScreenHash) {}
+      String lastScreenHash) {
+    public PartitionSnapshot {
+      attributes = attributes != null ? attributes.clone() : new byte[0];
+      buffer = buffer != null ? buffer.clone() : new byte[0];
+      fields = fields != null ? List.copyOf(fields) : List.of();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PartitionSnapshot that)) {
+        return false;
+      }
+      return id == that.id
+          && rows == that.rows
+          && cols == that.cols
+          && cursorAddress == that.cursorAddress
+          && flags == that.flags
+          && Arrays.equals(attributes, that.attributes)
+          && Arrays.equals(buffer, that.buffer)
+          && Objects.equals(fields, that.fields)
+          && Objects.equals(lastScreenHash, that.lastScreenHash);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(id, rows, cols, cursorAddress, flags, fields, lastScreenHash);
+      result = 31 * result + Arrays.hashCode(attributes);
+      result = 31 * result + Arrays.hashCode(buffer);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "PartitionSnapshot{"
+          + "id=" + id
+          + ", rows=" + rows
+          + ", cols=" + cols
+          + ", cursorAddress=" + cursorAddress
+          + ", flags=" + flags
+          + ", attributes=" + Arrays.toString(attributes)
+          + ", buffer=" + Arrays.toString(buffer)
+          + ", fields=" + fields
+          + ", lastScreenHash='" + lastScreenHash + '\''
+          + '}';
+    }
+  }
 }

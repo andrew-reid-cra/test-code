@@ -137,6 +137,7 @@ public final class PosterUseCase {
       tasks.add(() -> {
         String previousProtocol = MDC.get("protocol");
         Exception failure = null;
+        Exception closeFailure = null;
         try {
           MDC.put("protocol", protocol.name());
           log.info("Poster {} pipeline started", protocol);
@@ -145,7 +146,6 @@ public final class PosterUseCase {
         } catch (Exception ex) {
           failure = ex;
           log.error("Poster {} pipeline failed", protocol, ex);
-          throw ex;
         } finally {
           try {
             outputPort.close();
@@ -156,15 +156,20 @@ public final class PosterUseCase {
               log.error("Poster {} output close failure (suppressed)", protocol, closeEx);
             } else {
               log.error("Poster {} output close failure", protocol, closeEx);
-              throw closeEx;
-            }
-          } finally {
-            if (previousProtocol == null) {
-              MDC.remove("protocol");
-            } else {
-              MDC.put("protocol", previousProtocol);
+              closeFailure = closeEx;
             }
           }
+          if (previousProtocol == null) {
+            MDC.remove("protocol");
+          } else {
+            MDC.put("protocol", previousProtocol);
+          }
+        }
+        if (failure != null) {
+          throw failure;
+        }
+        if (closeFailure != null) {
+          throw closeFailure;
         }
         return null;
       });

@@ -1,5 +1,8 @@
 package ca.gc.cra.radar.domain.net;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * <strong>What:</strong> Simplified TCP segment abstraction exposed by the flow assembler.
  * <p><strong>Why:</strong> Provides the assemble stage with immutable segment metadata and payload for ordering.</p>
@@ -41,5 +44,48 @@ public record TcpSegment(
    */
   public TcpSegment {
     payload = payload != null ? payload.clone() : new byte[0];
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof TcpSegment that)) {
+      return false;
+    }
+    return fromClient == that.fromClient()
+        && fin == that.fin()
+        && syn == that.syn()
+        && rst == that.rst()
+        && psh == that.psh()
+        && ack == that.ack()
+        && timestampMicros == that.timestampMicros()
+        && Objects.equals(flow, that.flow())
+        && sequenceNumber == that.sequenceNumber()
+        && Arrays.equals(payload, that.payload());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = Objects.hash(flow, sequenceNumber, fromClient, fin, syn, rst, psh, ack, timestampMicros);
+    result = 31 * result + Arrays.hashCode(payload);
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "TcpSegment{"
+        + "flow=" + flow
+        + ", sequenceNumber=" + sequenceNumber
+        + ", fromClient=" + fromClient
+        + ", payload=" + Arrays.toString(payload)
+        + ", fin=" + fin
+        + ", syn=" + syn
+        + ", rst=" + rst
+        + ", psh=" + psh
+        + ", ack=" + ack
+        + ", timestampMicros=" + timestampMicros
+        + '}';
   }
 }
