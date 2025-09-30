@@ -13,9 +13,14 @@ import ca.gc.cra.radar.application.port.ProtocolDetector;
 import ca.gc.cra.radar.application.port.ProtocolModule;
 import ca.gc.cra.radar.application.port.SegmentPersistencePort;
 import ca.gc.cra.radar.application.port.Tn3270AssemblerPort;
+import ca.gc.cra.radar.application.port.TerminalEventEmitter;
 import ca.gc.cra.radar.application.events.rules.CompiledRuleSet;
+import ca.gc.cra.radar.application.events.tn3270.ScreenRuleDefinitions;
+import ca.gc.cra.radar.application.events.tn3270.ScreenRuleDefinitionsProvider;
+import ca.gc.cra.radar.application.events.tn3270.ScreenRuleEngine;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270AssemblerAdapter;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270KafkaPoster;
+import ca.gc.cra.radar.infrastructure.protocol.tn3270.Tn3270ScreenEventPublishingSink;
 import ca.gc.cra.radar.infrastructure.protocol.tn3270.TelnetNegotiationFilter;
 import ca.gc.cra.radar.adapter.kafka.HttpKafkaPersistenceAdapter;
 import ca.gc.cra.radar.adapter.kafka.KafkaSegmentReader;
@@ -45,6 +50,7 @@ import java.util.ArrayList;
 import java.nio.file.Files;
 import ca.gc.cra.radar.infrastructure.events.UserEventPublishingPersistenceAdapter;
 import ca.gc.cra.radar.infrastructure.events.LoggingUserEventEmitter;
+import ca.gc.cra.radar.infrastructure.events.LoggingTerminalEventEmitter;
 import ca.gc.cra.radar.infrastructure.events.UserEventRuleWatcher;
 import ca.gc.cra.radar.application.events.rules.UserEventRuleSetProvider;
 import ca.gc.cra.radar.application.events.rules.UserEventRuleEngine;
@@ -89,9 +95,15 @@ public final class CompositionRoot {
   private volatile UserEventRuleEngine userEventRuleEngine;
   private UserEventRuleWatcher userEventRuleWatcher;
   private List<Path> userEventRulePaths = List.of();
+  private final ScreenRuleDefinitionsProvider tn3270ScreenRuleProvider = new ScreenRuleDefinitionsProvider();
+  private volatile ScreenRuleEngine tn3270ScreenRuleEngine;
   private static final String DEFAULT_TN3270_USER_TOPIC = "radar.tn3270.user-actions.v1";
   private static final String DEFAULT_TN3270_RENDER_TOPIC = "radar.tn3270.screen-renders.v1";
   private static final String DEFAULT_TN3270_REDACTION_POLICY = "";
+  private static final String DEFAULT_TN3270_TERMINAL_METRIC_PREFIX = "tn3270Terminals";
+  private static final String DEFAULT_TN3270_TERMINAL_PUBLISHER_PREFIX = "tn3270Terminals.publisher";
+  private static final String DEFAULT_TN3270_TERMINAL_SOURCE = "radar-tn3270-assembler";
+  private static final String DEFAULT_TN3270_TERMINAL_APP = "radar-tn3270";
 
   private final Config config;
   private final CaptureConfig captureConfig;
@@ -377,8 +389,19 @@ public final class CompositionRoot {
     String effectivePolicy = (redactionPolicy == null || redactionPolicy.isBlank())
         ? DEFAULT_TN3270_REDACTION_POLICY
         : redactionPolicy;
+    TerminalEventEmitter terminalEmitter =
+        new LoggingTerminalEventEmitter(metrics, DEFAULT_TN3270_TERMINAL_METRIC_PREFIX);
+    Tn3270ScreenEventPublishingSink publishingSink =
+        new Tn3270ScreenEventPublishingSink(
+            new Tn3270KafkaPoster(trimmed, DEFAULT_TN3270_USER_TOPIC, DEFAULT_TN3270_RENDER_TOPIC),
+            tn3270ScreenRuleEngine(),
+            terminalEmitter,
+            metrics,
+            DEFAULT_TN3270_TERMINAL_PUBLISHER_PREFIX,
+            DEFAULT_TN3270_TERMINAL_SOURCE,
+            DEFAULT_TN3270_TERMINAL_APP);
     return new Tn3270AssemblerAdapter(
-        new Tn3270KafkaPoster(trimmed, DEFAULT_TN3270_USER_TOPIC, DEFAULT_TN3270_RENDER_TOPIC),
+        publishingSink,
         new TelnetNegotiationFilter(),
         buildRedaction(effectivePolicy),
         emitScreenRenders,
@@ -644,6 +667,55 @@ public final class CompositionRoot {
     return userEventRuleEngine;
   }
 
+  private synchronized ScreenRuleEngine tn3270ScreenRuleEngine() {
+    if (tn3270ScreenRuleEngine != null) {
+      return tn3270ScreenRuleEngine;
+    }
+    List<Path> rulePaths = resolveTn3270ScreenRulePaths();
+    if (rulePaths.isEmpty()) {
+      log.info("TN3270 screen rules disabled: no rule files configured");
+      tn3270ScreenRuleEngine = new ScreenRuleEngine(ScreenRuleDefinitions.empty());
+      return tn3270ScreenRuleEngine;
+    }
+    try {
+      ScreenRuleDefinitions definitions = tn3270ScreenRuleProvider.load(rulePaths);
+      tn3270ScreenRuleEngine = new ScreenRuleEngine(definitions);
+      if (tn3270ScreenRuleEngine.hasRules()) {
+        log.info("Loaded {} TN3270 screen rules from {}", definitions.screens().size(), rulePaths);
+      } else {
+        log.info("TN3270 screen rule files {} contained no active rules", rulePaths);
+      }
+    } catch (Exception ex) {
+      log.warn("Failed to load TN3270 screen rules from {}", rulePaths, ex);
+      tn3270ScreenRuleEngine = new ScreenRuleEngine(ScreenRuleDefinitions.empty());
+    }
+    return tn3270ScreenRuleEngine;
+  }
+
+  private List<Path> resolveTn3270ScreenRulePaths() {
+    String env = System.getenv("TN3270_SCREENS_RULES");
+    if (env != null && !env.isBlank()) {
+      String[] tokens = env.split("[,;]");
+      List<Path> paths = new ArrayList<>(tokens.length);
+      for (String token : tokens) {
+        String trimmed = token.trim();
+        if (!trimmed.isEmpty()) {
+          paths.add(Path.of(trimmed));
+        }
+      }
+      return paths.isEmpty() ? List.of() : List.copyOf(paths);
+    }
+    List<Path> defaults = new ArrayList<>(2);
+    Path primary = Path.of("config", "tn3270-screens.yaml");
+    if (Files.exists(primary)) {
+      defaults.add(primary);
+    }
+    Path example = Path.of("config", "tn3270-screens.example.yaml");
+    if (defaults.isEmpty() && Files.exists(example)) {
+      defaults.add(example);
+    }
+    return defaults.isEmpty() ? List.of() : List.copyOf(defaults);
+  }
   private List<Path> resolveUserEventRulePaths() {
     String env = System.getenv("USER_EVENTS_RULES");
     List<Path> paths = new ArrayList<>();
@@ -706,6 +778,12 @@ public final class CompositionRoot {
     return captureConfig;
   }
 }
+
+
+
+
+
+
 
 
 

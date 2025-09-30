@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - HTTP persistence decorator that emits structured user events with metrics.
 - `user-events` CLI dry-run command and sample HTTP exchanges.
 - Documentation (`docs/user-events.md`) and example config (`config/user-events.example.yaml`).
+- Terminal event domain model, emitter port, and logging adapter with unit coverage.
+- TN3270 screen rule definitions with YAML loader, provider, engine, fixtures, and unit tests.
+- CompositionRoot support for TN3270 screen rules via `TN3270_SCREENS_RULES` and terminal event publishing sink wiring.
+- TN3270 screen event publishing sink that decorates the assembler, emits OpenTelemetry metrics, and forwards to existing Kafka sinks.
+- Operator documentation (docs/tn3270-screen-events.md) detailing TN3270 screen event rule schema, defaults, and telemetry guidance.
+
+### Changed
+- Expanded config/tn3270-screens.example.yaml with inline guidance for screen rule authors.
 
 ## [1.0.0] - 2025-09-28
 ### Added
@@ -58,6 +66,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 - Legacy adapters and deprecated wiring replaced by the new capture/assembler implementation.
+
+
+
+
+
 
 
 

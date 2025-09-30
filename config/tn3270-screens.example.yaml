@@ -1,0 +1,61 @@
+# Sample TN3270 screen rules for RADAR. Copy, edit, and supply via --tn3270-screens flag.
+# See docs/tn3270-screen-events.md for full schema and rollout guidance.
+
+version: 1  # Schema version. Must remain 1 until the loader introduces a new format.
+
+# Rules are evaluated top-to-bottom. The first rule whose match conditions all pass is used.
+screens:
+  - id: SIGNON  # Unique identifier referenced by telemetry and dashboards.
+    description: Initial sign-on prompt requesting operator credentials.
+    match:
+      - # Anchor on the banner displayed when the host prompts for credentials.
+        position:
+          row: 1   # One-based coordinates within the terminal buffer.
+          column: 1
+          length: 24
+        equals: "CONNECT TO HOST"
+        trim: true  # Explicitly trim to ignore padded spaces.
+        ignoreCase: true  # Hosts sometimes vary banner casing between releases.
+    label:
+      # Captures the heading rendered at the top of the screen.
+      position:
+        row: 1
+        column: 1
+        length: 32
+      trim: true
+    userId:
+      # Captures the operator ID input field populated by the terminal.
+      position:
+        row: 6
+        column: 18
+        length: 8
+      trim: true
+  - id: MAIN_MENU
+    description: Main application menu rendered after successful authentication.
+    match:
+      - # Identifies the menu title centered on row 1.
+        position:
+          row: 1
+          column: 30
+          length: 12
+        equals: "MAIN MENU"
+        trim: true
+      - # Ensures the instructions banner is present.
+        position:
+          row: 3
+          column: 5
+          length: 10
+        equals: "SELECT"
+        trim: true
+    label:
+      position:
+        row: 2
+        column: 1
+        length: 40
+      trim: true
+    userId:
+      position:
+        row: 1
+        column: 60
+        length: 8
+      trim: true

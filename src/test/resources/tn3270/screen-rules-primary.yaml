@@ -1,0 +1,52 @@
+version: 1
+screens:
+  - id: SIGNON
+    description: Sign-on screen requiring operator ID.
+    match:
+      - position:
+          row: 1
+          column: 1
+          length: 20
+        equals: "Welcome"
+        trim: true
+        ignoreCase: true
+      - position:
+          row: 3
+          column: 5
+          length: 7
+        equals: "SYSTEM"
+        trim: true
+    label:
+      position:
+        row: 2
+        column: 1
+        length: 40
+      trim: true
+    userId:
+      position:
+        row: 4
+        column: 12
+        length: 8
+      trim: true
+  - id: CONFIRM
+    description: Confirmation prompt.
+    match:
+      - position:
+          row: 5
+          column: 5
+          length: 7
+        equals: "CONFIRM"
+        trim: false
+        ignoreCase: false
+      - position:
+          row: 7
+          column: 10
+          length: 6
+        equals: "REJECT"
+        trim: true
+    label:
+      position:
+        row: 1
+        column: 1
+        length: 35
+      trim: true

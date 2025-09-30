@@ -1,0 +1,17 @@
+version: 1
+screens:
+  - id: STATUS
+    description: System status panel.
+    match:
+      - position:
+          row: 3
+          column: 2
+          length: 6
+        equals: "STATUS"
+        trim: true
+    label:
+      position:
+        row: 1
+        column: 1
+        length: 30
+      trim: true
