@@ -3,6 +3,7 @@ package ca.gc.cra.radar.application.events.http;
 import ca.gc.cra.radar.application.events.json.JsonSupport;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -29,7 +30,7 @@ public final class HttpBodyView {
    * @param charset character set used for string decoding; {@code null} falls back to UTF-8
    */
   public HttpBodyView(byte[] data, Charset charset) {
-    this.data = data == null ? new byte[0] : data;
+    this.data = data == null ? new byte[0] : data.clone();
     this.charset = charset == null ? StandardCharsets.UTF_8 : charset;
   }
 
@@ -57,7 +58,7 @@ public final class HttpBodyView {
    * @return raw byte array (do not mutate)
    */
   public byte[] bytes() {
-    return data;
+    return data.clone();
   }
 
   /**

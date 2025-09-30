@@ -77,7 +77,7 @@ public final class HttpResponseContext {
    * @return immutable header map keyed in lower case with ordered values
    */
   public Map<String, List<String>> headers() {
-    return headers;
+    return Map.copyOf(headers);
   }
 
   /**

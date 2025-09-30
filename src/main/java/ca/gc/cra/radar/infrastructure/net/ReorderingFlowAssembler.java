@@ -5,7 +5,9 @@ import ca.gc.cra.radar.application.port.MetricsPort;
 import ca.gc.cra.radar.domain.net.ByteStream;
 import ca.gc.cra.radar.domain.net.FiveTuple;
 import ca.gc.cra.radar.domain.net.TcpSegment;
+
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -25,14 +27,6 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
   private final String metricsPrefix;
   private final Map<DirectionKey, DirectionState> flows = new HashMap<>();
 
-  /**
-   * Creates a reordering assembler.
-   *
-   * @param metrics metrics sink for assembler statistics
-   * @param metricsPrefix prefix used for metric keys; defaults to {@code "flowAssembler"}
-   * @throws NullPointerException if {@code metrics} is {@code null}
-   * @since RADAR 0.1-doc
-   */
   public ReorderingFlowAssembler(MetricsPort metrics, String metricsPrefix) {
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.metricsPrefix = (metricsPrefix == null || metricsPrefix.isBlank())
@@ -40,21 +34,12 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         : metricsPrefix;
   }
 
-  /**
-   * Accepts a TCP segment, buffering as needed until contiguous bytes become available.
-   *
-   * @param segment segment to assemble; may be {@code null}
-   * @return byte stream slice when contiguous bytes are ready; otherwise empty
-   * @implNote Maintains per-direction buffers and trims duplicates to honour TCP semantics.
-   * @since RADAR 0.1-doc
-   */
   @Override
   public synchronized Optional<ByteStream> accept(TcpSegment segment) {
     if (segment == null) {
       metrics.increment(metricsPrefix + ".nullSegment");
       return Optional.empty();
     }
-
     DirectionKey key = new DirectionKey(segment.flow(), segment.fromClient());
     DirectionState state =
         flows.computeIfAbsent(
@@ -74,17 +59,20 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
     return emitted.map(slice -> new ByteStream(
         segment.flow(),
         segment.fromClient(),
-        slice.data(),
+        // Defensive copy at the boundary to avoid exposing internal buffers
+        slice.bytes().copy(),
         slice.timestampMicros()));
   }
 
   private record DirectionKey(FiveTuple flow, boolean fromClient) {}
 
+  /**
+   * Per-direction assembly state.
+   */
   private static final class DirectionState {
     private final MetricsPort metrics;
     private final String metricsPrefix;
     private final NavigableMap<Long, Chunk> buffer = new TreeMap<>();
-
     private long nextExpected = Long.MIN_VALUE;
     private boolean finished;
 
@@ -96,71 +84,81 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
     Optional<EmittedSlice> onSegment(TcpSegment segment) {
       byte[] payload = segment.payload();
       if (payload.length > 0) {
-        long seq = normalize(segment.sequenceNumber());
+        final long seq = normalize(segment.sequenceNumber());
         store(seq, payload, segment.timestampMicros());
       }
 
       Optional<EmittedSlice> emitted = emitIfReady();
       if (emitted.isPresent()) {
         metrics.increment(metricsPrefix + ".contiguous");
-        metrics.observe(metricsPrefix + ".bytes", emitted.get().data().length);
+        metrics.observe(metricsPrefix + ".bytes", emitted.get().bytes().length());
       } else if (payload.length > 0) {
         metrics.increment(metricsPrefix + ".buffered");
       }
       return emitted;
     }
 
+    /**
+     * Insert a new segment payload into the buffer, trimming duplicates and overlaps.
+     * This method is hot; all paths avoid unnecessary allocations.
+     */
     private void store(long sequenceNumber, byte[] payload, long timestampMicros) {
       long start = sequenceNumber;
-      if (nextExpected != Long.MIN_VALUE && start + payload.length <= nextExpected) {
+
+      // Discard if fully behind nextExpected
+      if (hasNextExpected() && start + payload.length <= nextExpected) {
         metrics.increment(metricsPrefix + ".duplicate");
         return;
       }
-      if (nextExpected != Long.MIN_VALUE && start < nextExpected) {
-        int skip = (int) Math.min(Integer.MAX_VALUE, nextExpected - start);
+
+      // Prefix-trim if partially behind nextExpected
+      if (hasNextExpected() && start < nextExpected) {
+        int skip = safeInt(nextExpected - start);
         if (skip >= payload.length) {
           metrics.increment(metricsPrefix + ".duplicate");
           return;
         }
-        byte[] trimmed = new byte[payload.length - skip];
-        System.arraycopy(payload, skip, trimmed, 0, trimmed.length);
-        payload = trimmed;
+        payload = trimLeft(payload, skip);
         start = nextExpected;
       }
 
+      // Trim overlap with floor entry (left neighbor)
       Map.Entry<Long, Chunk> floor = buffer.floorEntry(start);
       if (floor != null) {
-        long floorEnd = floor.getKey() + floor.getValue().data().length;
+        long floorEnd = floor.getKey() + floor.getValue().bytes().length();
         if (floorEnd > start) {
-          int overlap = (int) Math.min(Integer.MAX_VALUE, floorEnd - start);
+          int overlap = safeInt(floorEnd - start);
           if (overlap >= payload.length) {
             metrics.increment(metricsPrefix + ".duplicate");
             return;
           }
-          byte[] trimmed = new byte[payload.length - overlap];
-          System.arraycopy(payload, overlap, trimmed, 0, trimmed.length);
-          payload = trimmed;
+          payload = trimLeft(payload, overlap);
           start += overlap;
         }
       }
 
-      long end = start + payload.length;
+      final long end = start + payload.length;
+
+      // Remove/trim all overlapping right neighbors
       Map.Entry<Long, Chunk> overlapping = buffer.ceilingEntry(start);
       while (overlapping != null && overlapping.getKey() < end) {
         long existingStart = overlapping.getKey();
         Chunk existing = overlapping.getValue();
-        long existingEnd = existingStart + existing.data().length;
+        long existingEnd = existingStart + existing.bytes().length();
+
         buffer.remove(existingStart);
+
+        // If existing chunk extends past the new chunk's end, keep its tail
         if (existingEnd > end) {
-          int tailLen = (int) Math.min(Integer.MAX_VALUE, existingEnd - end);
-          byte[] tail = new byte[tailLen];
-          System.arraycopy(existing.data(), existing.data().length - tailLen, tail, 0, tailLen);
-          buffer.put(end, new Chunk(tail, existing.timestampMicros()));
+          int tailLen = safeInt(existingEnd - end);
+          byte[] tail = sliceRight(existing.bytes().raw(), tailLen);
+          buffer.put(end, new Chunk(ImmutableBytes.ofOwned(tail), existing.timestampMicros()));
         }
         overlapping = buffer.ceilingEntry(start);
       }
 
-      buffer.put(start, new Chunk(payload.clone(), timestampMicros));
+      // Store new chunk (one defensive copy on ingress)
+      buffer.put(start, new Chunk(ImmutableBytes.of(payload), timestampMicros));
       metrics.increment(metricsPrefix + ".stored");
     }
 
@@ -168,10 +166,8 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
       if (buffer.isEmpty()) {
         return Optional.empty();
       }
-      long expected = nextExpected;
-      if (expected == Long.MIN_VALUE) {
-        expected = buffer.firstKey();
-      }
+
+      long expected = hasNextExpected() ? nextExpected : buffer.firstKey();
 
       if (buffer.firstKey() > expected) {
         nextExpected = expected;
@@ -186,21 +182,21 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         Map.Entry<Long, Chunk> entry = buffer.firstEntry();
         long start = entry.getKey();
         if (start > cursor) {
-          break;
+          break; // gap
         }
         Chunk chunk = entry.getValue();
         buffer.pollFirstEntry();
-        byte[] data = chunk.data();
+
+        byte[] data = chunk.bytes().raw();
         if (start < cursor) {
-          int skip = (int) Math.min(Integer.MAX_VALUE, cursor - start);
+          int skip = safeInt(cursor - start);
           if (skip >= data.length) {
             continue;
           }
-          byte[] trimmed = new byte[data.length - skip];
-          System.arraycopy(data, skip, trimmed, 0, trimmed.length);
-          data = trimmed;
+          data = trimLeft(data, skip);
           start = cursor;
         }
+
         out.write(data, 0, data.length);
         cursor = start + data.length;
         lastTimestamp = chunk.timestampMicros();
@@ -212,88 +208,93 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
       }
 
       nextExpected = cursor;
-      return Optional.of(new EmittedSlice(out.toByteArray(), lastTimestamp));
+      return Optional.of(new EmittedSlice(ImmutableBytes.ofOwned(out.toByteArray()), lastTimestamp));
     }
 
-    void markFinished() {
-      finished = true;
+    void markFinished() { finished = true; }
+    boolean shouldRetire() { return finished && buffer.isEmpty(); }
+    void close() { buffer.clear(); }
+    private boolean hasNextExpected() { return nextExpected != Long.MIN_VALUE; }
+    private long normalize(long sequenceNumber) { return sequenceNumber & 0xFFFFFFFFL; }
+
+    // ---------- small, allocation-light helpers ----------
+
+    /** Trim left by {@code n} bytes; returns a new array view (copy) of the remainder. */
+    private static byte[] trimLeft(byte[] src, int n) {
+      byte[] trimmed = new byte[src.length - n];
+      System.arraycopy(src, n, trimmed, 0, trimmed.length);
+      return trimmed;
     }
 
-    boolean shouldRetire() {
-      return finished && buffer.isEmpty();
+    /** Take the last {@code len} bytes from {@code src}. */
+    private static byte[] sliceRight(byte[] src, int len) {
+      byte[] out = new byte[len];
+      System.arraycopy(src, src.length - len, out, 0, len);
+      return out;
     }
 
-    void close() {
-      buffer.clear();
+    /** Safe narrowing from long to int for positive, bounded differences. */
+    private static int safeInt(long v) {
+      return (v > Integer.MAX_VALUE) ? Integer.MAX_VALUE : (int) v;
     }
 
-    private long normalize(long sequenceNumber) {
-      return sequenceNumber & 0xFFFFFFFFL;
+    // ---------- immutable value types (no duplication) ----------
+
+    /**
+     * Immutable, deep-equality byte container.
+     * One defensive copy is performed on creation. Internal array can be exposed to
+     * callers within this enclosing class via {@link #raw()} without further copies.
+     */
+    private static final class ImmutableBytes {
+      private final byte[] data;
+
+      private ImmutableBytes(byte[] owned) { // assumes caller will not reuse 'owned'
+        this.data = owned;
+      }
+
+      /** Copies the source for safety. Use when data originates outside this class. */
+      static ImmutableBytes of(byte[] src) {
+        return new ImmutableBytes(src == null ? new byte[0] : src.clone());
+      }
+
+      /** Wraps an already-copied buffer without cloning again. */
+      static ImmutableBytes ofOwned(byte[] alreadyOwned) {
+        return new ImmutableBytes(alreadyOwned == null ? new byte[0] : alreadyOwned);
+      }
+
+      /** Length without copying. */
+      int length() { return data.length; }
+
+      /** Raw access for internal use (never mutate!). */
+      byte[] raw() { return data; }
+
+      /** Defensive copy for outbound boundaries. */
+      byte[] copy() { return data.clone(); }
+
+      @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ImmutableBytes other)) return false;
+        return Arrays.equals(this.data, other.data);
+      }
+
+      @Override public int hashCode() { return Arrays.hashCode(data); }
+
+      @Override public String toString() { return Arrays.toString(data); }
     }
 
-    private record Chunk(byte[] data, long timestampMicros) {
+    /** Stored buffered chunk. */
+    private record Chunk(ImmutableBytes bytes, long timestampMicros) {
       Chunk {
-        data = data != null ? data.clone() : new byte[0];
-      }
-
-      @Override
-      public boolean equals(Object o) {
-        if (this == o) {
-          return true;
-        }
-        if (!(o instanceof Chunk(byte[] otherData, long otherTimestamp))) {
-          return false;
-        }
-        return timestampMicros == otherTimestamp
-            && Arrays.equals(data, otherData);
-      }
-
-      @Override
-      public int hashCode() {
-        int result = Arrays.hashCode(data);
-        result = 31 * result + Long.hashCode(timestampMicros);
-        return result;
-      }
-
-      @Override
-      public String toString() {
-        return "Chunk{data=" + Arrays.toString(data)
-            + ", timestampMicros=" + timestampMicros
-            + '}';
+        // Normalize null
+        if (bytes == null) bytes = ImmutableBytes.ofOwned(new byte[0]);
       }
     }
 
-    record EmittedSlice(byte[] data, long timestampMicros) {
+    /** Emitted contiguous slice. */
+    private record EmittedSlice(ImmutableBytes bytes, long timestampMicros) {
       EmittedSlice {
-        data = data != null ? data.clone() : new byte[0];
-      }
-
-      @Override
-      public boolean equals(Object o) {
-        if (this == o) {
-          return true;
-        }
-        if (!(o instanceof EmittedSlice(byte[] otherData, long otherTimestamp))) {
-          return false;
-        }
-        return timestampMicros == otherTimestamp
-            && Arrays.equals(data, otherData);
-      }
-
-      @Override
-      public int hashCode() {
-        int result = Arrays.hashCode(data);
-        result = 31 * result + Long.hashCode(timestampMicros);
-        return result;
-      }
-
-      @Override
-      public String toString() {
-        return "EmittedSlice{data=" + Arrays.toString(data)
-            + ", timestampMicros=" + timestampMicros
-            + '}';
+        if (bytes == null) bytes = ImmutableBytes.ofOwned(new byte[0]);
       }
     }
   }
 }
-
