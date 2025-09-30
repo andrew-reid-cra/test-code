@@ -1,0 +1,51 @@
+version: 2
+updates:
+  # Keep Maven dependencies and plugins up to date
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    rebase-strategy: auto
+    labels: ["dependencies", "java", "maven", "automated"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      maven-patch-and-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+      maven-major:
+        patterns: ["*"]
+        update-types: ["major"]
+      maven-plugins:
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.codehaus.mojo:*"
+          - "*maven-plugin*"
+
+  # Keep GitHub Actions up to date as well
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:30"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "github-actions", "automated"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      actions-patch-and-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+      actions-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
