@@ -23,6 +23,10 @@
     <maven.site.plugin.version>3.12.1</maven.site.plugin.version>
     <maven.surefire.report.plugin.version>3.1.2</maven.surefire.report.plugin.version>
     <maven.project.info.reports.plugin.version>3.4.2</maven.project.info.reports.plugin.version>
+    <sonar.maven.plugin.version>3.10.0.2594</sonar.maven.plugin.version>
+    <spotbugs.plugin.version>4.8.6.2</spotbugs.plugin.version>
+    <findsecbugs.plugin.version>1.13.0</findsecbugs.plugin.version>
+    <dependency.check.plugin.version>9.2.0</dependency.check.plugin.version>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <slf4j.version>2.0.17</slf4j.version>
     <logback.version>1.5.18</logback.version>
@@ -255,6 +259,58 @@
         <executions>
           <execution>
             <id>verify-javadoc-coverage</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.sonarsource.scanner.maven</groupId>
+        <artifactId>sonar-maven-plugin</artifactId>
+        <version>${sonar.maven.plugin.version}</version>
+      </plugin>
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs.plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.h3xstream.findsecbugs</groupId>
+            <artifactId>findsecbugs-plugin</artifactId>
+            <version>${findsecbugs.plugin.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Low</threshold>
+          <failOnError>true</failOnError>
+          <includeTests>false</includeTests>
+          <xmlOutput>true</xmlOutput>
+          <xmlOutputDirectory>${project.build.directory}/spotbugs</xmlOutputDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>${dependency.check.plugin.version}</version>
+        <configuration>
+          <format>HTML</format>
+          <failBuildOnCVSS>7.0</failBuildOnCVSS>
+          <dataDirectory>${project.build.directory}/dependency-check-data</dataDirectory>
+          <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+        </configuration>
+        <executions>
+          <execution>
             <phase>verify</phase>
             <goals>
               <goal>check</goal>
