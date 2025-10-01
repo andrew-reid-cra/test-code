@@ -107,21 +107,22 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       while (!Thread.currentThread().isInterrupted()) {
         ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
         if (records.isEmpty()) {
-          if (++idlePolls >= maxIdlePolls) {
+          idlePolls++;
+          if (idlePolls >= maxIdlePolls) {
             break;
           }
-          continue;
-        }
-        idlePolls = 0;
-        for (ConsumerRecord<String, String> record : records) {
-          HttpPair pair = parsePair(record.value());
-          if (pair == null) {
-            continue;
+        } else {
+          idlePolls = 0;
+          for (ConsumerRecord<String, String> consumerRecord : records) {
+            HttpPair pair = parsePair(consumerRecord.value());
+            if (pair == null) {
+              continue;
+            }
+            String content = formatPair(pair, decodeMode);
+            long ts = pair.startTs > 0 ? pair.startTs : pair.endTs;
+            PosterReport report = new PosterReport(ProtocolId.HTTP, pair.txId, ts, content);
+            outputPort.write(report);
           }
-          String content = formatPair(pair, decodeMode);
-          long ts = pair.startTs > 0 ? pair.startTs : pair.endTs;
-          PosterReport report = new PosterReport(ProtocolId.HTTP, pair.txId, ts, content);
-          outputPort.write(report);
         }
       }
     }
@@ -188,24 +189,24 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     while (idx < json.length()) {
       int keyStart = json.indexOf('"', idx);
       if (keyStart < 0) {
-        break;
+        return map;
       }
       int keyEnd = findStringEnd(json, keyStart + 1);
       if (keyEnd < 0) {
-        break;
+        return map;
       }
       String key = unescape(json.substring(keyStart + 1, keyEnd));
       int colon = json.indexOf(':', keyEnd);
       if (colon < 0) {
-        break;
+        return map;
       }
       int valueStart = json.indexOf('"', colon);
       if (valueStart < 0) {
-        break;
+        return map;
       }
       int valueEnd = findStringEnd(json, valueStart + 1);
       if (valueEnd < 0) {
-        break;
+        return map;
       }
       String value = unescape(json.substring(valueStart + 1, valueEnd));
       map.put(key, value);
@@ -220,13 +221,9 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       char c = json.charAt(i);
       if (escaping) {
         escaping = false;
-        continue;
-      }
-      if (c == '\\') {
+      } else if (c == '\\') {
         escaping = true;
-        continue;
-      }
-      if (c == '"') {
+      } else if (c == '"') {
         return i;
       }
     }
@@ -358,6 +355,22 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       return;
     }
     HttpMessage decoded = decodeHttpMessage(message, decodeMode);
+    appendSectionMetadata(sb, txId, client, server, request, decoded);
+    appendFirstLine(sb, decoded.firstLine());
+    appendHeadersBlock(sb, decoded.headers());
+    appendStatusLine(sb, decoded.status());
+    appendAttributesLine(sb, decoded.attributes());
+    sb.append('\n');
+    appendBody(sb, decoded.body());
+  }
+
+  private static void appendSectionMetadata(
+      StringBuilder sb,
+      String txId,
+      Endpoint client,
+      Endpoint server,
+      boolean request,
+      HttpMessage decoded) {
     Endpoint src = request ? client : server;
     Endpoint dst = request ? server : client;
     sb.append("# id: ").append(txId).append('\n');
@@ -365,30 +378,40 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
     sb.append("# src: ").append(src.ip()).append(':').append(src.port()).append('\n');
     sb.append("# dst: ").append(dst.ip()).append(':').append(dst.port()).append('\n');
     sb.append('\n');
-    if (decoded.firstLine() != null && !decoded.firstLine().isBlank()) {
-      sb.append(decoded.firstLine()).append('\n');
+  }
+
+  private static void appendFirstLine(StringBuilder sb, String firstLine) {
+    if (firstLine != null && !firstLine.isBlank()) {
+      sb.append(firstLine).append('\n');
     }
-    String headers = decoded.headers();
-    if (headers != null && !headers.isBlank()) {
-      for (String line : headers.split("\r?\n")) {
-        if (line.isEmpty()) {
-          continue;
-        }
+  }
+
+  private static void appendHeadersBlock(StringBuilder sb, String headers) {
+    if (headers == null || headers.isBlank()) {
+      return;
+    }
+    for (String line : headers.split("\\r?\\n")) {
+      if (!line.isEmpty()) {
         sb.append(line).append('\n');
       }
     }
-    if (decoded.status() > 0) {
-      sb.append("# status: ").append(decoded.status()).append('\n');
-    }
-    Map<String, String> attrs = decoded.attributes();
-    if (attrs != null && !attrs.isEmpty()) {
-      StringJoiner joiner = new StringJoiner(", ");
-      attrs.forEach((k, v) -> joiner.add(k + '=' + v));
-      sb.append("# attrs: ").append(joiner.toString()).append('\n');
-    }
-    sb.append('\n');
-    appendBody(sb, decoded.body());
   }
+
+  private static void appendStatusLine(StringBuilder sb, int status) {
+    if (status > 0) {
+      sb.append("# status: ").append(status).append('\n');
+    }
+  }
+
+  private static void appendAttributesLine(StringBuilder sb, Map<String, String> attrs) {
+    if (attrs == null || attrs.isEmpty()) {
+      return;
+    }
+    StringJoiner joiner = new StringJoiner(", ");
+    attrs.forEach((k, v) -> joiner.add(k + '=' + v));
+    sb.append("# attrs: ").append(joiner.toString()).append('\n');
+  }
+
 
   private static HttpMessage decodeHttpMessage(HttpMessage message, PosterConfig.DecodeMode mode) {
     if (message == null || message.body().length == 0) {
@@ -509,13 +532,9 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
   private static byte[] decodeChunked(byte[] body) throws IOException {
     ByteArrayInputStream in = new ByteArrayInputStream(body);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    while (true) {
-      String line = readLine(in);
-      if (line == null) {
-        break;
-      }
+    for (String line = readLine(in); line != null; line = readLine(in)) {
       int size = Integer.parseInt(line.trim(), 16);
-      if (size == 0) {
+      if (size <= 0) {
         break;
       }
       byte[] chunk = in.readNBytes(size);
