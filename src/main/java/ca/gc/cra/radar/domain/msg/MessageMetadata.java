@@ -15,10 +15,18 @@ import java.util.Map;
  * @since 0.1.0
  */
 public record MessageMetadata(String transactionId, Map<String, String> attributes) {
+  /**
+   * Creates metadata with defensive copies to prevent external mutation.
+   */
   public MessageMetadata {
     attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
   }
 
+  /**
+   * Returns an immutable view backing the metadata attributes.
+   *
+   * @return immutable attribute map
+   */
   @Override
   public Map<String, String> attributes() {
     return Map.copyOf(attributes);

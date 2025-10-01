@@ -2,6 +2,7 @@ package ca.gc.cra.radar.domain.net;
 
 import java.util.Arrays;
 import java.util.Objects;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * <strong>What:</strong> Ordered slice of TCP bytes emitted by a flow assembler for a single direction.
@@ -28,12 +29,17 @@ public record ByteStream(FiveTuple flow, boolean fromClient, byte[] data, long t
    * <p><strong>Observability:</strong> Timestamp is expected to be tagged on downstream metrics.</p>
    */
   public ByteStream {
-    data = data != null ? data.clone() : new byte[0];
+    data = data != null ? data : new byte[0];
   }
 
-  @Override
+  /**
+   * Exposes the underlying payload for zero-copy hand-off to downstream adapters.
+   *
+   * @return backing payload array; callers must not mutate after ingestion
+   */
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Zero-copy hand-off required for 40Gbps pipelines; callers respect ownership contract.")
   public byte[] data() {
-    return data.clone();
+    return data;
   }
 
   @Override

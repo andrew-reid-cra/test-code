@@ -2,6 +2,7 @@ package ca.gc.cra.radar.infrastructure.buffer;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.locks.ReentrantLock;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Simple bounded pool of reusable byte arrays to minimize temporary allocations in IO hot paths.
@@ -93,6 +94,7 @@ public final class BufferPool {
      *
      * @return writable backing array (do not retain after close)
      */
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Borrowers misuse if they retain after close; zero-copy access needed for pooling performance.")
     public byte[] borrowWritableArray() {
       if (released) {
         throw new IllegalStateException("buffer already released");

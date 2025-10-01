@@ -91,6 +91,13 @@ public final class GrowableBuffer {
     return Arrays.copyOfRange(data, readIndex, writeIndex);
   }
 
+  /**
+   * Returns the readable byte at the absolute index without modifying indices.
+   *
+   * @param index absolute index within the readable window
+   * @return byte value at the requested index
+   * @throws IndexOutOfBoundsException when the index lies outside the readable range
+   */
   public byte byteAt(int index) {
     if (index < readIndex || index >= writeIndex) {
       throw new IndexOutOfBoundsException("index out of readable range: " + index);

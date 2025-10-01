@@ -24,10 +24,18 @@ public record Config(
     int snapLength,
     Set<ProtocolId> enabledProtocols) {
 
+  /**
+   * Normalizes supplied protocol set to an immutable defensive copy.
+   */
   public Config {
     enabledProtocols = Set.copyOf(Objects.requireNonNull(enabledProtocols, "enabledProtocols"));
   }
 
+  /**
+   * Returns an immutable view of the enabled protocol configuration.
+   *
+   * @return configured protocol set
+   */
   @Override
   public Set<ProtocolId> enabledProtocols() {
     return Set.copyOf(enabledProtocols);

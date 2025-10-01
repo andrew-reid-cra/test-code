@@ -27,6 +27,12 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
   private final String metricsPrefix;
   private final Map<DirectionKey, DirectionState> flows = new HashMap<>();
 
+  /**
+   * Builds a flow assembler with the provided metrics sink and key prefix.
+   *
+   * @param metrics metrics port used for instrumentation
+   * @param metricsPrefix metric key prefix (defaults to flowAssembler when blank)
+   */
   public ReorderingFlowAssembler(MetricsPort metrics, String metricsPrefix) {
     this.metrics = Objects.requireNonNull(metrics, "metrics");
     this.metricsPrefix = (metricsPrefix == null || metricsPrefix.isBlank())
@@ -34,6 +40,12 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         : metricsPrefix;
   }
 
+  /**
+   * Consumes a TCP segment and emits an ordered byte stream slice when contiguous data is available.
+   *
+   * @param segment decoded segment to ingest; {@code null} increments a metric and yields empty
+   * @return optional contiguous slice when the segment closes a gap
+   */
   @Override
   public synchronized Optional<ByteStream> accept(TcpSegment segment) {
     if (segment == null) {

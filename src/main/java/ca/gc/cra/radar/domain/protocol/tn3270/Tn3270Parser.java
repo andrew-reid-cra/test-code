@@ -209,10 +209,18 @@ public final class Tn3270Parser {
 
   /** Submit result bundling AID and input map. */
   public record SubmitResult(AidKey aid, Map<String, String> inputs) {
+    /**
+     * Creates an immutable submit result copy of the provided input map.
+     */
     public SubmitResult {
       inputs = inputs == null ? Map.of() : Map.copyOf(inputs);
     }
 
+    /**
+     * Returns immutable input data collected during submit processing.
+     *
+     * @return immutable map of input fields
+     */
     @Override
     public Map<String, String> inputs() {
       return Map.copyOf(inputs);

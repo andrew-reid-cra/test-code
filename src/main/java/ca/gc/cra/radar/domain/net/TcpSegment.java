@@ -2,6 +2,7 @@ package ca.gc.cra.radar.domain.net;
 
 import java.util.Arrays;
 import java.util.Objects;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * <strong>What:</strong> Simplified TCP segment abstraction exposed by the flow assembler.
@@ -46,9 +47,14 @@ public record TcpSegment(
     payload = payload != null ? payload.clone() : new byte[0];
   }
 
-  @Override
+  /**
+   * Provides access to the normalized payload without additional copying.
+   *
+   * @return internal payload array; callers must not mutate after passing to the domain model
+   */
+  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "TCP payload is defensively copied on construction; exposing the canonical buffer avoids extra allocations per segment.")
   public byte[] payload() {
-    return payload.clone();
+    return payload;
   }
 
   @Override
