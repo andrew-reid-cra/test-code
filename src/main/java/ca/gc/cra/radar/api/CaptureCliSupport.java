@@ -11,6 +11,8 @@ import java.nio.file.Path;
  * Shared helpers for capture-oriented CLIs to keep output validation and dry-run messaging aligned.
  */
 final class CaptureCliSupport {
+  private static final String VALUE_NONE = "<none>";
+
   private CaptureCliSupport() {
     // Utility class
   }
@@ -46,7 +48,7 @@ final class CaptureCliSupport {
         "Capture dry-run: no packets will be captured.",
         " Mode             : " + (offline ? "OFFLINE" : "LIVE"),
         " Interface        : " + (offline ? "<ignored>" : config.iface()),
-        " PCAP file        : " + (offline ? source : "<none>"),
+        " PCAP file        : " + (offline ? source : VALUE_NONE),
         " Protocol         : " + config.protocol().displayName(),
         " Snaplen          : " + config.snaplen(),
         " Buffer (bytes)   : " + config.bufferBytes(),
@@ -55,8 +57,8 @@ final class CaptureCliSupport {
         " Segments dir     : " + paths.segments(),
         " HTTP dir         : " + paths.http(),
         " TN3270 dir       : " + paths.tn3270(),
-        " Kafka bootstrap  : " + (config.kafkaBootstrap() == null ? "<none>" : config.kafkaBootstrap()),
-        " Kafka topic      : " + (config.kafkaTopicSegments() == null ? "<none>" : config.kafkaTopicSegments()),
+        " Kafka bootstrap  : " + (config.kafkaBootstrap() == null ? VALUE_NONE : config.kafkaBootstrap()),
+        " Kafka topic      : " + (config.kafkaTopicSegments() == null ? VALUE_NONE : config.kafkaTopicSegments()),
         " Promiscuous mode : " + config.promiscuous(),
         " Immediate mode   : " + config.immediate(),
         " Allow overwrite  : " + allowOverwrite,

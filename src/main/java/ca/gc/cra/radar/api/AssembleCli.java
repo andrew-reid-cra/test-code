@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class AssembleCli {
   private static final Logger log = LoggerFactory.getLogger(AssembleCli.class);
+  private static final String MODE_ASSEMBLE = "assemble";
   private static final String SUMMARY_USAGE =
       "usage: assemble in=PATH|in=kafka:TOPIC out=PATH [ioMode=FILE|KAFKA] "
           + "[httpOut=PATH] [tnOut=PATH] [httpEnabled=true|false] [tnEnabled=true|false] "
@@ -87,57 +88,38 @@ public final class AssembleCli {
       CliPrinter.println(HELP_TEXT.stripTrailing());
       return ExitCode.SUCCESS;
     }
-    if (input.verbose()) {
-      LoggingConfigurator.enableVerboseLogging();
-      log.debug("Verbose logging enabled for assemble CLI");
-    }
 
-    boolean dryRunFlag = input.hasFlag("--dry-run");
-    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
+    enableVerboseIfRequested(input);
+    CliFlags cliFlags = CliFlags.fromInput(input);
 
-    Map<String, String> kv;
+    Map<String, String> cliKv;
     try {
-      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
+      cliKv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    String configPath = ConfigCliUtils.extractConfigPath(kv);
+    String configPath = ConfigCliUtils.extractConfigPath(cliKv);
 
-    Optional<Map<String, String>> yamlConfig = Optional.empty();
-    if (configPath != null) {
-      Path yamlPath = Path.of(configPath);
-      if (!java.nio.file.Files.exists(yamlPath)) {
-        log.error("Configuration file does not exist: {}", yamlPath);
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      }
-      try {
-        yamlConfig = YamlConfigLoader.load(yamlPath, "assemble");
-      } catch (IllegalArgumentException ex) {
-        log.error("Invalid YAML configuration: {}", ex.getMessage());
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      } catch (IOException ex) {
-        log.error("Unable to read configuration file {}", yamlPath, ex);
-        return ExitCode.IO_ERROR;
-      }
+    Optional<Map<String, String>> yamlConfig;
+    try {
+      yamlConfig = loadYamlConfig(configPath);
+    } catch (CliAbort abort) {
+      return abort.exitCode();
     }
 
-    Map<String, String> defaults = DefaultsForMode.asFlatMap("assemble");
     Map<String, String> effective;
     try {
-      effective = ConfigMerger.buildEffectiveConfig("assemble", yamlConfig, kv, defaults, log::warn);
+      effective = buildEffectiveConfig(yamlConfig, cliKv);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid assemble arguments: {}", ex.getMessage());
+      log.error("Invalid assemble configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
-    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+    CliFlags effectiveFlags = cliFlags.mergeWith(effective);
 
     Map<String, String> configInputs = new LinkedHashMap<>(effective);
     String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
@@ -154,18 +136,60 @@ public final class AssembleCli {
 
     ValidatedPaths validated;
     try {
-      validated = validatePaths(config, allowOverwrite, !dryRun);
+      validated = validatePaths(config, effectiveFlags.allowOverwrite(), !effectiveFlags.dryRun());
     } catch (IllegalArgumentException ex) {
       log.error("Invalid assemble path configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    if (dryRun) {
-      printDryRunPlan(config, validated, allowOverwrite);
+    if (effectiveFlags.dryRun()) {
+      printDryRunPlan(config, validated, effectiveFlags.allowOverwrite());
       return ExitCode.SUCCESS;
     }
 
+    return executeAssemblePipeline(config, validated, metricsExporter);
+  }
+
+  private static void enableVerboseIfRequested(CliInput input) {
+    if (input.verbose()) {
+      LoggingConfigurator.enableVerboseLogging();
+      log.debug("Verbose logging enabled for assemble CLI");
+    }
+  }
+
+  private static Optional<Map<String, String>> loadYamlConfig(String configPath) throws CliAbort {
+    if (configPath == null) {
+      return Optional.empty();
+    }
+
+    Path yamlPath = Path.of(configPath);
+    if (!Files.exists(yamlPath)) {
+      log.error("Configuration file does not exist: {}", yamlPath);
+      CliPrinter.println(SUMMARY_USAGE);
+      throw new CliAbort(ExitCode.INVALID_ARGS);
+    }
+
+    try {
+      return YamlConfigLoader.load(yamlPath, MODE_ASSEMBLE);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid YAML configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      throw new CliAbort(ExitCode.INVALID_ARGS);
+    } catch (IOException ex) {
+      log.error("Unable to read configuration file {}", yamlPath, ex);
+      throw new CliAbort(ExitCode.IO_ERROR);
+    }
+  }
+
+  private static Map<String, String> buildEffectiveConfig(
+      Optional<Map<String, String>> yamlConfig, Map<String, String> cliKv) {
+    Map<String, String> defaults = DefaultsForMode.asFlatMap(MODE_ASSEMBLE);
+    return ConfigMerger.buildEffectiveConfig(MODE_ASSEMBLE, yamlConfig, cliKv, defaults, log::warn);
+  }
+
+  private static ExitCode executeAssemblePipeline(
+      AssembleConfig config, ValidatedPaths validated, String metricsExporter) {
     CompositionRoot root = new CompositionRoot(ca.gc.cra.radar.config.Config.defaults());
     AssembleUseCase useCase = root.assembleUseCase(config);
 
@@ -210,12 +234,12 @@ public final class AssembleCli {
     Path outputRoot = Paths.validateWritableDir(config.outputDirectory(), null, createIfMissing, allowOverwrite);
     Optional<Path> http = config.httpOutputDirectory()
         .map(path -> Paths.validateWritableDir(path, null, createIfMissing, allowOverwrite))
-        .or(() -> Optional.of(Paths.validateWritableDir(
-            config.outputDirectory().resolve("http"), null, createIfMissing, allowOverwrite)));
+        .or(() -> Optional.of(
+            Paths.validateWritableDir(config.outputDirectory().resolve("http"), null, createIfMissing, allowOverwrite)));
     Optional<Path> tn = config.tnOutputDirectory()
         .map(path -> Paths.validateWritableDir(path, null, createIfMissing, allowOverwrite))
-        .or(() -> Optional.of(Paths.validateWritableDir(
-            config.outputDirectory().resolve("tn3270"), null, createIfMissing, allowOverwrite)));
+        .or(() -> Optional.of(
+            Paths.validateWritableDir(config.outputDirectory().resolve("tn3270"), null, createIfMissing, allowOverwrite)));
 
     return new ValidatedPaths(input, outputRoot, http.orElse(null), tn.orElse(null));
   }
@@ -254,6 +278,30 @@ public final class AssembleCli {
         " Re-run without --dry-run to assemble segments.");
   }
 
+  private record CliFlags(boolean dryRun, boolean allowOverwrite) {
+    static CliFlags fromInput(CliInput input) {
+      return new CliFlags(input.hasFlag("--dry-run"), input.hasFlag("--allow-overwrite"));
+    }
+
+    CliFlags mergeWith(Map<String, String> configValues) {
+      boolean mergedDryRun = dryRun || ConfigCliUtils.parseBoolean(configValues, "dryRun");
+      boolean mergedAllowOverwrite = allowOverwrite
+          || ConfigCliUtils.parseBoolean(configValues, "allowOverwrite");
+      return new CliFlags(mergedDryRun, mergedAllowOverwrite);
+    }
+  }
+
+  private static final class CliAbort extends Exception {
+    private final ExitCode exitCode;
+
+    CliAbort(ExitCode exitCode) {
+      this.exitCode = exitCode;
+    }
+
+    ExitCode exitCode() {
+      return exitCode;
+    }
+  }
+
   private record ValidatedPaths(Path input, Path outputRoot, Path http, Path tn) {}
 }
-

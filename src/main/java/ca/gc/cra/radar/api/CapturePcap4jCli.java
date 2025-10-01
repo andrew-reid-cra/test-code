@@ -95,97 +95,142 @@ public final class CapturePcap4jCli {
       CliPrinter.println(HELP_TEXT.stripTrailing());
       return ExitCode.SUCCESS;
     }
-    if (input.verbose()) {
-      LoggingConfigurator.enableVerboseLogging();
-      log.debug("Verbose logging enabled for capture-pcap4j CLI");
+
+    enableVerboseIfRequested(input);
+    CliFlags flags = CliFlags.fromInput(input);
+
+    ParseResult parse = parseArguments(input);
+    if (!parse.success()) {
+      return parse.exitCode();
     }
 
-    boolean dryRun = input.hasFlag("--dry-run");
-    boolean allowOverwrite = input.hasFlag("--allow-overwrite");
-    boolean enableBpfFlag = input.hasFlag("--enable-bpf");
-
-    Map<String, String> kv;
-    try {
-      kv = CliArgsParser.toMap(input.keyValueArgs());
-    } catch (IllegalArgumentException ex) {
-      log.error("Invalid argument: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
-    }
-    TelemetryConfigurator.configureMetrics(kv);
-
-    String ifaceRaw = kv.get("iface");
-    String pcapRaw = kv.get("pcapFile");
-    if ((ifaceRaw == null || ifaceRaw.isBlank()) && (pcapRaw == null || pcapRaw.isBlank())) {
-      log.error("pcap4j capture must supply iface=<nic> or pcapFile=<path>");
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+    Map<String, String> cliKv = parse.arguments();
+    ExitCode sourceCheck = enforceSourceProvided(cliKv);
+    if (sourceCheck != null) {
+      return sourceCheck;
     }
 
-    if (enableBpfFlag) {
-      kv.put("enableBpf", "true");
-    }
+    applyEnableBpf(cliKv, flags);
+    TelemetryConfigurator.configureMetrics(cliKv);
 
     CaptureConfig captureCfg;
     try {
-      captureCfg = CaptureConfig.fromMap(kv);
+      captureCfg = CaptureConfig.fromMap(cliKv);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid capture arguments: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    boolean offline = captureCfg.pcapFile() != null;
-    if (offline) {
-      Path pcapPath = captureCfg.pcapFile();
-      if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
-        log.error("pcapFile must reference a readable file: {}", pcapPath);
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      }
-      String ifaceArg = kv.get("iface");
-      if (ifaceArg != null && !ifaceArg.isBlank()) {
-        log.warn(
-            "Ignoring iface={} because pcapFile={} was provided",
-            Logs.truncate(ifaceArg, 32),
-            captureCfg.pcapFile());
-      }
+    OfflineValidation offlineValidation = validateOfflineCapture(captureCfg, cliKv);
+    if (!offlineValidation.succeeded()) {
+      return offlineValidation.exitCode();
     }
+    boolean offline = offlineValidation.offline();
 
     CaptureCliSupport.ValidatedPaths validated;
     try {
-      validated = CaptureCliSupport.validateOutputs(captureCfg, allowOverwrite, !dryRun);
+      validated = CaptureCliSupport.validateOutputs(
+          captureCfg, flags.allowOverwrite(), !flags.dryRun());
     } catch (IllegalArgumentException ex) {
       log.error("Invalid output path configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    if (dryRun) {
-      CaptureCliSupport.printDryRunPlan(captureCfg, validated, allowOverwrite);
+    if (flags.dryRun()) {
+      CaptureCliSupport.printDryRunPlan(captureCfg, validated, flags.allowOverwrite());
       return ExitCode.SUCCESS;
     }
 
+    logFilterSelection(captureCfg);
+    SegmentCaptureUseCase useCase = buildUseCase(captureCfg);
+    return executeCapturePipeline(useCase, captureCfg, offline);
+  }
+
+  private static void enableVerboseIfRequested(CliInput input) {
+    if (input.verbose()) {
+      LoggingConfigurator.enableVerboseLogging();
+      log.debug("Verbose logging enabled for capture-pcap4j CLI");
+    }
+  }
+
+  private static ParseResult parseArguments(CliInput input) {
+    try {
+      return ParseResult.success(CliArgsParser.toMap(input.keyValueArgs()));
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid argument: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ParseResult.failure(ExitCode.INVALID_ARGS);
+    }
+  }
+
+  private static ExitCode enforceSourceProvided(Map<String, String> cliKv) {
+    String ifaceRaw = cliKv.get("iface");
+    String pcapRaw = cliKv.get("pcapFile");
+    if ((ifaceRaw == null || ifaceRaw.isBlank()) && (pcapRaw == null || pcapRaw.isBlank())) {
+      log.error("pcap4j capture must supply iface=<nic> or pcapFile=<path>");
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+    return null;
+  }
+
+  private static void applyEnableBpf(Map<String, String> cliKv, CliFlags flags) {
+    if (flags.enableBpf()) {
+      cliKv.put("enableBpf", "true");
+    }
+  }
+
+  private static OfflineValidation validateOfflineCapture(
+      CaptureConfig captureCfg, Map<String, String> cliKv) {
+    boolean offline = captureCfg.pcapFile() != null;
+    if (!offline) {
+      return OfflineValidation.live();
+    }
+
+    Path pcapPath = captureCfg.pcapFile();
+    if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
+      log.error("pcapFile must reference a readable file: {}", pcapPath);
+      CliPrinter.println(SUMMARY_USAGE);
+      return OfflineValidation.failure(ExitCode.INVALID_ARGS);
+    }
+
+    String ifaceArg = cliKv.get("iface");
+    if (ifaceArg != null && !ifaceArg.isBlank()) {
+      log.warn(
+          "Ignoring iface={} because pcapFile={} was provided",
+          Logs.truncate(ifaceArg, 32),
+          captureCfg.pcapFile());
+    }
+
+    return OfflineValidation.offlineSuccess();
+  }
+
+  private static void logFilterSelection(CaptureConfig captureCfg) {
     if (captureCfg.customBpfEnabled()) {
       log.warn(
           "SECURITY: Custom BPF expression enabled ({} bytes)",
           captureCfg.filter().length());
-      log.debug(
-          "SECURITY: BPF expression '{}'",
-          Logs.truncate(captureCfg.filter(), 128));
-    } else {
-      String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
-          ? "safe default"
-          : captureCfg.protocol().displayName() + " default";
-      log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
+      log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureCfg.filter(), 128));
+      return;
     }
 
+    String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
+        ? "safe default"
+        : captureCfg.protocol().displayName() + " default";
+    log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
+  }
+
+  private static SegmentCaptureUseCase buildUseCase(CaptureConfig captureCfg) {
     PacketSource packetSource = buildPacketSource(captureCfg);
     SegmentPersistencePort persistence = buildPersistence(captureCfg);
     MetricsPort metrics = new OpenTelemetryMetricsAdapter();
-    SegmentCaptureUseCase useCase =
-        new SegmentCaptureUseCase(packetSource, new FrameDecoderLibpcap(), persistence, metrics);
+    return new SegmentCaptureUseCase(packetSource, new FrameDecoderLibpcap(), persistence, metrics);
+  }
 
+  private static ExitCode executeCapturePipeline(
+      SegmentCaptureUseCase useCase, CaptureConfig captureCfg, boolean offline) {
     try {
       if (offline) {
         log.info("Starting pcap4j offline capture from {}", captureCfg.pcapFile());
@@ -254,5 +299,47 @@ public final class CapturePcap4jCli {
         captureCfg.outputDirectory(),
         captureCfg.fileBase(),
         captureCfg.rollMiB());
+  }
+
+  private record CliFlags(boolean dryRun, boolean allowOverwrite, boolean enableBpf) {
+    static CliFlags fromInput(CliInput input) {
+      return new CliFlags(
+          input.hasFlag("--dry-run"),
+          input.hasFlag("--allow-overwrite"),
+          input.hasFlag("--enable-bpf"));
+    }
+
+  }
+
+  private record ParseResult(Map<String, String> arguments, ExitCode exitCode) {
+    static ParseResult success(Map<String, String> arguments) {
+      return new ParseResult(arguments, null);
+    }
+
+    static ParseResult failure(ExitCode exitCode) {
+      return new ParseResult(null, exitCode);
+    }
+
+    boolean success() {
+      return exitCode == null;
+    }
+  }
+
+  private record OfflineValidation(boolean offline, ExitCode exitCode) {
+    static OfflineValidation live() {
+      return new OfflineValidation(false, null);
+    }
+
+    static OfflineValidation offlineSuccess() {
+      return new OfflineValidation(true, null);
+    }
+
+    static OfflineValidation failure(ExitCode exitCode) {
+      return new OfflineValidation(false, exitCode);
+    }
+
+    boolean succeeded() {
+      return exitCode == null;
+    }
   }
 }

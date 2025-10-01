@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class CaptureCli {
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
+  private static final String MODE_CAPTURE = "capture";
   private static final String SUMMARY_USAGE =
       "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
           + "[protocol=GENERIC|TN3270] [snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
@@ -95,62 +96,39 @@ public final class CaptureCli {
       CliPrinter.println(HELP_TEXT.stripTrailing());
       return ExitCode.SUCCESS;
     }
-    if (input.verbose()) {
-      LoggingConfigurator.enableVerboseLogging();
-      log.debug("Verbose logging enabled for capture CLI");
-    }
 
-    boolean dryRunFlag = input.hasFlag("--dry-run");
-    boolean allowOverwriteFlag = input.hasFlag("--allow-overwrite");
-    boolean enableBpfFlag = input.hasFlag("--enable-bpf");
+    enableVerboseIfRequested(input);
+    CliSwitches switches = CliSwitches.fromInput(input);
 
-    Map<String, String> kv;
+    Map<String, String> cliKv;
     try {
-      kv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
+      cliKv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
       log.error("Invalid argument: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    String configPath = ConfigCliUtils.extractConfigPath(kv);
+    String configPath = ConfigCliUtils.extractConfigPath(cliKv);
+    applyEnableBpfIfRequested(cliKv, switches);
 
-    if (enableBpfFlag) {
-      kv.put("enableBpf", "true");
+    Optional<Map<String, String>> yamlConfig;
+    try {
+      yamlConfig = loadYamlConfig(configPath);
+    } catch (CliAbort abort) {
+      return abort.exitCode();
     }
 
-    Optional<Map<String, String>> yamlConfig = Optional.empty();
-    if (configPath != null) {
-      Path yamlPath = Path.of(configPath);
-      if (!Files.exists(yamlPath)) {
-        log.error("Configuration file does not exist: {}", yamlPath);
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      }
-      try {
-        yamlConfig = YamlConfigLoader.load(yamlPath, "capture");
-      } catch (IllegalArgumentException ex) {
-        log.error("Invalid YAML configuration: {}", ex.getMessage());
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      } catch (IOException ex) {
-        log.error("Unable to read configuration file {}", yamlPath, ex);
-        return ExitCode.IO_ERROR;
-      }
-    }
-
-    Map<String, String> defaults = DefaultsForMode.asFlatMap("capture");
     Map<String, String> effective;
     try {
-      effective = ConfigMerger.buildEffectiveConfig("capture", yamlConfig, kv, defaults, log::warn);
+      effective = buildEffectiveConfig(yamlConfig, cliKv);
     } catch (IllegalArgumentException ex) {
       log.error("Invalid capture configuration: {}", ex.getMessage());
       CliPrinter.println(SUMMARY_USAGE);
       return ExitCode.INVALID_ARGS;
     }
 
-    boolean dryRun = dryRunFlag || ConfigCliUtils.parseBoolean(effective, "dryRun");
-    boolean allowOverwrite = allowOverwriteFlag || ConfigCliUtils.parseBoolean(effective, "allowOverwrite");
+    ExecutionFlags flags = ExecutionFlags.from(switches, effective);
 
     Map<String, String> configInputs = new LinkedHashMap<>(effective);
     String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
@@ -165,6 +143,76 @@ public final class CaptureCli {
       return ExitCode.INVALID_ARGS;
     }
 
+    logConfiguredPipeline(captureCfg, metricsExporter);
+
+    OfflineValidation offlineValidation = validateOfflineCapture(captureCfg, cliKv);
+    if (!offlineValidation.succeeded()) {
+      return offlineValidation.exitCode();
+    }
+    boolean offline = offlineValidation.offline();
+
+    CaptureCliSupport.ValidatedPaths validated;
+    try {
+      validated = CaptureCliSupport.validateOutputs(captureCfg, flags.allowOverwrite(), !flags.dryRun());
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid output path configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      return ExitCode.INVALID_ARGS;
+    }
+
+    if (flags.dryRun()) {
+      CaptureCliSupport.printDryRunPlan(captureCfg, validated, flags.allowOverwrite());
+      return ExitCode.SUCCESS;
+    }
+
+    logFilterSelection(captureCfg);
+    return executeCapturePipeline(captureCfg, offline);
+  }
+
+  private static void enableVerboseIfRequested(CliInput input) {
+    if (input.verbose()) {
+      LoggingConfigurator.enableVerboseLogging();
+      log.debug("Verbose logging enabled for capture CLI");
+    }
+  }
+
+  private static void applyEnableBpfIfRequested(Map<String, String> cliKv, CliSwitches switches) {
+    if (switches.enableBpf()) {
+      cliKv.put("enableBpf", "true");
+    }
+  }
+
+  private static Optional<Map<String, String>> loadYamlConfig(String configPath) throws CliAbort {
+    if (configPath == null) {
+      return Optional.empty();
+    }
+
+    Path yamlPath = Path.of(configPath);
+    if (!Files.exists(yamlPath)) {
+      log.error("Configuration file does not exist: {}", yamlPath);
+      CliPrinter.println(SUMMARY_USAGE);
+      throw new CliAbort(ExitCode.INVALID_ARGS);
+    }
+
+    try {
+      return YamlConfigLoader.load(yamlPath, MODE_CAPTURE);
+    } catch (IllegalArgumentException ex) {
+      log.error("Invalid YAML configuration: {}", ex.getMessage());
+      CliPrinter.println(SUMMARY_USAGE);
+      throw new CliAbort(ExitCode.INVALID_ARGS);
+    } catch (IOException ex) {
+      log.error("Unable to read configuration file {}", yamlPath, ex);
+      throw new CliAbort(ExitCode.IO_ERROR);
+    }
+  }
+
+  private static Map<String, String> buildEffectiveConfig(
+      Optional<Map<String, String>> yamlConfig, Map<String, String> cliKv) {
+    Map<String, String> defaults = DefaultsForMode.asFlatMap(MODE_CAPTURE);
+    return ConfigMerger.buildEffectiveConfig(MODE_CAPTURE, yamlConfig, cliKv, defaults, log::warn);
+  }
+
+  private static void logConfiguredPipeline(CaptureConfig captureCfg, String metricsExporter) {
     String sink = captureCfg.ioMode() == IoMode.KAFKA
         ? captureCfg.kafkaTopicSegments()
         : captureCfg.outputDirectory().toString();
@@ -173,50 +221,49 @@ public final class CaptureCli {
         captureCfg.ioMode(),
         sink,
         metricsExporter);
+  }
 
+  private static OfflineValidation validateOfflineCapture(
+      CaptureConfig captureCfg, Map<String, String> cliKv) {
     boolean offline = captureCfg.pcapFile() != null;
-    if (offline) {
-      Path pcapPath = captureCfg.pcapFile();
-      if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
-        log.error("pcapFile must reference a readable file: {}", pcapPath);
-        CliPrinter.println(SUMMARY_USAGE);
-        return ExitCode.INVALID_ARGS;
-      }
-    }
-    if (offline) {
-      String ifaceArg = kv.get("iface");
-      if (ifaceArg != null && !ifaceArg.isBlank()) {
-        log.warn("Ignoring iface={} because pcapFile={} was provided",
-            Logs.truncate(ifaceArg, 32), captureCfg.pcapFile());
-      }
+    if (!offline) {
+      return OfflineValidation.live();
     }
 
-    CaptureCliSupport.ValidatedPaths validated;
-    try {
-      validated = CaptureCliSupport.validateOutputs(captureCfg, allowOverwrite, !dryRun);
-    } catch (IllegalArgumentException ex) {
-      log.error("Invalid output path configuration: {}", ex.getMessage());
+    Path pcapPath = captureCfg.pcapFile();
+    if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
+      log.error("pcapFile must reference a readable file: {}", pcapPath);
       CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+      return OfflineValidation.failure(ExitCode.INVALID_ARGS);
     }
 
-    if (dryRun) {
-      CaptureCliSupport.printDryRunPlan(captureCfg, validated, allowOverwrite);
-      return ExitCode.SUCCESS;
+    String ifaceArg = cliKv.get("iface");
+    if (ifaceArg != null && !ifaceArg.isBlank()) {
+      log.warn(
+          "Ignoring iface={} because pcapFile={} was provided",
+          Logs.truncate(ifaceArg, 32),
+          captureCfg.pcapFile());
     }
 
+    return OfflineValidation.offlineSuccess();
+  }
+
+  private static void logFilterSelection(CaptureConfig captureCfg) {
     if (captureCfg.customBpfEnabled()) {
       log.warn(
           "SECURITY: Custom BPF expression enabled ({} bytes)",
           captureCfg.filter().length());
       log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureCfg.filter(), 128));
-    } else {
-      String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
-          ? "safe default"
-          : captureCfg.protocol().displayName() + " default";
-      log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
+      return;
     }
 
+    String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
+        ? "safe default"
+        : captureCfg.protocol().displayName() + " default";
+    log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
+  }
+
+  private static ExitCode executeCapturePipeline(CaptureConfig captureCfg, boolean offline) {
     CompositionRoot root =
         new CompositionRoot(ca.gc.cra.radar.config.Config.defaults(), captureCfg);
     SegmentCaptureUseCase useCase = root.segmentCaptureUseCase();
@@ -260,5 +307,53 @@ public final class CaptureCli {
       return ExitCode.RUNTIME_FAILURE;
     }
   }
-}
 
+  private record CliSwitches(boolean dryRun, boolean allowOverwrite, boolean enableBpf) {
+    static CliSwitches fromInput(CliInput input) {
+      return new CliSwitches(
+          input.hasFlag("--dry-run"),
+          input.hasFlag("--allow-overwrite"),
+          input.hasFlag("--enable-bpf"));
+    }
+  }
+
+  private record ExecutionFlags(boolean dryRun, boolean allowOverwrite) {
+    static ExecutionFlags from(CliSwitches switches, Map<String, String> configValues) {
+      boolean mergedDryRun = switches.dryRun()
+          || ConfigCliUtils.parseBoolean(configValues, "dryRun");
+      boolean mergedAllowOverwrite = switches.allowOverwrite()
+          || ConfigCliUtils.parseBoolean(configValues, "allowOverwrite");
+      return new ExecutionFlags(mergedDryRun, mergedAllowOverwrite);
+    }
+  }
+
+  private record OfflineValidation(boolean offline, ExitCode exitCode) {
+    static OfflineValidation live() {
+      return new OfflineValidation(false, null);
+    }
+
+    static OfflineValidation offlineSuccess() {
+      return new OfflineValidation(true, null);
+    }
+
+    static OfflineValidation failure(ExitCode exitCode) {
+      return new OfflineValidation(false, exitCode);
+    }
+
+    boolean succeeded() {
+      return exitCode == null;
+    }
+  }
+
+  private static final class CliAbort extends Exception {
+    private final ExitCode exitCode;
+
+    CliAbort(ExitCode exitCode) {
+      this.exitCode = exitCode;
+    }
+
+    ExitCode exitCode() {
+      return exitCode;
+    }
+  }
+}
