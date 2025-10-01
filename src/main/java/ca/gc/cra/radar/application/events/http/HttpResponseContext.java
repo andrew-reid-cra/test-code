@@ -16,6 +16,7 @@ public final class HttpResponseContext {
   private final String reason;
   private final String httpVersion;
   private final Map<String, List<String>> headers;
+  private final Map<String, List<String>> headersView;
   private final HttpBodyView body;
   private final long timestampMicros;
 
@@ -40,6 +41,7 @@ public final class HttpResponseContext {
     this.reason = reason;
     this.httpVersion = Objects.requireNonNull(httpVersion, "httpVersion");
     this.headers = copyMultiMap(headers);
+    this.headersView = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(this.headers));
     this.body = Objects.requireNonNull(body, "body");
     this.timestampMicros = timestampMicros;
   }
@@ -77,7 +79,7 @@ public final class HttpResponseContext {
    * @return immutable header map keyed in lower case with ordered values
    */
   public Map<String, List<String>> headers() {
-    return Map.copyOf(headers);
+    return headersView;
   }
 
   /**

@@ -176,7 +176,6 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
   }
 
   private static int bodyLength(GrowableBuffer buffer, int headersLen, boolean request) {
-    byte[] array = buffer.array();
     int start = buffer.readerIndex();
     int limit = start + headersLen;
     int lineStart = start;
@@ -186,14 +185,14 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
 
     while (lineStart < limit) {
       int newline = lineStart;
-      while (newline < limit && array[newline] != '\n') {
+      while (newline < limit && buffer.byteAt(newline) != '\n') {
         newline++;
       }
       if (newline >= limit) {
         break;
       }
       int lineEnd = newline;
-      if (lineEnd > lineStart && array[lineEnd - 1] == '\r') {
+      if (lineEnd > lineStart && buffer.byteAt(lineEnd - 1) == '\r') {
         lineEnd--;
       }
       if (firstLineEnd < 0) {
@@ -201,33 +200,33 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
       }
       int colon = -1;
       for (int i = lineStart; i < lineEnd; i++) {
-        if (array[i] == ':') {
+        if (buffer.byteAt(i) == ':') {
           colon = i;
           break;
         }
       }
       if (colon > lineStart) {
         int nameStart = lineStart;
-        while (nameStart < colon && isLinearWhitespace(array[nameStart])) {
+        while (nameStart < colon && isLinearWhitespace(buffer.byteAt(nameStart))) {
           nameStart++;
         }
         int nameEnd = colon;
-        while (nameEnd > nameStart && isLinearWhitespace(array[nameEnd - 1])) {
+        while (nameEnd > nameStart && isLinearWhitespace(buffer.byteAt(nameEnd - 1))) {
           nameEnd--;
         }
         int valueStart = colon + 1;
-        while (valueStart < lineEnd && isLinearWhitespace(array[valueStart])) {
+        while (valueStart < lineEnd && isLinearWhitespace(buffer.byteAt(valueStart))) {
           valueStart++;
         }
         int valueEnd = lineEnd;
-        while (valueEnd > valueStart && isLinearWhitespace(array[valueEnd - 1])) {
+        while (valueEnd > valueStart && isLinearWhitespace(buffer.byteAt(valueEnd - 1))) {
           valueEnd--;
         }
-        if (equalsIgnoreCase(array, nameStart, nameEnd, CONTENT_LENGTH)) {
-          int parsed = parseContentLength(array, valueStart, valueEnd);
+        if (equalsIgnoreCase(buffer, nameStart, nameEnd, CONTENT_LENGTH)) {
+          int parsed = parseContentLength(buffer, valueStart, valueEnd);
           contentLength = parsed >= 0 ? parsed : 0;
-        } else if (equalsIgnoreCase(array, nameStart, nameEnd, TRANSFER_ENCODING)) {
-          if (containsTokenIgnoreCase(array, valueStart, valueEnd, CHUNKED)) {
+        } else if (equalsIgnoreCase(buffer, nameStart, nameEnd, TRANSFER_ENCODING)) {
+          if (containsTokenIgnoreCase(buffer, valueStart, valueEnd, CHUNKED)) {
             chunked = true;
           }
         }
@@ -242,7 +241,7 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
       return contentLength;
     }
     if (!request && firstLineEnd > start) {
-      int status = parseStatusCode(array, start, firstLineEnd);
+      int status = parseStatusCode(buffer, start, firstLineEnd);
       if ((status >= 100 && status < 200) || status == 204 || status == 304) {
         return 0;
       }
@@ -250,29 +249,29 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     return request ? 0 : -1;
   }
 
-  private static boolean equalsIgnoreCase(byte[] array, int start, int end, byte[] token) {
+  private static boolean equalsIgnoreCase(GrowableBuffer buffer, int start, int end, byte[] token) {
     int length = end - start;
     if (length != token.length) {
       return false;
     }
     for (int i = 0; i < length; i++) {
-      if (toLowerAscii(array[start + i]) != token[i]) {
+      if (toLowerAscii(buffer.byteAt(start + i)) != token[i]) {
         return false;
       }
     }
     return true;
   }
 
-  private static boolean containsTokenIgnoreCase(byte[] array, int start, int end, byte[] token) {
+  private static boolean containsTokenIgnoreCase(GrowableBuffer buffer, int start, int end, byte[] token) {
     int needed = token.length;
     if (needed == 0) {
       return false;
     }
     for (int i = start; i <= end - needed; i++) {
-      if (equalsIgnoreCase(array, i, i + needed, token)) {
-        boolean leftDelim = i == start || isTokenSeparator(array[i - 1]);
+      if (equalsIgnoreCase(buffer, i, i + needed, token)) {
+        boolean leftDelim = i == start || isTokenSeparator(buffer.byteAt(i - 1));
         int rightIndex = i + needed;
-        boolean rightDelim = rightIndex >= end || isTokenSeparator(array[rightIndex]);
+        boolean rightDelim = rightIndex >= end || isTokenSeparator(buffer.byteAt(rightIndex));
         if (leftDelim && rightDelim) {
           return true;
         }
@@ -285,11 +284,11 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     return b == ',' || isLinearWhitespace(b);
   }
 
-  private static int parseContentLength(byte[] array, int start, int end) {
+  private static int parseContentLength(GrowableBuffer buffer, int start, int end) {
     long value = 0L;
     boolean digits = false;
     for (int i = start; i < end; i++) {
-      byte b = array[i];
+      byte b = buffer.byteAt(i);
       if (b >= '0' && b <= '9') {
         digits = true;
         value = value * 10 + (b - '0');
@@ -305,18 +304,22 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
     return digits ? (int) value : -1;
   }
 
-  private static int parseStatusCode(byte[] array, int start, int end) {
+  private static int parseStatusCode(GrowableBuffer buffer, int start, int end) {
     int idx = start;
-    while (idx < end && array[idx] != ' ') {
+    while (idx < end && buffer.byteAt(idx) != ' ') {
       idx++;
     }
-    while (idx < end && array[idx] == ' ') {
+    while (idx < end && buffer.byteAt(idx) == ' ') {
       idx++;
     }
     int digits = 0;
     int value = 0;
-    while (idx < end && digits < 3 && array[idx] >= '0' && array[idx] <= '9') {
-      value = (value * 10) + (array[idx] - '0');
+    while (idx < end && digits < 3) {
+      byte b = buffer.byteAt(idx);
+      if (b < '0' || b > '9') {
+        break;
+      }
+      value = (value * 10) + (b - '0');
       idx++;
       digits++;
     }

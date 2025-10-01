@@ -15,6 +15,15 @@ import java.util.Map;
  * @since 0.1.0
  */
 public record MessageMetadata(String transactionId, Map<String, String> attributes) {
+  public MessageMetadata {
+    attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
+  }
+
+  @Override
+  public Map<String, String> attributes() {
+    return Map.copyOf(attributes);
+  }
+
   /**
    * Returns an empty metadata instance with no attributes.
    *

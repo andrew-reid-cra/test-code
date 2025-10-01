@@ -28,7 +28,12 @@ public record ByteStream(FiveTuple flow, boolean fromClient, byte[] data, long t
    * <p><strong>Observability:</strong> Timestamp is expected to be tagged on downstream metrics.</p>
    */
   public ByteStream {
-    data = data != null ? data : new byte[0];
+    data = data != null ? data.clone() : new byte[0];
+  }
+
+  @Override
+  public byte[] data() {
+    return data.clone();
   }
 
   @Override

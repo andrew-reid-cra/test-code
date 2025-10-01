@@ -47,6 +47,11 @@ public record TcpSegment(
   }
 
   @Override
+  public byte[] payload() {
+    return payload.clone();
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;

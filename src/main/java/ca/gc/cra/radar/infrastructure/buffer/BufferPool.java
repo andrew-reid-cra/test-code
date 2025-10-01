@@ -85,6 +85,18 @@ public final class BufferPool {
       if (released) {
         throw new IllegalStateException("buffer already released");
       }
+      return data.clone();
+    }
+
+    /**
+     * Provides the mutable backing array for callers that need zero-copy access.
+     *
+     * @return writable backing array (do not retain after close)
+     */
+    public byte[] borrowWritableArray() {
+      if (released) {
+        throw new IllegalStateException("buffer already released");
+      }
       return data;
     }
 

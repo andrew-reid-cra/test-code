@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.config;
 
 import ca.gc.cra.radar.domain.protocol.ProtocolId;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -22,6 +23,15 @@ public record Config(
     String bpf,
     int snapLength,
     Set<ProtocolId> enabledProtocols) {
+
+  public Config {
+    enabledProtocols = Set.copyOf(Objects.requireNonNull(enabledProtocols, "enabledProtocols"));
+  }
+
+  @Override
+  public Set<ProtocolId> enabledProtocols() {
+    return Set.copyOf(enabledProtocols);
+  }
 
   /**
    * Provides default configuration values used when no external config is supplied.

@@ -17,6 +17,7 @@ public final class HttpRequestContext {
   private final String rawTarget;
   private final String httpVersion;
   private final Map<String, List<String>> headers;
+  private final Map<String, List<String>> headersView;
   private final Map<String, String> cookies;
   private final Map<String, String> query;
   private final HttpBodyView body;
@@ -62,6 +63,7 @@ public final class HttpRequestContext {
     this.rawTarget = Objects.requireNonNull(rawTarget, "rawTarget");
     this.httpVersion = Objects.requireNonNull(httpVersion, "httpVersion");
     this.headers = copyMultiMap(headers);
+    this.headersView = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(this.headers));
     this.cookies = Map.copyOf(Objects.requireNonNull(cookies, "cookies"));
     this.query = Map.copyOf(Objects.requireNonNull(query, "query"));
     this.body = Objects.requireNonNull(body, "body");
@@ -114,7 +116,7 @@ public final class HttpRequestContext {
    * @return immutable header map keyed in lower case with ordered values
    */
   public Map<String, List<String>> headers() {
-    return Map.copyOf(headers);
+    return headersView;
   }
 
   /**

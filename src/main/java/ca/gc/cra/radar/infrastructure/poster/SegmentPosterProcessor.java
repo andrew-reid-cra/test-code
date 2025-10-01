@@ -24,11 +24,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Poster pipeline that reads NDJSON index/blob files and emits human-readable transaction dumps.
  */
 final class SegmentPosterProcessor {
+
+  private static final Logger log = LoggerFactory.getLogger(SegmentPosterProcessor.class);
 
   void process(Path inputDirectory, Path outputDirectory, ProtocolId protocol, DecodeMode decodeMode)
       throws Exception {
@@ -190,6 +194,12 @@ final class SegmentPosterProcessor {
     return new BinaryPart(entry, payload);
   }
 
+  private static String safePartId(HttpPart part) {
+    IndexEntry entry = part.entry();
+    String id = entry != null ? entry.id() : null;
+    return (id == null || id.isBlank()) ? "unknown" : id;
+  }
+
   private void decodeHttpPart(HttpPart part, DecodeMode mode) {
     if (mode.decodeTransferEncoding()) {
       Header transfer = part.findHeader("Transfer-Encoding");
@@ -200,8 +210,8 @@ final class SegmentPosterProcessor {
           part.removeHeader("Transfer-Encoding");
           part.removeHeader("Content-Length");
           part.addHeader("Content-Length", Integer.toString(decoded.length));
-        } catch (Exception ignore) {
-          // keep original body on decode failure
+        } catch (IOException decodeError) {
+          log.warn("Failed to decode chunked encoding for HTTP part {}", safePartId(part), decodeError);
         }
       }
     }
@@ -224,8 +234,8 @@ final class SegmentPosterProcessor {
             part.removeHeader("Content-Length");
             part.addHeader("Content-Length", Integer.toString(decoded.length));
           }
-        } catch (Exception ignore) {
-          // preserve original body if decoding fails
+        } catch (IOException decodeError) {
+          log.warn("Failed to decode content encoding '{}' for HTTP part {}", value, safePartId(part), decodeError);
         }
       }
     }

@@ -1,6 +1,7 @@
 package ca.gc.cra.radar.infrastructure.buffer;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -87,7 +88,14 @@ public final class GrowableBuffer {
    * Provides the backing array for zero-copy inspection.
    */
   public byte[] array() {
-    return data;
+    return Arrays.copyOfRange(data, readIndex, writeIndex);
+  }
+
+  public byte byteAt(int index) {
+    if (index < readIndex || index >= writeIndex) {
+      throw new IndexOutOfBoundsException("index out of readable range: " + index);
+    }
+    return data[index];
   }
 
   /**

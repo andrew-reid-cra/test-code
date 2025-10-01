@@ -27,6 +27,11 @@ public record RawFrame(byte[] data, long timestampMicros) {
   }
 
   @Override
+  public byte[] data() {
+    return data.clone();
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;

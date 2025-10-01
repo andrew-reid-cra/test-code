@@ -536,10 +536,9 @@ public final class Tn3270SessionState {
       if (this == o) {
         return true;
       }
-      if (o == null || o.getClass() != getClass()) {
+      if (!(o instanceof PartitionSnapshot that)) {
         return false;
       }
-      PartitionSnapshot that = (PartitionSnapshot) o;
       return id == that.id
           && rows == that.rows
           && cols == that.cols

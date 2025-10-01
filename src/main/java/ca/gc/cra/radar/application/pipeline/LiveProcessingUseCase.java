@@ -328,7 +328,7 @@ public final class LiveProcessingUseCase {
           try {
             maybeFrame = packetSource.poll();
           } catch (Exception ex) {
-            if (ex instanceof InterruptedException ie) {
+            if (ex instanceof InterruptedException) {
               Thread.currentThread().interrupt();
               break;
             }

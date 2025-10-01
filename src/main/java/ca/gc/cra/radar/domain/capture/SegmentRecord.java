@@ -43,6 +43,11 @@ public record SegmentRecord(
   }
 
   @Override
+  public byte[] payload() {
+    return payload.clone();
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;
@@ -57,7 +62,7 @@ public record SegmentRecord(
         && flags == that.flags()
         && Objects.equals(srcIp, that.srcIp())
         && Objects.equals(dstIp, that.dstIp())
-        && Arrays.equals(payload, that.payload());
+        && Arrays.equals(payload, that.payload);
   }
 
   @Override

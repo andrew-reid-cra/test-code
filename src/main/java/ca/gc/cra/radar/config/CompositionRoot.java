@@ -93,7 +93,7 @@ public final class CompositionRoot {
   private final SessionResolver sessionResolver = new SessionResolver();
   private final UserEventRuleSetProvider userEventRuleSetProvider = new UserEventRuleSetProvider();
   private volatile UserEventRuleEngine userEventRuleEngine;
-  private UserEventRuleWatcher userEventRuleWatcher;
+  private volatile UserEventRuleWatcher userEventRuleWatcher;
   private List<Path> userEventRulePaths = List.of();
   private final ScreenRuleDefinitionsProvider tn3270ScreenRuleProvider = new ScreenRuleDefinitionsProvider();
   private volatile ScreenRuleEngine tn3270ScreenRuleEngine;

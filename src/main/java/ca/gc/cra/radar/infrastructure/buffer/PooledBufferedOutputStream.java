@@ -24,7 +24,7 @@ public final class PooledBufferedOutputStream extends OutputStream {
     this.delegate = Objects.requireNonNull(delegate, "delegate");
     Objects.requireNonNull(pool, "pool");
     this.pooled = pool.acquire();
-    this.buffer = pooled.array();
+    this.buffer = pooled.borrowWritableArray();
     this.position = 0;
   }
 

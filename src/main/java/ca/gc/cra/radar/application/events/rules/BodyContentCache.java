@@ -15,15 +15,15 @@ final class BodyContentCache {
   private final HttpExchangeContext exchange;
   private final JsonSupport jsonSupport;
 
-  private String requestBody;
-  private boolean requestBodyLoaded;
-  private Object requestJson;
-  private boolean requestJsonLoaded;
+  private volatile String requestBody;
+  private volatile boolean requestBodyLoaded;
+  private volatile Object requestJson;
+  private volatile boolean requestJsonLoaded;
 
-  private String responseBody;
-  private boolean responseBodyLoaded;
-  private Object responseJson;
-  private boolean responseJsonLoaded;
+  private volatile String responseBody;
+  private volatile boolean responseBodyLoaded;
+  private volatile Object responseJson;
+  private volatile boolean responseJsonLoaded;
 
   BodyContentCache(HttpExchangeContext exchange, JsonSupport jsonSupport) {
     this.exchange = exchange;

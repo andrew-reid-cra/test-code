@@ -288,12 +288,44 @@ public final class ReorderingFlowAssembler implements FlowAssembler {
         // Normalize null
         if (bytes == null) bytes = ImmutableBytes.ofOwned(new byte[0]);
       }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof Chunk other)) {
+          return false;
+        }
+        return timestampMicros == other.timestampMicros && bytes.equals(other.bytes);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(bytes, timestampMicros);
+      }
     }
 
     /** Emitted contiguous slice. */
     private record EmittedSlice(ImmutableBytes bytes, long timestampMicros) {
       EmittedSlice {
         if (bytes == null) bytes = ImmutableBytes.ofOwned(new byte[0]);
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof EmittedSlice other)) {
+          return false;
+        }
+        return timestampMicros == other.timestampMicros && bytes.equals(other.bytes);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(bytes, timestampMicros);
       }
     }
   }

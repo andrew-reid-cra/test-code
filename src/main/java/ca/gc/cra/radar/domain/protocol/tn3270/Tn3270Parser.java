@@ -208,7 +208,16 @@ public final class Tn3270Parser {
   }
 
   /** Submit result bundling AID and input map. */
-  public record SubmitResult(AidKey aid, Map<String, String> inputs) {}
+  public record SubmitResult(AidKey aid, Map<String, String> inputs) {
+    public SubmitResult {
+      inputs = inputs == null ? Map.of() : Map.copyOf(inputs);
+    }
+
+    @Override
+    public Map<String, String> inputs() {
+      return Map.copyOf(inputs);
+    }
+  }
 
   private static void processOrders(ByteBuffer data, Tn3270SessionState state, int startAddress) {
     int address = startAddress;
