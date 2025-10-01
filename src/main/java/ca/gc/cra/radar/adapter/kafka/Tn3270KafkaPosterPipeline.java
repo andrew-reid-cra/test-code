@@ -8,6 +8,7 @@ import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,17 +96,17 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
           if (++idlePolls >= maxIdlePolls) {
             break;
           }
-          continue;
-        }
-        idlePolls = 0;
-        for (ConsumerRecord<String, String> record : records) {
-          TnPair pair = parsePair(record.value());
-          if (pair == null) {
-            continue;
+        } else {
+          idlePolls = 0;
+          for (ConsumerRecord<String, String> kafkaRecord : records) {
+            TnPair pair = parsePair(kafkaRecord.value());
+            if (pair == null) {
+              continue;
+            }
+            String content = formatPair(pair);
+            long ts = pair.startTs > 0 ? pair.startTs : pair.endTs;
+            outputPort.write(new PosterReport(ProtocolId.TN3270, pair.txId, ts, content));
           }
-          String content = formatPair(pair);
-          long ts = pair.startTs > 0 ? pair.startTs : pair.endTs;
-          outputPort.write(new PosterReport(ProtocolId.TN3270, pair.txId, ts, content));
         }
       }
     }
@@ -161,24 +162,24 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
     while (idx < json.length()) {
       int keyStart = json.indexOf('"', idx);
       if (keyStart < 0) {
-        break;
+        return map;
       }
       int keyEnd = findStringEnd(json, keyStart + 1);
       if (keyEnd < 0) {
-        break;
+        return map;
       }
       String key = unescape(json.substring(keyStart + 1, keyEnd));
       int colon = json.indexOf(':', keyEnd);
       if (colon < 0) {
-        break;
+        return map;
       }
       int valueStart = json.indexOf('"', colon);
       if (valueStart < 0) {
-        break;
+        return map;
       }
       int valueEnd = findStringEnd(json, valueStart + 1);
       if (valueEnd < 0) {
-        break;
+        return map;
       }
       String value = unescape(json.substring(valueStart + 1, valueEnd));
       map.put(key, value);
@@ -318,13 +319,9 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       char c = json.charAt(i);
       if (escaping) {
         escaping = false;
-        continue;
-      }
-      if (c == '\\') {
+      } else if (c == '\\') {
         escaping = true;
-        continue;
-      }
-      if (c == '"') {
+      } else if (c == '"') {
         return i;
       }
     }
@@ -385,13 +382,13 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof BinaryMessage that)) {
+      if (!(o instanceof BinaryMessage(long otherTimestamp, int otherLength, byte[] otherPayload, Map<String, String> otherAttributes))) {
         return false;
       }
-      return timestamp == that.timestamp()
-          && length == that.length()
-          && Arrays.equals(payload, that.payload())
-          && Objects.equals(attributes, that.attributes());
+      return timestamp == otherTimestamp
+          && length == otherLength
+          && Arrays.equals(payload, otherPayload)
+          && Objects.equals(attributes, otherAttributes);
     }
 
     @Override
