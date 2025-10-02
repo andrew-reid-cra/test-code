@@ -306,24 +306,22 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.owasp</groupId>
-        <artifactId>dependency-check-maven</artifactId>
-        <version>${dependency.check.plugin.version}</version>
-        <configuration>
-          <format>HTML</format>
-          <failBuildOnCVSS>7.0</failBuildOnCVSS>
-          <dataDirectory>${project.build.directory}/dependency-check-data</dataDirectory>
-          <nvdApiServerId>nvd-api</nvdApiServerId>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+  <groupId>org.owasp</groupId>
+  <artifactId>dependency-check-maven</artifactId>
+  <version>10.0.4</version>
+  <configuration>
+    <nvdApiServerId>nvd-api</nvdApiServerId>
+    <dataDirectory>${user.home}/.m2/dependency-check</dataDirectory>
+    <nvdApiDelay>6000</nvdApiDelay>
+    <nvdMaxRetryCount>10</nvdMaxRetryCount>
+    <cveValidForHours>24</cveValidForHours>
+  </configuration>
+  <executions>
+    <execution>
+      <goals><goal>check</goal></goals>
+    </execution>
+  </executions>
+</plugin>
     </plugins>
   </build>
   <reporting>

@@ -69,55 +69,22 @@ public final class Tn3270Hashes {
     int tailStart = roundedEnd;
     int tail = length & 15;
 
-    if (tail >= 15) {
-      k2 ^= (long) (data[tailStart + 14] & 0xFF) << 48;
-    }
-    if (tail >= 14) {
-      k2 ^= (long) (data[tailStart + 13] & 0xFF) << 40;
-    }
-    if (tail >= 13) {
-      k2 ^= (long) (data[tailStart + 12] & 0xFF) << 32;
-    }
-    if (tail >= 12) {
-      k2 ^= (long) (data[tailStart + 11] & 0xFF) << 24;
-    }
-    if (tail >= 11) {
-      k2 ^= (long) (data[tailStart + 10] & 0xFF) << 16;
-    }
-    if (tail >= 10) {
-      k2 ^= (long) (data[tailStart + 9] & 0xFF) << 8;
-    }
-    if (tail >= 9) {
-      k2 ^= (long) (data[tailStart + 8] & 0xFF);
+    if (tail > 8) {
+      for (int idx = tail - 1; idx >= 8; idx--) {
+        int shift = (idx - 8) * 8;
+        k2 ^= (long) (data[tailStart + idx] & 0xFF) << shift;
+      }
       k2 *= c2;
       k2 = Long.rotateLeft(k2, 33);
       k2 *= c1;
       h2 ^= k2;
     }
 
-    if (tail >= 8) {
-      k1 ^= (long) (data[tailStart + 7] & 0xFF) << 56;
-    }
-    if (tail >= 7) {
-      k1 ^= (long) (data[tailStart + 6] & 0xFF) << 48;
-    }
-    if (tail >= 6) {
-      k1 ^= (long) (data[tailStart + 5] & 0xFF) << 40;
-    }
-    if (tail >= 5) {
-      k1 ^= (long) (data[tailStart + 4] & 0xFF) << 32;
-    }
-    if (tail >= 4) {
-      k1 ^= (long) (data[tailStart + 3] & 0xFF) << 24;
-    }
-    if (tail >= 3) {
-      k1 ^= (long) (data[tailStart + 2] & 0xFF) << 16;
-    }
-    if (tail >= 2) {
-      k1 ^= (long) (data[tailStart + 1] & 0xFF) << 8;
-    }
-    if (tail >= 1) {
-      k1 ^= (long) (data[tailStart] & 0xFF);
+    if (tail > 0) {
+      int upper = Math.min(tail - 1, 7);
+      for (int idx = upper; idx >= 0; idx--) {
+        k1 ^= (long) (data[tailStart + idx] & 0xFF) << (idx * 8);
+      }
       k1 *= c1;
       k1 = Long.rotateLeft(k1, 31);
       k1 *= c2;
