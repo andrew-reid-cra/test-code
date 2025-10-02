@@ -32,17 +32,17 @@ import org.slf4j.LoggerFactory;
  * @since RADAR 0.1-doc
  */
 public final class CaptureCli {
-
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
-
   private static final String MODE_CAPTURE = "capture";
 
+  // Keep the exact short usage string to avoid observable changes.
   private static final String SUMMARY_USAGE =
       "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
           + "[protocol=GENERIC|TN3270] [snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
           + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite] "
           + "[metricsExporter=otlp|none] [otelEndpoint=URL] [otelResourceAttributes=K=V,...]";
 
+  // Preserve the detailed help text verbatim (minor whitespace only).
   private static final String HELP_TEXT = """
       RADAR capture pipeline
       Usage:
@@ -101,14 +101,12 @@ public final class CaptureCli {
    */
   static ExitCode run(String[] args) {
     CliInput input = CliInput.parse(args);
-
     if (input.help()) {
       CliPrinter.println(HELP_TEXT.stripTrailing());
       return ExitCode.SUCCESS;
     }
 
     enableVerboseIfRequested(input);
-
     CliSwitches switches = CliSwitches.fromInput(input);
 
     // --- Parse CLI key=value args
@@ -239,18 +237,15 @@ public final class CaptureCli {
     if (!offline) {
       return OfflineValidation.live();
     }
-
     Path pcapPath = captureCfg.pcapFile();
     if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
       return OfflineValidation.failure(invalidArgs("pcapFile must reference a readable file: {}", pcapPath));
     }
-
     String ifaceArg = cliKv.get("iface");
     if (!isBlank(ifaceArg)) {
       log.warn("Ignoring iface={} because pcapFile={} was provided",
           Logs.truncate(ifaceArg, 32), pcapPath);
     }
-
     return OfflineValidation.offlineSuccess();
   }
 
@@ -276,36 +271,38 @@ public final class CaptureCli {
     final String targetValue = offline
         ? String.valueOf(captureCfg.pcapFile())
         : String.valueOf(captureCfg.iface());
-
     try {
       log.info("Starting capture on {} {}", targetLabel, targetValue);
-
       useCase.run();
-
       log.info("Capture completed on {} {}", targetLabel, targetValue);
       return ExitCode.SUCCESS;
-
-    } catch (IOException ex) {
-      log.error("Capture I/O failure on {} {}", targetLabel, targetValue, ex);
-      return ExitCode.IO_ERROR;
-
-    } catch (IllegalArgumentException ex) {
-      log.error("Capture configuration error: {}", ex.getMessage(), ex);
-      return ExitCode.CONFIG_ERROR;
-
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
-      log.error("Capture interrupted on {} {}", targetLabel, targetValue, ex);
-      return ExitCode.INTERRUPTED;
-
-    } catch (RuntimeException ex) {
-      log.error("Unexpected runtime failure in capture pipeline", ex);
-      return ExitCode.RUNTIME_FAILURE;
-
     } catch (Exception ex) {
-      log.error("Unexpected checked exception in capture pipeline", ex);
+      return handleException("Capture on " + targetLabel + " " + targetValue, ex);
+    }
+  }
+
+  /**
+   * Centralized exception logging and mapping → ExitCode.
+   * Reduces duplicated catch blocks and keeps messaging consistent.
+   */
+  private static ExitCode handleException(String context, Exception ex) {
+    if (ex instanceof IllegalArgumentException iae) {
+      log.error("{}: {}", context, iae.getMessage(), iae);
+      printUsage();
+      return ExitCode.CONFIG_ERROR; // preserve semantics: config errors map here
+    } else if (ex instanceof IOException ioe) {
+      log.error("{} I/O failure", context, ioe);
+      return ExitCode.IO_ERROR;
+    } else if (ex instanceof InterruptedException ie) {
+      Thread.currentThread().interrupt();
+      log.error("{} interrupted", context, ie);
+      return ExitCode.INTERRUPTED;
+    } else if (ex instanceof RuntimeException re) {
+      log.error("Unexpected runtime failure {}", context, re);
       return ExitCode.RUNTIME_FAILURE;
     }
+    log.error("Unexpected checked exception {}", context, ex);
+    return ExitCode.RUNTIME_FAILURE;
   }
 
   // ----------------------

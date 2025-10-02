@@ -1,5 +1,15 @@
-target
 tmp
 .gitignore
 .vscode
 javadocs
+target
+*.log
+*.class
+*.jar
+*.war
+*.iml
+*.ipr
+*.iws
+.idea
+.DS_Store
+
