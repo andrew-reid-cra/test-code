@@ -1,5 +1,7 @@
 package ca.gc.cra.radar.config;
 
+import java.util.Locale;
+
 /**
  * <strong>What:</strong> IO strategies available to RADAR pipelines.
  * <p><strong>Why:</strong> Determines whether pipelines operate on local files or Kafka topics.</p>
@@ -32,7 +34,7 @@ public enum IoMode {
       return FILE;
     }
     try {
-      return IoMode.valueOf(value.trim().toUpperCase());
+      return IoMode.valueOf(value.trim().toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException ex) {
       throw new IllegalArgumentException("Unknown ioMode: " + value, ex);
     }

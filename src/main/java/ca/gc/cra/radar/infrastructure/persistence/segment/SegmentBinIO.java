@@ -81,7 +81,7 @@ public final class SegmentBinIO {
         return;
       }
       byte[] payload = record.payload();
-      int payloadLen = payload != null ? payload.length : 0;
+      int payloadLen = payload.length;
       byte[] srcBytes = record.srcIp().getBytes(StandardCharsets.UTF_8);
       byte[] dstBytes = record.dstIp().getBytes(StandardCharsets.UTF_8);
       int recordLen = 8 + 2 + srcBytes.length + 4 + 2 + dstBytes.length + 4 + 8 + 4 + 4 + payloadLen;
@@ -171,8 +171,14 @@ public final class SegmentBinIO {
       }
       try (Stream<Path> stream = Files.list(directory)) {
         files = stream
-            .filter(p -> p.getFileName().toString().endsWith(".segbin"))
-            .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+            .filter(p -> {
+              Path name = p.getFileName();
+              return name != null && name.toString().endsWith(".segbin");
+            })
+            .sorted(Comparator.comparing(p -> {
+              Path name = p.getFileName();
+              return name != null ? name.toString() : p.toString();
+            }))
             .collect(Collectors.toList());
       }
       openNext();
@@ -192,6 +198,9 @@ public final class SegmentBinIO {
         }
         try {
           int recordLen = in.readInt();
+          if (recordLen < 0) {
+            throw new IOException("Negative record length: " + recordLen);
+          }
           long ts = in.readLong();
           String src = in.readUTF();
           int sport = in.readInt();
@@ -200,7 +209,10 @@ public final class SegmentBinIO {
           long seq = in.readLong();
           int flags = in.readInt();
           int payloadLen = in.readInt();
-          byte[] payload = new byte[Math.max(0, payloadLen)];
+          if (payloadLen < 0 || payloadLen > recordLen) {
+            throw new IOException("Corrupt payload length: " + payloadLen);
+          }
+          byte[] payload = new byte[payloadLen > 0 ? payloadLen : 0];
           if (payloadLen > 0) {
             in.readFully(payload, 0, payloadLen);
           }

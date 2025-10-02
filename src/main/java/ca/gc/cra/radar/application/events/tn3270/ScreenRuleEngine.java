@@ -62,9 +62,9 @@ public final class ScreenRuleEngine {
         ScreenRuleDefinitions.UserIdExtraction userIdExtraction = rule.userIdExtraction();
         String userId = null;
         if (userIdExtraction != null) {
-          userId = extract(userIdExtraction, lines, snapshot.cols());
-          if (userId != null && userId.isBlank()) {
-            userId = null;
+          String extractedUserId = extract(userIdExtraction, lines, snapshot.cols());
+          if (!extractedUserId.isBlank()) {
+            userId = extractedUserId;
           }
         }
         return Optional.of(new ScreenRuleMatch(rule.id(), rule.description(), label, userId));

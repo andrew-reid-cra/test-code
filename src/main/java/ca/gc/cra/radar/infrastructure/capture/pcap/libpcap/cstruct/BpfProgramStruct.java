@@ -2,6 +2,7 @@ package ca.gc.cra.radar.infrastructure.capture.pcap.libpcap.cstruct;
 
 import jnr.ffi.Runtime;
 import jnr.ffi.Struct;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * JNR representation of libpcap&apos;s {@code struct bpf_program}.
@@ -10,8 +11,10 @@ import jnr.ffi.Struct;
  */
 public final class BpfProgramStruct extends Struct {
   /** Length of the compiled instruction array (in {@code struct bpf_insn}). */
+  @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD", justification = "JNR maps struct fields reflectively; keep public for native interop.")
   public final Unsigned32 bf_len = new Unsigned32();
   /** Pointer to the compiled BPF instructions. */
+  @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD", justification = "JNR maps struct fields reflectively; keep public for native interop.")
   public final Pointer bf_insns = new Pointer();
 
   /**

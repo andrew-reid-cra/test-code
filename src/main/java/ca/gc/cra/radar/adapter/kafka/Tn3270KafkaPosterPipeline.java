@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +33,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * @since RADAR 0.1-doc
  */
 public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
+  private static final Logger log = LoggerFactory.getLogger(Tn3270KafkaPosterPipeline.class);
   private final String bootstrapServers;
   private final Supplier<Consumer<String, String>> consumerSupplier;
 
@@ -136,7 +139,8 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       BinaryMessage request = parseBinaryMessage(extractObject(json, "request"));
       BinaryMessage response = parseBinaryMessage(extractObject(json, "response"));
       return new TnPair(txId, startTs, endTs, client, server, request, response);
-    } catch (Exception ex) {
+    } catch (RuntimeException ex) {
+      log.warn("Failed to parse TN3270 Kafka record", ex);
       return null;
     }
   }

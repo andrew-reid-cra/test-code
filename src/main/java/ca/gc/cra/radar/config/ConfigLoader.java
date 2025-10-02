@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 
@@ -47,7 +48,7 @@ public final class ConfigLoader {
     if (protocols != null && !protocols.isBlank()) {
       enabled.clear();
       for (String token : protocols.split(",")) {
-        enabled.add(ProtocolId.valueOf(token.trim().toUpperCase()));
+        enabled.add(ProtocolId.valueOf(token.trim().toUpperCase(Locale.ROOT)));
       }
     }
     return new Config(iface, bpf, snap, enabled);

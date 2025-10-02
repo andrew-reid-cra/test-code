@@ -2,6 +2,7 @@ package ca.gc.cra.radar.infrastructure.capture.pcap.libpcap.cstruct;
 
 import jnr.ffi.Runtime;
 import jnr.ffi.Struct;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * JNR representation of libpcap&apos;s {@code struct pcap_pkthdr}.
@@ -14,6 +15,7 @@ public final class PcapPkthdr extends Struct {
   /** Number of bytes actually captured. */
   public final Unsigned32 caplen = new Unsigned32();
   /** Original packet length on the wire. */
+  @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD", justification = "JNR maps struct fields reflectively; keep public for native interop.")
   public final Unsigned32 len = new Unsigned32();
 
   /**

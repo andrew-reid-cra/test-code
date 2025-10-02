@@ -17,7 +17,6 @@ import java.util.Objects;
  */
 public final class FilePosterOutputAdapter implements PosterOutputPort {
   private final Path outputDirectory;
-  private final ProtocolId protocol;
   private final String extension;
 
   /**
@@ -30,8 +29,7 @@ public final class FilePosterOutputAdapter implements PosterOutputPort {
    */
   public FilePosterOutputAdapter(Path outputDirectory, ProtocolId protocol) {
     this.outputDirectory = Objects.requireNonNull(outputDirectory, "outputDirectory");
-    this.protocol = Objects.requireNonNull(protocol, "protocol");
-    this.extension = protocol == ProtocolId.HTTP ? ".http" : ".tn3270.txt";
+    this.extension = determineExtension(Objects.requireNonNull(protocol, "protocol"));
   }
 
   /**
@@ -56,6 +54,10 @@ public final class FilePosterOutputAdapter implements PosterOutputPort {
     if (!Files.exists(outputDirectory)) {
       Files.createDirectories(outputDirectory);
     }
+  }
+
+  private static String determineExtension(ProtocolId protocol) {
+    return protocol == ProtocolId.HTTP ? ".http" : ".tn3270.txt";
   }
 
   private static String sanitize(String id) {

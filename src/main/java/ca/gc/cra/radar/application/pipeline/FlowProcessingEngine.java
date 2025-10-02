@@ -21,11 +21,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Shared flow-processing engine that turns TCP segments into paired protocol messages.
  */
 final class FlowProcessingEngine implements AutoCloseable {
+  private static final Logger log = LoggerFactory.getLogger(FlowProcessingEngine.class);
   private static final int PREFACE_MAX_BYTES = 512;
 
   private final String metricsPrefix;
@@ -228,15 +231,15 @@ final class FlowProcessingEngine implements AutoCloseable {
       if (reconstructor != null) {
         try {
           reconstructor.onClose();
-        } catch (RuntimeException ignore) {
-          // best-effort close
+        } catch (RuntimeException ex) {
+          log.warn("Reconstructor close failed for flow {}", key, ex);
         }
       }
       if (pairing instanceof AutoCloseable closable) {
         try {
           closable.close();
-        } catch (Exception ignore) {
-          // best-effort
+        } catch (Exception ex) {
+          log.warn("Pairing engine close failed for flow {}", key, ex);
         }
       }
     }

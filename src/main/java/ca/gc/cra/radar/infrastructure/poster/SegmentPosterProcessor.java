@@ -73,10 +73,14 @@ final class SegmentPosterProcessor {
   private List<Path> collectIndexFiles(Path directory) throws IOException {
     try (Stream<Path> stream = Files.list(directory)) {
       return stream
-          .filter(p -> Files.isRegularFile(p))
+          .filter(Files::isRegularFile)
           .filter(p -> {
-            String name = p.getFileName().toString();
-            return name.startsWith("index-") && name.endsWith(".ndjson");
+            Path name = p.getFileName();
+            if (name == null) {
+              return false;
+            }
+            String file = name.toString();
+            return file.startsWith("index-") && file.endsWith(".ndjson");
           })
           .sorted()
           .collect(Collectors.toList());
@@ -702,7 +706,8 @@ final class SegmentPosterProcessor {
         long bodyLen = extractLong(json, "body_len");
         return new IndexEntry(directory, id, kind, tsFirst, tsLast, src, dst, firstLine,
             headersBlob, headersOff, headersLen, bodyBlob, bodyOff, bodyLen);
-      } catch (Exception ex) {
+      } catch (RuntimeException ex) {
+        log.warn("Skipping malformed index entry in {}", directory, ex);
         return null;
       }
     }

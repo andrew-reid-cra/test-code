@@ -74,8 +74,7 @@ public final class Tn3270KafkaPoster implements Tn3270EventSink {
     Objects.requireNonNull(event, "event");
     try {
       switch (event.type()) {
-        case USER_SUBMIT -> publish(userActionsTopic, event);
-        case SESSION_START, SESSION_END -> publish(userActionsTopic, event);
+        case USER_SUBMIT, SESSION_START, SESSION_END -> publish(userActionsTopic, event);
         case SCREEN_RENDER -> {
           if (screenRenderTopic != null && !screenRenderTopic.isEmpty()) {
             publish(screenRenderTopic, event);

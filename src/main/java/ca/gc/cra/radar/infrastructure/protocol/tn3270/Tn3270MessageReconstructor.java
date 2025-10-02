@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Reconstructs TN3270 Telnet records into high-level message events.
@@ -40,8 +41,10 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
    * @since RADAR 0.1-doc
    */
   public Tn3270MessageReconstructor(ClockPort clock, MetricsPort metrics) {
-    this.clock = clock;
-    this.metrics = new Tn3270Metrics(metrics);
+    this.clock = Objects.requireNonNull(clock, "clock");
+    this.metrics = new Tn3270Metrics(Objects.requireNonNull(metrics, "metrics"));
+    this.client = new DirectionState();
+    this.server = new DirectionState();
   }
 
   /**
@@ -52,8 +55,8 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
    */
   @Override
   public void onStart() {
-    client = new DirectionState(true);
-    server = new DirectionState(false);
+    client.reset();
+    server.reset();
     pendingTransactionIds.clear();
   }
 
@@ -78,11 +81,11 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
       MessageType type = fromClient ? MessageType.REQUEST : MessageType.RESPONSE;
       String transactionId;
       if (!fromClient) {
-        transactionId = TransactionId.newId();
+        transactionId = TransactionId.newId(clock.nowMillis());
         pendingTransactionIds.addLast(transactionId);
       } else {
         transactionId = pendingTransactionIds.isEmpty()
-            ? TransactionId.newId()
+            ? TransactionId.newId(clock.nowMillis())
             : pendingTransactionIds.removeFirst();
       }
       ByteStream stream = new ByteStream(slice.flow(), fromClient, record, slice.timestampMicros());
@@ -101,17 +104,18 @@ public final class Tn3270MessageReconstructor implements MessageReconstructor {
   @Override
   public void onClose() {
     pendingTransactionIds.clear();
-    client.reset();
-    server.reset();
+    if (client != null) {
+      client.reset();
+    }
+    if (server != null) {
+      server.reset();
+    }
   }
 
   private static final class DirectionState {
-    private final boolean fromClient;
     private final TelnetRecordDecoder decoder = new TelnetRecordDecoder();
 
-    DirectionState(boolean fromClient) {
-      this.fromClient = fromClient;
-    }
+    DirectionState() {}
 
     List<byte[]> feed(byte[] data, int off, int len) {
       return decoder.feed(data, off, len);

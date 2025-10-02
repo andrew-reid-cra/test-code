@@ -24,6 +24,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -41,6 +43,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
  * @since RADAR 0.1-doc
  */
 public final class HttpKafkaPosterPipeline implements PosterPipeline {
+  private static final Logger log = LoggerFactory.getLogger(HttpKafkaPosterPipeline.class);
   private static final String HEADER_CONTENT_LENGTH = "Content-Length";
   private static final String HEADER_CONTENT_ENCODING = "Content-Encoding";
   private static final String HEADER_TRANSFER_ENCODING = "Transfer-Encoding";
@@ -152,7 +155,8 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       HttpMessage request = parseMessage(extractObject(json, "request"));
       HttpMessage response = parseMessage(extractObject(json, "response"));
       return new HttpPair(txId, startTs, endTs, client, server, request, response);
-    } catch (Exception ex) {
+    } catch (RuntimeException ex) {
+      log.warn("Failed to parse HTTP Kafka record", ex);
       return null;
     }
   }
@@ -448,7 +452,8 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       headerMap.remove(HEADER_TRANSFER_ENCODING);
       headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(decoded.length));
       return decoded;
-    } catch (Exception ignore) {
+    } catch (IOException | IllegalArgumentException ex) {
+      log.debug("Failed to decode transfer-encoded body; returning original payload", ex);
       return originalBody;
     }
   }
@@ -479,7 +484,8 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
         headerMap.put(HEADER_CONTENT_LENGTH, Integer.toString(decoded.length));
         return decoded;
       }
-    } catch (Exception ignore) {
+    } catch (IOException ex) {
+      log.debug("Failed to decode content-encoded body; returning original payload", ex);
       return originalBody;
     }
     return currentBody;

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Lightweight HTTP/1.x reconstructor that buffers per-direction payloads and emits complete
@@ -46,8 +47,8 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
    * @since RADAR 0.1-doc
    */
   public HttpMessageReconstructor(ClockPort clock, MetricsPort metrics) {
-    this.clock = clock;
-    this.metrics = new HttpMetrics(metrics);
+    this.clock = Objects.requireNonNull(clock, "clock");
+    this.metrics = new HttpMetrics(Objects.requireNonNull(metrics, "metrics"));
   }
 
   /**
@@ -96,11 +97,11 @@ public final class HttpMessageReconstructor implements MessageReconstructor {
       MessageType type = fromClient ? MessageType.REQUEST : MessageType.RESPONSE;
       String transactionId;
       if (fromClient) {
-        transactionId = TransactionId.newId();
+        transactionId = TransactionId.newId(clock.nowMillis());
         pendingTransactionIds.addLast(transactionId);
       } else {
         transactionId = pendingTransactionIds.isEmpty()
-            ? TransactionId.newId()
+            ? TransactionId.newId(clock.nowMillis())
             : pendingTransactionIds.removeFirst();
       }
       MessageMetadata metadata = new MessageMetadata(transactionId, NO_ATTRIBUTES);

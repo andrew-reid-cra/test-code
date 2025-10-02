@@ -232,7 +232,11 @@ public final class UserEventsDryRunCli {
     Map<String, Path> responses = new TreeMap<>();
     try (var stream = Files.list(directory)) {
       stream.forEach(path -> {
-        String name = path.getFileName().toString();
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+          return;
+        }
+        String name = fileName.toString();
         if (name.endsWith("-request.txt")) {
           requests.put(name.substring(0, name.length() - "-request.txt".length()), path);
         } else if (name.endsWith("-response.txt")) {

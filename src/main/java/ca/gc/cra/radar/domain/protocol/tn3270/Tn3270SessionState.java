@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Mutable session state tracking the virtual 3270 screen buffer across partitions.
@@ -536,9 +537,10 @@ public final class Tn3270SessionState {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PartitionSnapshot that)) {
+      if (o == null || getClass() != o.getClass()) {
         return false;
       }
+      PartitionSnapshot that = (PartitionSnapshot) o;
       return id == that.id
           && rows == that.rows
           && cols == that.cols

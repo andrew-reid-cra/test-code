@@ -313,7 +313,7 @@
           <format>HTML</format>
           <failBuildOnCVSS>7.0</failBuildOnCVSS>
           <dataDirectory>${project.build.directory}/dependency-check-data</dataDirectory>
-          <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+          <nvdApiServerId>nvd-api</nvdApiServerId>
         </configuration>
         <executions>
           <execution>

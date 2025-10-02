@@ -31,11 +31,20 @@ public final class TransactionId {
    * @since 0.1.0
    */
   public static String newId() {
-    long time = Instant.now().toEpochMilli();
+    return newId(Instant.now().toEpochMilli());
+  }
+
+  /**
+   * Generates a lexicographically sortable identifier using the provided timestamp.
+   *
+   * @param epochMillis epoch milliseconds component for the identifier
+   * @return 26-character ULID-style identifier
+   */
+  public static String newId(long epochMillis) {
     long r1 = ThreadLocalRandom.current().nextLong();
     long r2 = ThreadLocalRandom.current().nextLong();
     char[] out = new char[26];
-    enc48(time, out, 0);
+    enc48(epochMillis, out, 0);
     enc80(r1, r2, out);
     return new String(out);
   }
