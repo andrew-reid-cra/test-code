@@ -31,7 +31,7 @@ public final class TransactionId {
    * @since 0.1.0
    */
   public static String newId() {
-    return newId(Instant.now().toEpochMilli());
+    return buildId(Instant.now().toEpochMilli(), ThreadLocalRandom.current().nextLong(), ThreadLocalRandom.current().nextLong());
   }
 
   /**
@@ -41,8 +41,10 @@ public final class TransactionId {
    * @return 26-character ULID-style identifier
    */
   public static String newId(long epochMillis) {
-    long r1 = ThreadLocalRandom.current().nextLong();
-    long r2 = ThreadLocalRandom.current().nextLong();
+    return buildId(epochMillis, ThreadLocalRandom.current().nextLong(), ThreadLocalRandom.current().nextLong());
+  }
+
+  private static String buildId(long epochMillis, long r1, long r2) {
     char[] out = new char[26];
     enc48(epochMillis, out, 0);
     enc80(r1, r2, out);

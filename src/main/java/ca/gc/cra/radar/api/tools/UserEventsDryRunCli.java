@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import ca.gc.cra.radar.util.PathUtils;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,18 +232,13 @@ public final class UserEventsDryRunCli {
     Map<String, Path> requests = new TreeMap<>();
     Map<String, Path> responses = new TreeMap<>();
     try (var stream = Files.list(directory)) {
-      stream.forEach(path -> {
-        Path fileName = path.getFileName();
-        if (fileName == null) {
-          return;
-        }
-        String name = fileName.toString();
+      stream.forEach(path -> PathUtils.fileName(path).ifPresent(name -> {
         if (name.endsWith("-request.txt")) {
           requests.put(name.substring(0, name.length() - "-request.txt".length()), path);
         } else if (name.endsWith("-response.txt")) {
           responses.put(name.substring(0, name.length() - "-response.txt".length()), path);
         }
-      });
+      }));
     }
     List<Sample> samples = new ArrayList<>();
     for (Map.Entry<String, Path> entry : requests.entrySet()) {

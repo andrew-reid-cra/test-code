@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import ca.gc.cra.radar.util.PathUtils;
 
 /**
  * Minimal segment file format compatible with legacy segbin (SGB1) files.
@@ -171,14 +172,8 @@ public final class SegmentBinIO {
       }
       try (Stream<Path> stream = Files.list(directory)) {
         files = stream
-            .filter(p -> {
-              Path name = p.getFileName();
-              return name != null && name.toString().endsWith(".segbin");
-            })
-            .sorted(Comparator.comparing(p -> {
-              Path name = p.getFileName();
-              return name != null ? name.toString() : p.toString();
-            }))
+            .filter(p -> PathUtils.fileName(p).map(name -> name.endsWith(".segbin")).orElse(false))
+            .sorted(Comparator.comparing(p -> PathUtils.fileName(p).orElse(p.toString())))
             .collect(Collectors.toList());
       }
       openNext();

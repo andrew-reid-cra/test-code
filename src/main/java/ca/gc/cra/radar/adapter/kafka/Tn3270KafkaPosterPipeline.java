@@ -140,8 +140,7 @@ public final class Tn3270KafkaPosterPipeline implements PosterPipeline {
       BinaryMessage response = parseBinaryMessage(extractObject(json, "response"));
       return new TnPair(txId, startTs, endTs, client, server, request, response);
     } catch (RuntimeException ex) {
-      log.warn("Failed to parse TN3270 Kafka record", ex);
-      return null;
+      return PosterParseUtils.logParseFailure(log, "TN3270", ex);
     }
   }
 

@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import ca.gc.cra.radar.util.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,15 +76,10 @@ final class SegmentPosterProcessor {
     try (Stream<Path> stream = Files.list(directory)) {
       return stream
           .filter(Files::isRegularFile)
-          .filter(p -> {
-            Path name = p.getFileName();
-            if (name == null) {
-              return false;
-            }
-            String file = name.toString();
-            return file.startsWith("index-") && file.endsWith(".ndjson");
-          })
-          .sorted()
+          .filter(p -> PathUtils.fileName(p)
+              .map(name -> name.startsWith("index-") && name.endsWith(".ndjson"))
+              .orElse(false))
+          .sorted(Comparator.comparing(p -> PathUtils.fileName(p).orElse(p.toString())))
           .collect(Collectors.toList());
     }
   }

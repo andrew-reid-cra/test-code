@@ -156,8 +156,7 @@ public final class HttpKafkaPosterPipeline implements PosterPipeline {
       HttpMessage response = parseMessage(extractObject(json, "response"));
       return new HttpPair(txId, startTs, endTs, client, server, request, response);
     } catch (RuntimeException ex) {
-      log.warn("Failed to parse HTTP Kafka record", ex);
-      return null;
+      return PosterParseUtils.logParseFailure(log, "HTTP", ex);
     }
   }
 
