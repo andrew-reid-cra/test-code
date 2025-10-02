@@ -22,26 +22,34 @@ import org.slf4j.LoggerFactory;
 /**
  * Entry point for packet capture using the RADAR port-based pipeline.
  *
+ * <p>Refactoring goals:
+ * <ul>
+ *   <li>Eliminate duplicated usage/invalid-args handling.</li>
+ *   <li>Unify offline vs. live capture logging into a single flow.</li>
+ *   <li>Keep public behavior and outputs stable.</li>
+ * </ul>
+ *
  * @since RADAR 0.1-doc
  */
 public final class CaptureCli {
+
   private static final Logger log = LoggerFactory.getLogger(CaptureCli.class);
+
   private static final String MODE_CAPTURE = "capture";
+
   private static final String SUMMARY_USAGE =
       "usage: capture [iface=<nic>|pcapFile=<path>] [out=PATH|out=kafka:TOPIC] [ioMode=FILE|KAFKA] "
           + "[protocol=GENERIC|TN3270] [snaplen=64-262144] [bufmb=4-4096] [timeout=0-60000] [rollMiB=8-10240] "
           + "[--enable-bpf --bpf='expr'] [--dry-run] [--allow-overwrite] "
           + "[metricsExporter=otlp|none] [otelEndpoint=URL] [otelResourceAttributes=K=V,...]";
+
   private static final String HELP_TEXT = """
       RADAR capture pipeline
-
       Usage:
         capture [iface=<nic>|pcapFile=<path>] [options]
-
       Required (choose one):
         iface=NAME                Network interface to capture from (e.g., en0)
         pcapFile=PATH             Offline pcap/pcapng trace to replay instead of live capture
-
       Optional (validated):
         out=PATH                  Capture output directory (default ~/.radar/out/capture/segments)
         out=kafka:TOPIC           Write segments to Kafka topic (A-Z, a-z, 0-9, ., _, -)
@@ -63,7 +71,6 @@ public final class CaptureCli {
         otelResourceAttributes=K=V  Comma-separated OTel resource attributes
         --verbose                 Enable DEBUG logging for troubleshooting
         --help                    Show this message
-
       Notes:
         ? Directories are canonicalized and must be writable; reuse requires --allow-overwrite.
         ? Kafka topics are sanitized to [A-Za-z0-9._-].
@@ -72,7 +79,9 @@ public final class CaptureCli {
         ? Custom BPF expressions emit a SECURITY warning in logs when enabled.
       """;
 
-  private CaptureCli() {}
+  private CaptureCli() {
+    // no instances
+  }
 
   /**
    * Entry point invoked by the JVM.
@@ -92,72 +101,75 @@ public final class CaptureCli {
    */
   static ExitCode run(String[] args) {
     CliInput input = CliInput.parse(args);
+
     if (input.help()) {
       CliPrinter.println(HELP_TEXT.stripTrailing());
       return ExitCode.SUCCESS;
     }
 
     enableVerboseIfRequested(input);
+
     CliSwitches switches = CliSwitches.fromInput(input);
 
-    Map<String, String> cliKv;
+    // --- Parse CLI key=value args
+    final Map<String, String> cliKv;
     try {
       cliKv = new LinkedHashMap<>(CliArgsParser.toMap(input.keyValueArgs()));
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid argument: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+      return invalidArgs("Invalid argument: {}", ex.getMessage());
     }
 
+    // Extract optional config path and propagate enable-bpf gate.
     String configPath = ConfigCliUtils.extractConfigPath(cliKv);
     applyEnableBpfIfRequested(cliKv, switches);
 
-    Optional<Map<String, String>> yamlConfig;
+    // --- Load YAML (optional)
+    final Optional<Map<String, String>> yamlConfig;
     try {
       yamlConfig = loadYamlConfig(configPath);
     } catch (CliAbort abort) {
       return abort.exitCode();
     }
 
-    Map<String, String> effective;
+    // --- Build effective config (defaults ← YAML ← CLI)
+    final Map<String, String> effective;
     try {
       effective = buildEffectiveConfig(yamlConfig, cliKv);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid capture configuration: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+      return invalidArgs("Invalid capture configuration: {}", ex.getMessage());
     }
 
+    // Merge runtime flags (switches may be overridden/augmented by config)
     ExecutionFlags flags = ExecutionFlags.from(switches, effective);
 
+    // Prepare final inputs for CaptureConfig + metrics configure
     Map<String, String> configInputs = new LinkedHashMap<>(effective);
     String metricsExporter = effective.getOrDefault("metricsExporter", "otlp");
     TelemetryConfigurator.configureMetrics(configInputs);
 
-    CaptureConfig captureCfg;
+    // --- Materialize CaptureConfig
+    final CaptureConfig captureCfg;
     try {
       captureCfg = CaptureConfig.fromMap(configInputs);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid capture arguments: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+      return invalidArgs("Invalid capture arguments: {}", ex.getMessage());
     }
 
     logConfiguredPipeline(captureCfg, metricsExporter);
 
+    // --- Validate offline/pcap inputs
     OfflineValidation offlineValidation = validateOfflineCapture(captureCfg, cliKv);
     if (!offlineValidation.succeeded()) {
       return offlineValidation.exitCode();
     }
     boolean offline = offlineValidation.offline();
 
-    CaptureCliSupport.ValidatedPaths validated;
+    // --- Validate output paths (and create if not dry-run)
+    final CaptureCliSupport.ValidatedPaths validated;
     try {
       validated = CaptureCliSupport.validateOutputs(captureCfg, flags.allowOverwrite(), !flags.dryRun());
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid output path configuration: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      return ExitCode.INVALID_ARGS;
+      return invalidArgs("Invalid output path configuration: {}", ex.getMessage());
     }
 
     if (flags.dryRun()) {
@@ -166,8 +178,14 @@ public final class CaptureCli {
     }
 
     logFilterSelection(captureCfg);
+
+    // --- Execute pipeline (unified logging for offline vs live)
     return executeCapturePipeline(captureCfg, offline);
   }
+
+  // ----------------------
+  // Helpers / Refactoring
+  // ----------------------
 
   private static void enableVerboseIfRequested(CliInput input) {
     if (input.verbose()) {
@@ -178,6 +196,7 @@ public final class CaptureCli {
 
   private static void applyEnableBpfIfRequested(Map<String, String> cliKv, CliSwitches switches) {
     if (switches.enableBpf()) {
+      // Gate enables accepting custom BPF expression provided elsewhere in inputs.
       cliKv.put("enableBpf", "true");
     }
   }
@@ -186,20 +205,14 @@ public final class CaptureCli {
     if (configPath == null) {
       return Optional.empty();
     }
-
     Path yamlPath = Path.of(configPath);
     if (!Files.exists(yamlPath)) {
-      log.error("Configuration file does not exist: {}", yamlPath);
-      CliPrinter.println(SUMMARY_USAGE);
-      throw new CliAbort(ExitCode.INVALID_ARGS);
+      throw new CliAbort(invalidArgs("Configuration file does not exist: {}", yamlPath));
     }
-
     try {
       return YamlConfigLoader.load(yamlPath, MODE_CAPTURE);
     } catch (IllegalArgumentException ex) {
-      log.error("Invalid YAML configuration: {}", ex.getMessage());
-      CliPrinter.println(SUMMARY_USAGE);
-      throw new CliAbort(ExitCode.INVALID_ARGS);
+      throw new CliAbort(invalidArgs("Invalid YAML configuration: {}", ex.getMessage()));
     } catch (IOException ex) {
       log.error("Unable to read configuration file {}", yamlPath, ex);
       throw new CliAbort(ExitCode.IO_ERROR);
@@ -213,14 +226,11 @@ public final class CaptureCli {
   }
 
   private static void logConfiguredPipeline(CaptureConfig captureCfg, String metricsExporter) {
-    String sink = captureCfg.ioMode() == IoMode.KAFKA
+    String sink = (captureCfg.ioMode() == IoMode.KAFKA)
         ? captureCfg.kafkaTopicSegments()
         : captureCfg.outputDirectory().toString();
-    log.info(
-        "Configured capture pipeline: ioMode={}, sink={}, metricsExporter={}",
-        captureCfg.ioMode(),
-        sink,
-        metricsExporter);
+    log.info("Configured capture pipeline: ioMode={}, sink={}, metricsExporter={}",
+        captureCfg.ioMode(), sink, metricsExporter);
   }
 
   private static OfflineValidation validateOfflineCapture(
@@ -232,17 +242,13 @@ public final class CaptureCli {
 
     Path pcapPath = captureCfg.pcapFile();
     if (!Files.isRegularFile(pcapPath) || !Files.isReadable(pcapPath)) {
-      log.error("pcapFile must reference a readable file: {}", pcapPath);
-      CliPrinter.println(SUMMARY_USAGE);
-      return OfflineValidation.failure(ExitCode.INVALID_ARGS);
+      return OfflineValidation.failure(invalidArgs("pcapFile must reference a readable file: {}", pcapPath));
     }
 
     String ifaceArg = cliKv.get("iface");
-    if (ifaceArg != null && !ifaceArg.isBlank()) {
-      log.warn(
-          "Ignoring iface={} because pcapFile={} was provided",
-          Logs.truncate(ifaceArg, 32),
-          captureCfg.pcapFile());
+    if (!isBlank(ifaceArg)) {
+      log.warn("Ignoring iface={} because pcapFile={} was provided",
+          Logs.truncate(ifaceArg, 32), pcapPath);
     }
 
     return OfflineValidation.offlineSuccess();
@@ -250,14 +256,11 @@ public final class CaptureCli {
 
   private static void logFilterSelection(CaptureConfig captureCfg) {
     if (captureCfg.customBpfEnabled()) {
-      log.warn(
-          "SECURITY: Custom BPF expression enabled ({} bytes)",
-          captureCfg.filter().length());
+      log.warn("SECURITY: Custom BPF expression enabled ({} bytes)", captureCfg.filter().length());
       log.debug("SECURITY: BPF expression '{}'", Logs.truncate(captureCfg.filter(), 128));
       return;
     }
-
-    String filterSource = captureCfg.protocol() == CaptureProtocol.GENERIC
+    String filterSource = (captureCfg.protocol() == CaptureProtocol.GENERIC)
         ? "safe default"
         : captureCfg.protocol().displayName() + " default";
     log.info("Using {} BPF filter '{}'", filterSource, captureCfg.filter());
@@ -268,45 +271,65 @@ public final class CaptureCli {
         new CompositionRoot(ca.gc.cra.radar.config.Config.defaults(), captureCfg);
     SegmentCaptureUseCase useCase = root.segmentCaptureUseCase();
 
+    // Compute once and reuse—removes duplicated branches.
+    final String targetLabel = offline ? "pcapFile" : "interface";
+    final String targetValue = offline
+        ? String.valueOf(captureCfg.pcapFile())
+        : String.valueOf(captureCfg.iface());
+
     try {
-      if (offline) {
-        log.info("Starting offline capture from {}", captureCfg.pcapFile());
-      } else {
-        log.info("Starting capture on interface {}", captureCfg.iface());
-      }
+      log.info("Starting capture on {} {}", targetLabel, targetValue);
+
       useCase.run();
-      if (offline) {
-        log.info("Offline capture completed for {}", captureCfg.pcapFile());
-      } else {
-        log.info("Capture completed on interface {}", captureCfg.iface());
-      }
+
+      log.info("Capture completed on {} {}", targetLabel, targetValue);
       return ExitCode.SUCCESS;
+
     } catch (IOException ex) {
-      if (offline) {
-        log.error("Capture I/O failure reading {}", captureCfg.pcapFile(), ex);
-      } else {
-        log.error("Capture I/O failure on interface {}", captureCfg.iface(), ex);
-      }
+      log.error("Capture I/O failure on {} {}", targetLabel, targetValue, ex);
       return ExitCode.IO_ERROR;
+
     } catch (IllegalArgumentException ex) {
       log.error("Capture configuration error: {}", ex.getMessage(), ex);
       return ExitCode.CONFIG_ERROR;
+
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
-      if (offline) {
-        log.error("Capture interrupted while replaying {}", captureCfg.pcapFile(), ex);
-      } else {
-        log.error("Capture interrupted; shutting down interface {}", captureCfg.iface(), ex);
-      }
+      log.error("Capture interrupted on {} {}", targetLabel, targetValue, ex);
       return ExitCode.INTERRUPTED;
+
     } catch (RuntimeException ex) {
       log.error("Unexpected runtime failure in capture pipeline", ex);
       return ExitCode.RUNTIME_FAILURE;
+
     } catch (Exception ex) {
       log.error("Unexpected checked exception in capture pipeline", ex);
       return ExitCode.RUNTIME_FAILURE;
     }
   }
+
+  // ----------------------
+  // Small utilities
+  // ----------------------
+
+  /** Centralized helper: log a validation error, print usage once, and return INVALID_ARGS. */
+  private static ExitCode invalidArgs(String template, Object... args) {
+    log.error(template, args);
+    printUsage();
+    return ExitCode.INVALID_ARGS;
+  }
+
+  private static void printUsage() {
+    CliPrinter.println(SUMMARY_USAGE);
+  }
+
+  private static boolean isBlank(String s) {
+    return s == null || s.isBlank();
+  }
+
+  // ----------------------
+  // Records / simple types
+  // ----------------------
 
   private record CliSwitches(boolean dryRun, boolean allowOverwrite, boolean enableBpf) {
     static CliSwitches fromInput(CliInput input) {
@@ -331,27 +354,23 @@ public final class CaptureCli {
     static OfflineValidation live() {
       return new OfflineValidation(false, null);
     }
-
     static OfflineValidation offlineSuccess() {
       return new OfflineValidation(true, null);
     }
-
     static OfflineValidation failure(ExitCode exitCode) {
       return new OfflineValidation(false, exitCode);
     }
-
     boolean succeeded() {
       return exitCode == null;
     }
   }
 
+  /** Control-flow exception for early CLI aborts with a particular exit code. */
   private static final class CliAbort extends Exception {
     private final ExitCode exitCode;
-
     CliAbort(ExitCode exitCode) {
       this.exitCode = exitCode;
     }
-
     ExitCode exitCode() {
       return exitCode;
     }
