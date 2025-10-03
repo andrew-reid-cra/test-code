@@ -5,8 +5,6 @@ javadocs
 target
 *.log
 *.class
-*.jar
-*.war
 *.iml
 *.ipr
 *.iws
