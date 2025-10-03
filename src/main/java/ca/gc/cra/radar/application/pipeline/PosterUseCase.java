@@ -13,6 +13,8 @@ import ca.gc.cra.radar.domain.protocol.ProtocolId;
 import ca.gc.cra.radar.infrastructure.poster.FilePosterOutputAdapter;
 import ca.gc.cra.radar.infrastructure.poster.HttpPosterPipeline;
 import ca.gc.cra.radar.infrastructure.poster.Tn3270PosterPipeline;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -210,10 +212,41 @@ public final class PosterUseCase {
     String bootstrap = rootConfig.kafkaBootstrap()
         .orElseThrow(() -> new IllegalArgumentException("kafkaBootstrap required for Kafka poster input"));
     return switch (protocol) {
-      case HTTP -> new HttpKafkaPosterPipeline(bootstrap);
-      case TN3270 -> new Tn3270KafkaPosterPipeline(bootstrap);
+      case HTTP -> createHttpKafkaPipeline(bootstrap);
+      case TN3270 -> createTn3270KafkaPipeline(bootstrap);
       default -> throw new IllegalArgumentException("Unsupported protocol: " + protocol);
     };
+  }
+  private PosterPipeline createHttpKafkaPipeline(String bootstrap) {
+    return instantiateKafkaPipeline(HttpKafkaPosterPipeline.class, new Class<?>[] {String.class}, bootstrap);
+  }
+
+  private PosterPipeline createTn3270KafkaPipeline(String bootstrap) {
+    return instantiateKafkaPipeline(Tn3270KafkaPosterPipeline.class, new Class<?>[] {String.class}, bootstrap);
+  }
+
+  private <T> T instantiateKafkaPipeline(Class<T> type, Class<?>[] parameterTypes, Object... args) {
+    try {
+      Constructor<T> ctor = type.getDeclaredConstructor(parameterTypes);
+      ctor.setAccessible(true);
+      return ctor.newInstance(args);
+    } catch (NoSuchMethodException ex) {
+      throw new IllegalStateException(
+          type.getSimpleName() + " missing expected constructor", ex);
+    } catch (InvocationTargetException ex) {
+      Throwable cause = ex.getCause();
+      if (cause instanceof RuntimeException runtime) {
+        throw runtime;
+      }
+      if (cause instanceof Error error) {
+        throw error;
+      }
+      throw new IllegalStateException(
+          "Failed to instantiate " + type.getSimpleName(), cause);
+    } catch (InstantiationException | IllegalAccessException ex) {
+      throw new IllegalStateException(
+          "Unable to create " + type.getSimpleName() + " via reflection", ex);
+    }
   }
 
   private PosterOutputPort selectOutputPort(
